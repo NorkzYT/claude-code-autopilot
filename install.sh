@@ -90,12 +90,41 @@ if [[ -e "$DEST_CLAUDE" && "$FORCE" != "1" ]]; then
   exit 1
 fi
 
-if [[ "$FORCE" == "1" && -e "$DEST_CLAUDE" ]]; then
-  echo "Removing existing: $DEST_CLAUDE"
-  rm -rf "$DEST_CLAUDE"
+LOGS_DIR="${DEST_CLAUDE}/logs"
+
+if [[ -e "$DEST_CLAUDE" && "$FORCE" != "1" ]]; then
+  echo "ERROR: Destination already has .claude/: $DEST_CLAUDE" >&2
+  echo "Re-run with --force to overwrite (logs will be preserved)." >&2
+  exit 1
 fi
 
-echo "Installing to: $DEST_CLAUDE"
-cp -a "$CLAUDE_SRC" "$DEST_CLAUDE"
+mkdir -p "$DEST_CLAUDE"
 
-echo "Done. Installed .claude/ into ${DEST_ABS}"
+if [[ "$FORCE" == "1" && -e "$DEST_CLAUDE" ]]; then
+  echo "Force install: replacing .claude/ contents (preserving logs/)..."
+
+  # Remove everything inside .claude except logs/
+  # - mindepth/maxdepth ensures we only delete direct children
+  find "$DEST_CLAUDE" -mindepth 1 -maxdepth 1 \
+    ! -name "logs" \
+    -exec rm -rf {} +
+
+  # Copy new kit contents in, but do NOT overwrite logs/
+  # Use tar streaming to preserve permissions and copy dotfiles reliably.
+  (
+    cd "$CLAUDE_SRC"
+    tar -cf - . --exclude='./logs'
+  ) | (
+    cd "$DEST_CLAUDE"
+    tar -xf -
+  )
+
+  # Ensure logs exists (and stays)
+  mkdir -p "$LOGS_DIR"
+else
+  echo "Installing to: $DEST_CLAUDE"
+  cp -a "$CLAUDE_SRC/." "$DEST_CLAUDE/"
+  mkdir -p "$LOGS_DIR"
+fi
+
+echo "Done. Installed .claude/ into ${DEST_ABS} (logs preserved)."
