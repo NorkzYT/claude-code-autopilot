@@ -45,6 +45,20 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force
 ```
 
+#### Updating an existing install
+
+To update/refresh the `.claude/` kit in a repo that already has it, run the **same Option 0 command** again:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
+  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force
+```
+
+Notes:
+
+* `--force` overwrites the kit files to match the latest version, while preserving your local `.claude/logs/`.
+* If you want to pin to a specific version, replace `--ref main` with a tag or commit SHA.
+
 ### Option A — copy (simplest)
 
 ```bash
