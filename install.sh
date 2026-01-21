@@ -3,11 +3,7 @@ set -euo pipefail
 
 # Re-exec with bash if run under sh/dash
 if [ -z "${BASH_VERSION:-}" ]; then
-  if command -v bash >/dev/null 2>&1; then
-    exec bash "$0" "$@"
-  fi
-  echo "ERROR: bash is required (not sh)." >&2
-  exit 1
+  exec bash "$0" "$@"
 fi
 
 usage() {
@@ -18,10 +14,10 @@ Usage:
   curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/<ref>/install.sh | bash -s -- [options]
 
 Options:
-  --repo <owner/repo>     Source repo (required)
+  --repo <owner/repo>     Source repo (default: inferred from script URL if possible, else required)
   --ref <branch|tag|sha>  Git ref (default: main)
   --dest <path>           Destination directory (default: current directory)
-  --force                 Overwrite existing .claude/ (preserves .claude/logs/)
+  --force                 Overwrite existing .claude/
 EOF
 }
 
@@ -43,9 +39,6 @@ done
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing dependency: $1" >&2; exit 1; }; }
 need tar
-need find
-need rm
-need cp
 
 DL=""
 if command -v curl >/dev/null 2>&1; then
@@ -58,7 +51,7 @@ else
 fi
 
 if [[ -z "${REPO}" ]]; then
-  echo "ERROR: --repo is required. Example: --repo NorkzYT/claude-code-autopilot" >&2
+  echo "ERROR: --repo is required for now. Example: --repo NorkzYT/claude-code-autopilot" >&2
   exit 1
 fi
 
@@ -81,7 +74,7 @@ fi
 echo "Extracting .claude/ ..."
 tar -xzf "$archive" -C "$extract_dir" --wildcards '*/.claude/*' >/dev/null 2>&1 || true
 
-CLAUDE_SRC="$(find "$extract_dir" -type d -name ".claude" -maxdepth 6 | head -n 1 || true)"
+CLAUDE_SRC="$(find "$extract_dir" -type d -name ".claude" -maxdepth 5 | head -n 1 || true)"
 if [[ -z "$CLAUDE_SRC" ]]; then
   echo "ERROR: .claude/ not found in ${REPO}@${REF}" >&2
   echo "Confirm the source repo actually contains a top-level .claude directory." >&2
@@ -90,45 +83,41 @@ fi
 
 DEST_ABS="$(cd "$DEST" && pwd)"
 DEST_CLAUDE="${DEST_ABS}/.claude"
-DEST_LOGS="${DEST_CLAUDE}/logs"
 
-# If .claude exists and not forcing, bail
 if [[ -e "$DEST_CLAUDE" && "$FORCE" != "1" ]]; then
   echo "ERROR: Destination already has .claude/: $DEST_CLAUDE" >&2
-  echo "Re-run with --force to overwrite (logs preserved)." >&2
+  echo "Re-run with --force to overwrite." >&2
   exit 1
 fi
 
-# Ensure destination exists
-mkdir -p "$DEST_CLAUDE"
-
-if [[ -e "$DEST_CLAUDE" && "$FORCE" == "1" ]]; then
-  echo "Force install: replacing .claude contents (preserving logs/)..."
-
-  # Make sure logs exists before we delete siblings
-  mkdir -p "$DEST_LOGS"
-
-  # Delete everything inside .claude EXCEPT logs
-  # NOTE: -mindepth/-maxdepth ensures only direct children are removed
-  find "$DEST_CLAUDE" -mindepth 1 -maxdepth 1 \
-    ! -name "logs" \
-    -exec rm -rf {} +
-
-  # Copy source .claude into destination, excluding logs
-  # Use tar streaming to preserve perms and avoid nesting
-  (
-    cd "$CLAUDE_SRC"
-    tar --exclude='./logs' -cf - .
-  ) | (
-    cd "$DEST_CLAUDE"
-    tar -xf -
-  )
-
-else
-  echo "Installing to: $DEST_CLAUDE"
-  # Copy contents (not the directory itself) to avoid .claude/.claude nesting
-  cp -a "$CLAUDE_SRC/." "$DEST_CLAUDE/"
-  mkdir -p "$DEST_LOGS"
+if [[ "$FORCE" == "1" && -e "$DEST_CLAUDE" ]]; then
+  echo "Removing existing: $DEST_CLAUDE"
+  rm -rf "$DEST_CLAUDE"
 fi
 
-echo "Done. Installed .claude/ into ${DEST_ABS} (logs preserved)."
+echo "Installing to: $DEST_CLAUDE"
+cp -a "$CLAUDE_SRC" "$DEST_CLAUDE"
+
+# --- Fix permissions/ownership so Claude hooks can write logs ---
+TARGET_USER="${SUDO_USER:-$(id -un)}"
+TARGET_GROUP="$(id -gn "$TARGET_USER" 2>/dev/null || true)"
+
+# If we are root (common in servers/containers), ensure the install is owned by the real user.
+if [[ "$(id -u)" -eq 0 ]]; then
+  if [[ -n "$TARGET_GROUP" ]]; then
+    echo "Setting ownership of .claude to ${TARGET_USER}:${TARGET_GROUP} ..."
+    chown -R "${TARGET_USER}:${TARGET_GROUP}" "$DEST_CLAUDE" || true
+  else
+    echo "Setting ownership of .claude to ${TARGET_USER} ..."
+    chown -R "${TARGET_USER}" "$DEST_CLAUDE" || true
+  fi
+fi
+
+# Ensure logs dir exists and is writable by owner (prevents PermissionError in hooks)
+mkdir -p "$DEST_LOGS"
+chmod u+rwx "$DEST_LOGS" || true
+# If log files already exist, make them owner-writable
+find "$DEST_LOGS" -type f -maxdepth 1 -exec chmod u+rw {} \; 2>/dev/null || true
+
+
+echo "Done. Installed .claude/ into ${DEST_ABS}"
