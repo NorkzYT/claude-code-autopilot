@@ -1,43 +1,28 @@
 #!/usr/bin/env bash
-# shellcheck shell=bash
 set -euo pipefail
 
-# If someone runs: sh install.sh  (dash), re-exec with bash.
+# Re-exec with bash if run under sh/dash
 if [ -z "${BASH_VERSION:-}" ]; then
-  if command -v bash >/dev/null 2>&1; then
-    exec bash "$0" "$@"
-  else
-    echo "ERROR: bash is required (not sh). Install bash and re-run." >&2
-    exit 1
-  fi
+  exec bash "$0" "$@"
 fi
-
-DEFAULT_REPO="NorkzYT/claude-autopilot-kit"   # <-- CHANGE THIS ONCE
-DEFAULT_REF="main"
 
 usage() {
   cat <<'EOF'
-Install .claude/ from claude-autopilot-kit into a repo WITHOUT git clone.
+Install .claude/ into the current repo (or --dest) without git clone.
 
-USAGE
-  curl -fsSL https://raw.githubusercontent.com/<owner>/claude-autopilot-kit/<ref>/install.sh | bash -s -- [options]
+Usage:
+  curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/<ref>/install.sh | bash -s -- [options]
 
-OPTIONS
-  --repo <owner/repo>     Source repo (default: baked into script)
+Options:
+  --repo <owner/repo>     Source repo (default: inferred from script URL if possible, else required)
   --ref <branch|tag|sha>  Git ref (default: main)
   --dest <path>           Destination directory (default: current directory)
-  --force                 Overwrite existing .claude/ if present
-  -h, --help              Show help
-
-EXAMPLES
-  curl -fsSL https://raw.githubusercontent.com/myorg/claude-autopilot-kit/main/install.sh | bash
-  curl -fsSL https://raw.githubusercontent.com/myorg/claude-autopilot-kit/main/install.sh | bash -s -- --force
-  curl -fsSL https://raw.githubusercontent.com/myorg/claude-autopilot-kit/v1.2.0/install.sh | bash -s -- --dest ../some-repo
+  --force                 Overwrite existing .claude/
 EOF
 }
 
 REPO=""
-REF="${DEFAULT_REF}"
+REF="main"
 DEST="."
 FORCE="0"
 
@@ -52,10 +37,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "${REPO}" ]]; then
-  REPO="${DEFAULT_REPO}"
-fi
-
 need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing dependency: $1" >&2; exit 1; }; }
 need tar
 
@@ -69,19 +50,21 @@ else
   exit 1
 fi
 
+if [[ -z "${REPO}" ]]; then
+  echo "ERROR: --repo is required for now. Example: --repo NorkzYT/claude-code-autopilot" >&2
+  exit 1
+fi
+
 tmpdir="$(mktemp -d)"
-cleanup() { rm -rf "$tmpdir"; }
-trap cleanup EXIT
+trap 'rm -rf "$tmpdir"' EXIT
 
 archive="$tmpdir/repo.tgz"
 extract_dir="$tmpdir/extract"
 mkdir -p "$extract_dir"
 
-# Public-friendly tarball URL (no auth needed):
-# https://github.com/<owner>/<repo>/archive/<ref>.tar.gz
 TARBALL_URL="https://github.com/${REPO}/archive/${REF}.tar.gz"
 
-echo "Downloading .claude/ from ${REPO}@${REF} ..."
+echo "Downloading ${REPO}@${REF} ..."
 if [[ "$DL" == "curl" ]]; then
   curl -fsSL "$TARBALL_URL" -o "$archive"
 else
@@ -91,9 +74,10 @@ fi
 echo "Extracting .claude/ ..."
 tar -xzf "$archive" -C "$extract_dir" --wildcards '*/.claude/*' >/dev/null 2>&1 || true
 
-CLAUDE_SRC="$(find "$extract_dir" -type d -name ".claude" -maxdepth 4 | head -n 1 || true)"
+CLAUDE_SRC="$(find "$extract_dir" -type d -name ".claude" -maxdepth 5 | head -n 1 || true)"
 if [[ -z "$CLAUDE_SRC" ]]; then
   echo "ERROR: .claude/ not found in ${REPO}@${REF}" >&2
+  echo "Confirm the source repo actually contains a top-level .claude directory." >&2
   exit 1
 fi
 
@@ -106,7 +90,6 @@ if [[ -e "$DEST_CLAUDE" && "$FORCE" != "1" ]]; then
   exit 1
 fi
 
-mkdir -p "$DEST_ABS"
 if [[ "$FORCE" == "1" && -e "$DEST_CLAUDE" ]]; then
   echo "Removing existing: $DEST_CLAUDE"
   rm -rf "$DEST_CLAUDE"
@@ -115,5 +98,4 @@ fi
 echo "Installing to: $DEST_CLAUDE"
 cp -a "$CLAUDE_SRC" "$DEST_CLAUDE"
 
-echo "Done."
-echo "Next: cp .claude/settings.local.json .claude/settings.json  (if your setup expects settings.json)"
+echo "Done. Installed .claude/ into ${DEST_ABS}"
