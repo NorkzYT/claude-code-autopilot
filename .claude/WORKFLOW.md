@@ -1,0 +1,242 @@
+# Claude Code Session Startup Guide (My Workflow)
+
+This file is for **my own reference**: how I start Claude Code sessions, when I use plan mode, and how I run tasks end-to-end using my agents (Promptsmith / Shipper / Runbook).
+
+---
+
+## Core principles (keep it simple)
+
+- **Smallest change that works.**
+- **Discover repo context first** (search + read) before deciding architecture.
+- **Always include verification** (tests/lint/build or clear manual checks).
+- **Logging rule:** use `internalLog.{debug,info,warn,error}` when adding logs.
+
+---
+
+## Recommended start command (safe default)
+
+Prefer starting in plan mode:
+
+````bash
+claude --permission-mode plan
+
+
+Then move to execution when the plan is good:
+
+```bash
+claude --permission-mode ask
+# or (if you fully trust your allowlist/hooks)
+claude --permission-mode allow
+````
+
+---
+
+## If I insist on using `--dangerously-skip-permissions`
+
+### Reality check
+
+Using:
+
+```bash
+claude --dangerously-skip-permissions
+```
+
+means:
+
+- Claude can run tools/commands without asking.
+- **My hooks/guards become my primary safety net.**
+- Any overly-broad formatter hook can cause noisy diffs.
+- Any missing deny pattern can cause damage.
+
+### When I use it
+
+Only when ALL of the following are true:
+
+- Repo is trusted + local environment is safe.
+- My `guard_bash.py` is active.
+- My denylist blocks destructive/network/privileged commands.
+- I’m doing a focused change (not exploratory/random commands).
+
+### Extra precautions (do these)
+
+- Keep `git commit` denied by default.
+- Keep network tools denied (`curl`, `wget`, `ssh`, `scp`, `rsync`).
+- Keep deletes denied (`rm`, `del`, `rmdir`).
+- Prefer formatting only **edited files**, not `prettier --write .`.
+
+---
+
+## My standard flow (Promptsmith → Shipper → Review → Runbook)
+
+### 0) Open repo root
+
+```bash
+cd /path/to/repo
+```
+
+### 1) Start Claude Code
+
+Pick one:
+
+**Safer (recommended):**
+
+```bash
+claude --permission-mode plan
+```
+
+**Fast (risky):**
+
+```bash
+claude --dangerously-skip-permissions
+```
+
+### 2) Convert my raw task into an execution-ready starter prompt
+
+Use the Promptsmith subagent:
+
+```text
+Use the promptsmith subagent.
+
+INPUT
+<<<
+<PASTE MY RAW TASK HERE>
+>>>
+```
+
+Promptsmith outputs:
+
+- CLAUDE CODE STARTER PROMPT (pasteable)
+- ACCEPTANCE CRITERIA
+- DEBUGGING PLAYBOOK
+- FOLLOW-UP PROMPTS
+- RISKS & TRAPS
+
+### 3) Execute with Shipper
+
+Take Promptsmith’s “CLAUDE CODE STARTER PROMPT” and run:
+
+```text
+Use the shipper subagent.
+
+<PASTE THE STARTER PROMPT HERE>
+```
+
+**In plan mode**, Shipper should:
+
+- restate goal + assumptions
+- produce TODO + file targets
+- propose verification commands
+  I confirm it looks sane, then switch permission mode and say “Proceed.”
+
+### 4) Quick review pass (optional and recommended)
+
+```text
+Use the surgical-reviewer subagent.
+
+Review the recent changes and call out risks, missed edge cases, and any style mismatches.
+```
+
+### 5) If stuck or “fixed” and still broken → Runbook
+
+```text
+Use the runbook subagent.
+
+Original Task:
+<<<
+<PASTE>
+>>>
+
+Claude Output / Transcript:
+<<<
+<PASTE>
+>>>
+
+Observed Behavior / Logs:
+<<<
+<PASTE>
+>>>
+```
+
+Runbook returns the exact next message I should paste.
+
+---
+
+## Default “Kickoff prompt” template (use instead of giant identity prompts)
+
+I do NOT need “You are a master developer…”. Use this:
+
+```text
+Operating rules:
+- Start with TODO + Definition of Done.
+- Discover repo context via rg/read before deciding.
+- Make the smallest change that satisfies the task; follow existing patterns.
+- Logs must use internalLog.{debug,info,warn,error}.
+- Always include verification steps and report exactly what you ran + results.
+
+Task:
+<PASTE TASK>
+
+Definition of done:
+- [ ] <measurable outcome 1>
+- [ ] <measurable outcome 2>
+- [ ] Verification passes (tests/lint/build or explicit manual checks)
+```
+
+---
+
+## “MVP Foundation + Offline Architecture + Repo/Environments” flow
+
+When the task is strategic (docs + architecture + scaffolding), do this:
+
+1. Start in plan mode:
+
+```bash
+claude --permission-mode plan
+```
+
+2. Run Promptsmith on my MVP scope:
+
+- Ask it to produce:
+  - scope boundaries (in/out)
+  - offline strategy (storage/sync/conflicts/failure modes)
+  - repo layout + env strategy (dev/staging/prod)
+  - week 1/week 2 milestones
+  - verification steps
+
+3. Run Shipper to:
+
+- inspect repo (if exists)
+- write docs:
+  - `docs/architecture/offline.md` (or similar)
+  - `docs/environments.md`
+  - `docs/repo-structure.md`
+
+- add minimal scaffolding (only if needed):
+  - example `.env.example`
+  - env validation (if repo already has a pattern)
+  - basic folder structure (only if repo is empty)
+
+4. Switch to ask/allow for actual file changes.
+
+---
+
+## My “done” checklist (before I stop)
+
+- [ ] TODO items completed or explicitly deferred
+- [ ] Definition of Done satisfied
+- [ ] Verification commands run (or clear manual checks listed)
+- [ ] Summary includes:
+  - what changed
+  - where to look
+  - how to run checks
+  - follow-ups / risks
+
+---
+
+## Notes for my current permissions setup
+
+- I deny `git commit`, I either:
+  - commit manually myself, or
+  - temporarily allow commit for a specific command (preferred: manual)
+
+- If formatting is noisy, disable formatting hook or make it per-file.
