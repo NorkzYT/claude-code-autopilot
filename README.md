@@ -36,6 +36,15 @@ Tool permissions allowlist/denylist + hook wiring.
 
 From the **target repo root** (the repo you want Claude to work on), bring in this kit’s `.claude/` folder:
 
+### Option 0 — one-liner installer (recommended)
+
+From the **target repo root**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
+  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force
+```
+
 ### Option A — copy (simplest)
 
 ```bash
