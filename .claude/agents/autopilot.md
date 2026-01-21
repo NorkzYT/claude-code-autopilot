@@ -31,8 +31,21 @@ Workflow:
 7. If verification failed:
    - Use Task tool to run triage subagent with the error output.
    - Apply the smallest patch and rerun verification once.
-8. Summarize:
-   - What changed, where, why; how verified; follow-ups/risks.
+8. If issues remain after step 7:
+   - Use Task tool to run autopilot-fixer subagent with:
+     - Original Task (the kickoff prompt)
+     - Prior Output (summary of changes made so far)
+     - Observed Behavior (remaining errors/failures)
+   - autopilot-fixer gets one bounded patch iteration.
+9. Closing pass:
+   - Use Task tool to run closer subagent with:
+     - DoD from step 2
+     - Changed files list
+     - Any context/notes about what to verify
+   - closer confirms work is done and produces PR-ready summary.
+10. Summarize:
+    - What changed, where, why; how verified; follow-ups/risks.
+    - Include closer's PR-ready output if available.
 
 INPUT
 <<<
