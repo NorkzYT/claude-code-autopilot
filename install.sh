@@ -3,7 +3,11 @@ set -euo pipefail
 
 # Re-exec with bash if run under sh/dash
 if [ -z "${BASH_VERSION:-}" ]; then
-  exec bash "$0" "$@"
+  if command -v bash >/dev/null 2>&1; then
+    exec bash "$0" "$@"
+  fi
+  echo "ERROR: bash is required (not sh)." >&2
+  exit 1
 fi
 
 usage() {
@@ -14,10 +18,10 @@ Usage:
   curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/<ref>/install.sh | bash -s -- [options]
 
 Options:
-  --repo <owner/repo>     Source repo (default: inferred from script URL if possible, else required)
+  --repo <owner/repo>     Source repo (required)
   --ref <branch|tag|sha>  Git ref (default: main)
   --dest <path>           Destination directory (default: current directory)
-  --force                 Overwrite existing .claude/
+  --force                 Overwrite existing .claude/ (preserves .claude/logs/)
 EOF
 }
 
@@ -39,6 +43,9 @@ done
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing dependency: $1" >&2; exit 1; }; }
 need tar
+need find
+need rm
+need cp
 
 DL=""
 if command -v curl >/dev/null 2>&1; then
@@ -51,7 +58,7 @@ else
 fi
 
 if [[ -z "${REPO}" ]]; then
-  echo "ERROR: --repo is required for now. Example: --repo NorkzYT/claude-code-autopilot" >&2
+  echo "ERROR: --repo is required. Example: --repo NorkzYT/claude-code-autopilot" >&2
   exit 1
 fi
 
@@ -74,7 +81,7 @@ fi
 echo "Extracting .claude/ ..."
 tar -xzf "$archive" -C "$extract_dir" --wildcards '*/.claude/*' >/dev/null 2>&1 || true
 
-CLAUDE_SRC="$(find "$extract_dir" -type d -name ".claude" -maxdepth 5 | head -n 1 || true)"
+CLAUDE_SRC="$(find "$extract_dir" -type d -name ".claude" -maxdepth 6 | head -n 1 || true)"
 if [[ -z "$CLAUDE_SRC" ]]; then
   echo "ERROR: .claude/ not found in ${REPO}@${REF}" >&2
   echo "Confirm the source repo actually contains a top-level .claude directory." >&2
@@ -83,34 +90,32 @@ fi
 
 DEST_ABS="$(cd "$DEST" && pwd)"
 DEST_CLAUDE="${DEST_ABS}/.claude"
+DEST_LOGS="${DEST_CLAUDE}/logs"
 
+# If .claude exists and not forcing, bail
 if [[ -e "$DEST_CLAUDE" && "$FORCE" != "1" ]]; then
   echo "ERROR: Destination already has .claude/: $DEST_CLAUDE" >&2
-  echo "Re-run with --force to overwrite." >&2
+  echo "Re-run with --force to overwrite (logs preserved)." >&2
   exit 1
 fi
 
-LOGS_DIR="${DEST_CLAUDE}/logs"
-
-if [[ -e "$DEST_CLAUDE" && "$FORCE" != "1" ]]; then
-  echo "ERROR: Destination already has .claude/: $DEST_CLAUDE" >&2
-  echo "Re-run with --force to overwrite (logs will be preserved)." >&2
-  exit 1
-fi
-
+# Ensure destination exists
 mkdir -p "$DEST_CLAUDE"
 
-if [[ "$FORCE" == "1" && -e "$DEST_CLAUDE" ]]; then
-  echo "Force install: replacing .claude/ contents (preserving logs/)..."
+if [[ -e "$DEST_CLAUDE" && "$FORCE" == "1" ]]; then
+  echo "Force install: replacing .claude contents (preserving logs/)..."
 
-  # Remove everything inside .claude except logs/
-  # - mindepth/maxdepth ensures we only delete direct children
+  # Make sure logs exists before we delete siblings
+  mkdir -p "$DEST_LOGS"
+
+  # Delete everything inside .claude EXCEPT logs
+  # NOTE: -mindepth/-maxdepth ensures only direct children are removed
   find "$DEST_CLAUDE" -mindepth 1 -maxdepth 1 \
     ! -name "logs" \
     -exec rm -rf {} +
 
-  # Copy new kit contents in, but do NOT overwrite logs/
-  # Use tar streaming to preserve permissions and copy dotfiles reliably.
+  # Copy source .claude into destination, excluding logs
+  # Use tar streaming to preserve perms and avoid nesting
   (
     cd "$CLAUDE_SRC"
     tar -cf - . --exclude='./logs'
@@ -119,12 +124,11 @@ if [[ "$FORCE" == "1" && -e "$DEST_CLAUDE" ]]; then
     tar -xf -
   )
 
-  # Ensure logs exists (and stays)
-  mkdir -p "$LOGS_DIR"
 else
   echo "Installing to: $DEST_CLAUDE"
+  # Copy contents (not the directory itself) to avoid .claude/.claude nesting
   cp -a "$CLAUDE_SRC/." "$DEST_CLAUDE/"
-  mkdir -p "$LOGS_DIR"
+  mkdir -p "$DEST_LOGS"
 fi
 
 echo "Done. Installed .claude/ into ${DEST_ABS} (logs preserved)."
