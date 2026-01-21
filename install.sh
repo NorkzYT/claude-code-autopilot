@@ -148,9 +148,13 @@ if [[ "$(id -u)" -eq 0 ]]; then
   fi
 fi
 
-# Ensure logs dir exists and is writable by owner
+# Ensure logs dir exists and is writable by any user (safe-ish: sticky bit like /tmp)
 mkdir -p "$DEST_LOGS"
-chmod u+rwx "$DEST_LOGS" || true
-find "$DEST_LOGS" -type f -maxdepth 1 -exec chmod u+rw {} \; 2>/dev/null || true
+
+# 1777 = rwx for everyone + sticky bit (prevents users from deleting others' files)
+chmod 1777 "$DEST_LOGS" || true
+
+# Make existing log files writable by everyone too (in case they were created root-only earlier)
+find "$DEST_LOGS" -type f -maxdepth 1 -exec chmod 666 {} \; 2>/dev/null || true
 
 echo "Done. Installed .claude/ into ${DEST_ABS} (logs preserved)."
