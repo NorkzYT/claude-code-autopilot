@@ -118,7 +118,7 @@ if [[ -e "$DEST_CLAUDE" && "$FORCE" == "1" ]]; then
   # Use tar streaming to preserve perms and avoid nesting
   (
     cd "$CLAUDE_SRC"
-    tar -cf - . --exclude='./logs'
+    tar --exclude='./logs' -cf - .
   ) | (
     cd "$DEST_CLAUDE"
     tar -xf -
