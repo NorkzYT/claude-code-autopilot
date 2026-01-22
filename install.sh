@@ -22,7 +22,9 @@ Options:
   --ref <branch|tag|sha>    Git ref (default: main)
   --dest <path>             Destination directory (default: current directory)
   --force                   Overwrite existing .claude/ (preserves .claude/logs/)
-  --bootstrap-linux         Linux-only: run .claude/bootstrap/linux_devtools.sh after install
+  --bootstrap-linux         Linux-only: run full bootstrap (devtools + extras)
+                            Includes: linux_devtools.sh, install-extras.sh (wshobson agents/commands)
+  --no-extras               Skip installing extras (wshobson agents/commands/skills)
 EOF
 }
 
@@ -31,6 +33,7 @@ REF="main"
 DEST="."
 FORCE="0"
 BOOTSTRAP_LINUX="0"
+NO_EXTRAS="0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -39,6 +42,7 @@ while [[ $# -gt 0 ]]; do
     --dest)   DEST="${2:-}"; shift 2;;
     --force)  FORCE="1"; shift 1;;
     --bootstrap-linux) BOOTSTRAP_LINUX="1"; shift 1;;
+    --no-extras) NO_EXTRAS="1"; shift 1;;
     -h|--help) usage; exit 0;;
     *) echo "Unknown arg: $1" >&2; usage; exit 2;;
   esac
@@ -85,15 +89,19 @@ else
   wget -qO "$archive" "$TARBALL_URL"
 fi
 
-echo "Extracting .claude/ ..."
-tar -xzf "$archive" -C "$extract_dir" --wildcards '*/.claude/*' >/dev/null 2>&1 || true
+echo "Extracting .claude/ and extras/ ..."
+tar -xzf "$archive" -C "$extract_dir" --wildcards '*/.claude/*' '*/extras/*' '*/scripts/*' >/dev/null 2>&1 || true
 
+# Find the repo root (parent of .claude)
 CLAUDE_SRC="$(find "$extract_dir" -type d -name ".claude" -maxdepth 6 | head -n 1 || true)"
 if [[ -z "$CLAUDE_SRC" ]]; then
   echo "ERROR: .claude/ not found in ${REPO}@${REF}" >&2
   echo "Confirm the source repo actually contains a top-level .claude directory." >&2
   exit 1
 fi
+REPO_ROOT="$(dirname "$CLAUDE_SRC")"
+EXTRAS_SRC="$REPO_ROOT/extras"
+SCRIPTS_SRC="$REPO_ROOT/scripts"
 
 DEST_ABS="$(cd "$DEST" && pwd)"
 DEST_CLAUDE="${DEST_ABS}/.claude"
@@ -135,6 +143,22 @@ else
   mkdir -p "$DEST_LOGS"
 fi
 
+# Also copy extras/ and scripts/ if they exist
+DEST_EXTRAS="${DEST_ABS}/extras"
+DEST_SCRIPTS="${DEST_ABS}/scripts"
+
+if [[ -d "$EXTRAS_SRC" ]]; then
+  echo "Installing extras/ ..."
+  rm -rf "$DEST_EXTRAS"
+  cp -a "$EXTRAS_SRC" "$DEST_EXTRAS"
+fi
+
+if [[ -d "$SCRIPTS_SRC" ]]; then
+  echo "Installing scripts/ ..."
+  mkdir -p "$DEST_SCRIPTS"
+  cp -a "$SCRIPTS_SRC/." "$DEST_SCRIPTS/"
+fi
+
 # --- Fix permissions/ownership so Claude hooks can write logs ---
 TARGET_USER="${SUDO_USER:-$(id -un)}"
 TARGET_GROUP="$(id -gn "$TARGET_USER" 2>/dev/null || true)"
@@ -158,6 +182,7 @@ find "$DEST_LOGS" -maxdepth 1 -type f -exec chmod 666 {} \; 2>/dev/null || true
 # --- Optional: Linux bootstrap (Claude Code + notify-send + LSP binaries + plugins) ---
 if [[ "$BOOTSTRAP_LINUX" == "1" ]]; then
   if [[ "$(uname -s 2>/dev/null || echo '')" == "Linux" ]]; then
+    # Step 1: Run linux_devtools.sh (installs git, rsync, python3, etc.)
     BOOTSTRAP_SCRIPT="$DEST_CLAUDE/bootstrap/linux_devtools.sh"
     if [[ -f "$BOOTSTRAP_SCRIPT" ]]; then
       echo "Running Linux bootstrap: $BOOTSTRAP_SCRIPT"
@@ -177,9 +202,41 @@ if [[ "$BOOTSTRAP_LINUX" == "1" ]]; then
     else
       echo "WARN: bootstrap script not found at $BOOTSTRAP_SCRIPT"
     fi
+
+    # Step 2: Run install-extras.sh (installs wshobson agents/commands/skills)
+    if [[ "$NO_EXTRAS" != "1" ]]; then
+      EXTRAS_SCRIPT="$DEST_EXTRAS/install-extras.sh"
+      if [[ -f "$EXTRAS_SCRIPT" ]]; then
+        echo ""
+        echo "Running extras installer: $EXTRAS_SCRIPT"
+        chmod +x "$EXTRAS_SCRIPT" 2>/dev/null || true
+
+        if [[ "$(id -u)" -eq 0 ]]; then
+          if command -v su >/dev/null 2>&1; then
+            su - "$TARGET_USER" -c "bash \"$EXTRAS_SCRIPT\" \"$DEST_ABS\""
+          else
+            echo "WARN: 'su' not found; running extras as root."
+            bash "$EXTRAS_SCRIPT" "$DEST_ABS"
+          fi
+        else
+          bash "$EXTRAS_SCRIPT" "$DEST_ABS"
+        fi
+      else
+        echo "WARN: extras installer not found at $EXTRAS_SCRIPT"
+      fi
+    else
+      echo "Skipping extras installation (--no-extras specified)."
+    fi
   else
     echo "Skipping --bootstrap-linux (not Linux)."
   fi
 fi
 
+echo ""
 echo "Done. Installed .claude/ into ${DEST_ABS} (logs preserved)."
+echo ""
+echo "Available tools:"
+echo "  - extras/doctor.sh          Validate .claude/ configuration"
+echo "  - extras/install-extras.sh  Install/update wshobson agents & commands"
+echo ""
+echo "Restart Claude Code to re-index agents/skills/commands."

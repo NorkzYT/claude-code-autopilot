@@ -1,1 +1,18 @@
 *logs
+
+# Python bytecode (created when hooks run)
+__pycache__/
+*.pyc
+
+# Vendored external repos (cloned by extras/install-extras.sh)
+.claude/vendor/
+
+# Synced commands from wshobson/commands (keep these out of git)
+.claude/commands/tools/
+.claude/commands/workflows/
+
+# Synced skills from external repos
+.claude/skills/wshobson-*
+
+# Local settings (may contain user-specific paths)
+.claude/settings.local.json

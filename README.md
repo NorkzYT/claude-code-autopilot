@@ -2,8 +2,10 @@
 
 A reusable `.claude/` setup for **Claude Code** that boosts one-shot task completion by enforcing a simple, repeatable pipeline:
 
-**promptsmith → autopilot/shipper → (triage) → autopilot-fixer → closer**  
-…with **permissions guardrails**, **auto-format on touched files (when configured)**, and **session logging**.
+**promptsmith → autopilot/shipper → (triage) → autopilot-fixer → closer**
+…with **permissions guardrails**, **supply-chain security**, **auto-format on touched files**, and **session logging**.
+
+Optionally integrates curated agents/commands from [wshobson/commands](https://github.com/wshobson/commands) and [wshobson/agents](https://github.com/wshobson/agents) for additional productivity operators.
 
 ## What’s inside
 
@@ -19,11 +21,24 @@ A reusable `.claude/` setup for **Claude Code** that boosts one-shot task comple
 
 ### Hooks (`.claude/hooks/`)
 
-- **guard_bash.py** — blocks obviously dangerous bash patterns (e.g., `rm -rf`, pipe-to-shell).
+- **guard_bash.py** — blocks dangerous bash patterns + supply-chain attacks:
+  - Destructive commands: `rm -rf`, `sudo`, `mkfs`
+  - Remote code execution: `curl|bash`, `wget|sh`, base64-to-shell
+  - Supply-chain: `npx` (hallucinated packages), `npm install` (postinstall scripts), `pip install` from URLs
+  - Allowlist support for trusted packages
 - **format_if_configured.py** — formats the _edited file only_ when a formatter config exists:
   - JS/TS: runs Prettier if `.prettierrc*` exists
   - Python: runs Black if `pyproject.toml` exists
 - **log_prompt.py / log_bash.py / log_assistant.py** — appends to `.claude/logs/*` for traceability.
+
+### Extras (`extras/`)
+
+- **install-extras.sh** — vendor-sync installer for external repos (wshobson commands/agents)
+- **doctor.sh** — validates `.claude/` configuration, settings schema, and hooks
+
+### Scripts (`scripts/`)
+
+- **install-opencode-ohmy.sh** — optional installer for OpenCode + oh-my-opencode (separate toolchain, see ToS warning)
 
 ### Settings (`.claude/settings.local.json`)
 
@@ -34,24 +49,53 @@ Tool permissions allowlist/denylist + hook wiring.
 
 ## Install (use this kit in another repo)
 
-From the **target repo root** (the repo you want Claude to work on), bring in this kit’s `.claude/` folder:
+From the **target repo root** (the repo you want Claude to work on), bring in this kit's `.claude/` folder:
 
-### Option 0 — one-liner installer (recommended)
+### Option 0 — full bootstrap (recommended for Linux)
 
-From the **target repo root**:
+Installs everything: `.claude/`, `extras/`, devtools (git, rsync, python3), and wshobson agents/commands:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
+  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux
+```
+
+This runs:
+1. `linux_devtools.sh` — installs git, rsync, python3, notify-send, LSP binaries
+2. `install-extras.sh` — clones and syncs wshobson commands/agents/skills
+
+### Option 1 — kit only (no extras)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force
 ```
 
-#### Updating an existing install
-
-To update/refresh the `.claude/` kit in a repo that already has it, run the **same Option 0 command** again:
+Or with bootstrap but without wshobson extras:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
-  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force
+  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --no-extras
+```
+
+### Installer options
+
+| Option | Description |
+|--------|-------------|
+| `--repo <owner/repo>` | Source repo (required) |
+| `--ref <branch\|tag\|sha>` | Git ref (default: main) |
+| `--dest <path>` | Destination directory (default: current directory) |
+| `--force` | Overwrite existing `.claude/` (preserves logs) |
+| `--bootstrap-linux` | Run full bootstrap (devtools + extras) |
+| `--no-extras` | Skip wshobson agents/commands/skills |
+
+#### Updating an existing install
+
+To update/refresh the kit, run the **same install command** again with `--force`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
+  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux
 ```
 
 Notes:
@@ -73,11 +117,73 @@ ln -s /path/to/claude-autopilot-kit/.claude .claude
 
 ### Git hygiene
 
-Add logs to `.gitignore` in your target repos:
+Add these to `.gitignore` in your target repos:
 
 ```gitignore
 .claude/logs/
+.claude/vendor/
+.claude/commands/tools/
+.claude/commands/workflows/
+.claude/skills/wshobson-*
 ```
+
+## Extras (wshobson integration)
+
+When installed with `--bootstrap-linux`, you get curated agents and commands from:
+- [wshobson/commands](https://github.com/wshobson/commands) — `/tools:...` and `/workflows:...` operators
+- [wshobson/agents](https://github.com/wshobson/agents) — 72 specialized plugins (14 installed by default)
+
+### Default plugins installed
+
+| Category | Plugins |
+|----------|---------|
+| **Workflow** | full-stack-orchestration, comprehensive-review, security-scanning, backend-development |
+| **Languages** | javascript-typescript, python-development, systems-programming (Go/Rust/C++), jvm-languages, functional-programming |
+| **Quality** | debugging-toolkit, code-refactoring, unit-testing, tdd-workflows, git-pr-workflows |
+
+To install additional plugins, edit `WSHOBSON_AGENT_PLUGINS` in `extras/install-extras.sh`. See [all 72 plugins](https://github.com/wshobson/agents/tree/main/plugins).
+
+### Usage examples
+
+```text
+/workflows:full-stack-feature build user authentication
+/tools:security-scan src/
+```
+
+### Manual extras management
+
+```bash
+# Install/update extras manually
+./extras/install-extras.sh
+
+# Update existing vendor repos
+./extras/install-extras.sh --update
+
+# Install specific components only
+./extras/install-extras.sh --commands    # wshobson/commands only
+./extras/install-extras.sh --agents      # wshobson/agents only
+
+# Show CLI tools guide (viwo, recall, ccusage, etc.)
+./extras/install-extras.sh --cli-info
+```
+
+### Validate configuration
+
+```bash
+./extras/doctor.sh
+```
+
+Checks JSON syntax, settings schema, hook scripts, agent frontmatter, and common issues.
+
+## Optional: OpenCode + oh-my-opencode
+
+A separate toolchain installer is provided for [OpenCode](https://opencode.ai/) + [oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode):
+
+```bash
+./scripts/install-opencode-ohmy.sh
+```
+
+> **Warning**: oh-my-opencode is designed for OpenCode, not Claude Code. The README warns about OAuth/ToS implications when used with Claude Code accounts. This installs as a completely separate toolchain.
 
 ## Recommended daily usage
 
@@ -177,5 +283,8 @@ Changed Files:
 ## Troubleshooting
 
 - **Hooks not running?** Ensure the settings file is the one Claude Code loads (`.claude/settings.json` vs `settings.local.json`).
-- **Formatting didn’t happen?** Prettier requires `.prettierrc*`; Black requires `pyproject.toml`.
+- **Formatting didn't happen?** Prettier requires `.prettierrc*`; Black requires `pyproject.toml`.
 - **A command got blocked?** Check `.claude/hooks/guard_bash.py` patterns and adjust intentionally.
+- **npx/npm blocked?** Supply-chain guardrails block these by default. Add trusted packages to the allowlist in `guard_bash.py`.
+- **Configuration issues?** Run `./extras/doctor.sh` to validate your setup.
+- **Extras not installed?** Run `./extras/install-extras.sh` manually, or reinstall with `--bootstrap-linux`.
