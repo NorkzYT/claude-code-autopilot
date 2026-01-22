@@ -9,9 +9,16 @@ from pathlib import Path, PurePosixPath
 #   export CLAUDE_ALLOW_PROTECTED_EDITS=1
 ALLOW_OVERRIDE_ENV = "CLAUDE_ALLOW_PROTECTED_EDITS"
 
+# Allowlist: these patterns are safe to edit even if they match protected globs
+ALLOWED_PATTERNS = [
+    "**/.env.example",
+    "**/.env.sample",
+    "**/.env.template",
+]
+
 # Conservative defaults. Tune to your org.
 PROTECTED_GLOBS = [
-    # .env and variants
+    # .env and variants (but .env.example/.env.sample/.env.template are allowed above)
     "**/.env",
     "**/.env.*",
 
@@ -65,7 +72,19 @@ def to_project_relative(path_str: str, project_dir: str) -> str:
     return p.as_posix().lstrip("./")
 
 
+def is_allowed(rel_posix: str) -> bool:
+    """Check if file matches an allowed pattern (takes precedence over protected)."""
+    rel = PurePosixPath(rel_posix)
+    for pat in ALLOWED_PATTERNS:
+        if rel.match(pat):
+            return True
+    return False
+
+
 def is_protected(rel_posix: str) -> bool:
+    # Allowlist takes precedence
+    if is_allowed(rel_posix):
+        return False
     rel = PurePosixPath(rel_posix)
     for pat in PROTECTED_GLOBS:
         if rel.match(pat):
