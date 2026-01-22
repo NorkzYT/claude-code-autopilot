@@ -53,15 +53,27 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_files.py\"",
+            "timeout": 3
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log_bash.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log_bash.py\"",
+            "timeout": 5
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_bash.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_bash.py\"",
+            "timeout": 5
           }
         ]
       }
@@ -72,18 +84,41 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/format_if_configured.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/format_if_configured.py\"",
+            "timeout": 45
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log_tool_failure.py\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/notify_linux.py\"",
+            "timeout": 3
           }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
-        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log_prompt.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log_prompt.py\"",
+            "timeout": 5
           }
         ]
       }
@@ -93,7 +128,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log_assistant.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log_assistant.py\"",
+            "timeout": 10
           }
         ]
       }
@@ -103,7 +139,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log_assistant.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log_assistant.py\"",
+            "timeout": 10
           }
         ]
       }
