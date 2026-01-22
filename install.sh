@@ -157,4 +157,31 @@ chmod 1777 "$DEST_LOGS" || true
 # Make existing log files writable by everyone too (in case they were created root-only earlier)
 find "$DEST_LOGS" -type f -maxdepth 1 -exec chmod 666 {} \; 2>/dev/null || true
 
+# --- Optional: Linux bootstrap (Claude Code + notify-send + LSP binaries + plugins) ---
+if [[ "$BOOTSTRAP_LINUX" == "1" ]]; then
+  if [[ "$(uname -s 2>/dev/null || echo '')" == "Linux" ]]; then
+    BOOTSTRAP_SCRIPT="$DEST_CLAUDE/bootstrap/linux_devtools.sh"
+    if [[ -f "$BOOTSTRAP_SCRIPT" ]]; then
+      echo "Running Linux bootstrap: $BOOTSTRAP_SCRIPT"
+      chmod +x "$BOOTSTRAP_SCRIPT" 2>/dev/null || true
+
+      # If installer ran as root, run bootstrap as the target (non-root) user to avoid npm permission hell.
+      if [[ "$(id -u)" -eq 0 ]]; then
+        if command -v su >/dev/null 2>&1; then
+          su - "$TARGET_USER" -c "bash \"$BOOTSTRAP_SCRIPT\""
+        else
+          echo "WARN: 'su' not found; running bootstrap as root."
+          bash "$BOOTSTRAP_SCRIPT"
+        fi
+      else
+        bash "$BOOTSTRAP_SCRIPT"
+      fi
+    else
+      echo "WARN: bootstrap script not found at $BOOTSTRAP_SCRIPT"
+    fi
+  else
+    echo "Skipping --bootstrap-linux (not Linux)."
+  fi
+fi
+
 echo "Done. Installed .claude/ into ${DEST_ABS} (logs preserved)."
