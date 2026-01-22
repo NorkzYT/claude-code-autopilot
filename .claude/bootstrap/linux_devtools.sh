@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-log() { printf "\n==> %s\n" "$*"; }
+log()  { printf "\n==> %s\n" "$*"; }
 warn() { printf "\n[WARN] %s\n" "$*" >&2; }
 
 is_linux() { [[ "$(uname -s 2>/dev/null || echo '')" == "Linux" ]]; }
@@ -10,11 +10,6 @@ has() { command -v "$1" >/dev/null 2>&1; }
 if ! is_linux; then
   warn "linux_devtools.sh is Linux-only. Skipping."
   exit 0
-fi
-
-# Avoid running node/npm installs as root (permission hell)
-if [[ "$(id -u)" -eq 0 ]]; then
-  warn "Running as root. For best results, run bootstrap as a normal user (installer should su to TARGET_USER)."
 fi
 
 # ---- 0) Ensure Claude Code is installed ----
@@ -50,17 +45,15 @@ else
   log "notify-send already installed."
 fi
 
-# ---- 2) Node/npm via fnm (your requested approach) ----
+# ---- 2) Node/npm via fnm ----
 setup_node_fnm() {
   log "Installing Node.js via fnm..."
   if ! has fnm; then
     curl -fsSL https://fnm.vercel.app/install | bash
   fi
 
-  # Make fnm available in this script run
   export PATH="$HOME/.local/share/fnm:$PATH"
   if has fnm; then
-    # shellcheck disable=SC1090
     eval "$(fnm env)"
   else
     warn "fnm not found after install; cannot proceed with Node install."
@@ -68,8 +61,15 @@ setup_node_fnm() {
   fi
 
   log "Installing Node.js LTS..."
-  fnm install --lts || true
-  fnm use --lts || true
+  # Works across fnm variants
+  INSTALL_OUT="$(fnm install lts-latest 2>&1 || true)"
+  LTS_VER="$(printf '%s\n' "$INSTALL_OUT" | sed -nE 's/.*Installing Node (v[0-9]+\.[0-9]+\.[0-9]+).*/\1/p' | head -n1)"
+  if [[ -n "${LTS_VER}" ]]; then
+    fnm use "${LTS_VER}" || true
+    fnm default "${LTS_VER}" || true
+  else
+    fnm use lts-latest || true
+  fi
 
   log "Enabling Corepack and Yarn..."
   corepack enable || true
@@ -83,24 +83,22 @@ setup_node_fnm() {
 
 if ! has npm; then
   warn "npm not found. Installing Node/npm via fnm now..."
-  setup_node_fnm || warn "Node/npm install failed. TS/Pyright language servers will be skipped."
+  setup_node_fnm || warn "Node/npm install failed. JS/Python LSP binaries will be skipped."
 fi
 
-# ---- 3) Install language server binaries ----
-# Official docs: LSP plugins require the language server binary in PATH. :contentReference[oaicite:3]{index=3}
-
+# ---- 3) Install language server binaries (match the plugins we will install) ----
 if has npm; then
-  log "Installing TypeScript language server..."
-  npm i -g typescript typescript-language-server || warn "Failed to install TypeScript language server via npm."
-  log "Installing Pyright (pyright-langserver)..."
+  log "Installing vtsls (TypeScript/JS language server) + typescript..."
+  npm i -g @vtsls/language-server typescript || warn "Failed to install vtsls/typescript via npm."
+
+  log "Installing pyright (Python language server)..."
   npm i -g pyright || warn "Failed to install pyright via npm."
 else
-  warn "npm not available; skipping TypeScript/Pyright language server install."
+  warn "npm not available; skipping vtsls/pyright install."
 fi
 
 if has go; then
   log "Installing gopls..."
-  # gopls may require Go 1.25+ now; Go 1.21+ will auto-fetch toolchain. :contentReference[oaicite:4]{index=4}
   go install golang.org/x/tools/gopls@latest || warn "go install gopls failed."
 else
   warn "go not found; skipping gopls install."
@@ -113,71 +111,58 @@ else
   warn "rustup not found; skipping rust-analyzer install."
 fi
 
-# ---- 4) Ensure PATH includes common install locations (best-effort) ----
+# ---- 4) Ensure PATH includes common install locations ----
 if has npm; then
   NPM_PREFIX="$(npm config get prefix 2>/dev/null || true)"
   if [[ -n "${NPM_PREFIX}" && -d "${NPM_PREFIX}/bin" ]]; then
     export PATH="${NPM_PREFIX}/bin:${PATH}"
   fi
 fi
+
 if has go; then
   GOPATH_BIN="$(go env GOPATH 2>/dev/null)/bin"
   if [[ -d "${GOPATH_BIN}" ]]; then
     export PATH="${GOPATH_BIN}:${PATH}"
   fi
 fi
+
 if [[ -d "${HOME}/.cargo/bin" ]]; then
   export PATH="${HOME}/.cargo/bin:${PATH}"
 fi
 
-# ---- 5) Install Claude Code LSP plugins ----
-# Official docs say the official marketplace is `claude-plugins-official`. :contentReference[oaicite:5]{index=5}
-# But Anthropic’s directory repo also references `@claude-plugin-directory`. :contentReference[oaicite:6]{index=6}
-# So we try multiple marketplace ids for compatibility.
+# ---- 5) Add + update the LSP marketplace that actually contains the plugins ----
+add_marketplace() {
+  local slug="$1"         # e.g., Piebald-AI/claude-code-lsps
+  local mkt_name="$2"     # e.g., claude-code-lsps
 
-maybe_marketplace_update() {
-  local m="$1"
-  # Some builds expose marketplace update via CLI, some don't; try and ignore if unsupported.
-  "${CLAUDE_BIN}" plugin marketplace update "$m" >/dev/null 2>&1 || true
+  log "Adding marketplace '${slug}' (if missing)..."
+  # Some environments fail slug-based add; HTTPS URL is the fallback.
+  "${CLAUDE_BIN}" plugin marketplace add "${slug}" >/dev/null 2>&1 \
+    || "${CLAUDE_BIN}" plugin marketplace add "https://github.com/${slug}.git" >/dev/null 2>&1 \
+    || warn "Failed to add marketplace '${slug}'. You may need to add it inside Claude with: /plugin marketplace add ${slug}"
+
+  log "Updating marketplace '${mkt_name}'..."
+  "${CLAUDE_BIN}" plugin marketplace update "${mkt_name}" >/dev/null 2>&1 \
+    || warn "Marketplace update failed for '${mkt_name}'."
 }
 
-install_plugin_try() {
+install_plugin() {
   local plugin="$1"
   local marketplace="$2"
-  local scope="$3"
-
-  "${CLAUDE_BIN}" plugin install "${plugin}@${marketplace}" --scope "${scope}" >/dev/null 2>&1
+  log "Installing plugin '${plugin}@${marketplace}'..."
+  "${CLAUDE_BIN}" plugin install "${plugin}@${marketplace}" --scope user >/dev/null 2>&1 \
+    && log "Installed: ${plugin}@${marketplace}" \
+    || warn "Failed: ${plugin}@${marketplace}"
 }
 
-install_plugin_any_marketplace() {
-  local plugin="$1"
-  local scope="$2"
-  shift 2
-  local marketplaces=("$@")
-
-  for m in "${marketplaces[@]}"; do
-    maybe_marketplace_update "$m"
-    log "Installing plugin '${plugin}' from marketplace '${m}'..."
-    if install_plugin_try "$plugin" "$m" "$scope"; then
-      log "Installed: ${plugin}@${m}"
-      return 0
-    fi
-  done
-
-  warn "Failed to install '${plugin}' from any known marketplace."
-  return 1
-}
-
-MARKETPLACES=("claude-plugins-official" "claude-plugin-directory" "anthropics-claude-plugins-official")
+# Piebald marketplace: provides vtsls/pyright/gopls/rust-analyzer plugins
+add_marketplace "Piebald-AI/claude-code-lsps" "claude-code-lsps"
 
 log "Installing Claude Code LSP plugins (user scope)..."
-install_plugin_any_marketplace "typescript-lsp" "user" "${MARKETPLACES[@]}" || true
-install_plugin_any_marketplace "pyright-lsp" "user" "${MARKETPLACES[@]}" || true
-install_plugin_any_marketplace "gopls-lsp" "user" "${MARKETPLACES[@]}" || true
-
-# Rust plugin naming varies by docs/version; try both. :contentReference[oaicite:7]{index=7}
-install_plugin_any_marketplace "rust-analyzer-lsp" "user" "${MARKETPLACES[@]}" || true
-install_plugin_any_marketplace "rust-lsp" "user" "${MARKETPLACES[@]}" || true
+install_plugin "vtsls" "claude-code-lsps"
+install_plugin "pyright" "claude-code-lsps"
+install_plugin "gopls" "claude-code-lsps"
+install_plugin "rust-analyzer" "claude-code-lsps"
 
 log "Done."
-log "If LSP tools still don’t appear: open Claude Code and run '/plugin marketplace update claude-plugins-official', then restart Claude Code." :contentReference[oaicite:8]{index=8}
+log "If LSP features still show as unavailable, you may need to enable the built-in LSP tool for your Claude Code version: export ENABLE_LSP_TOOL=1"
