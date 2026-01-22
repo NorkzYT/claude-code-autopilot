@@ -18,10 +18,11 @@ Usage:
   curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/<ref>/install.sh | bash -s -- [options]
 
 Options:
-  --repo <owner/repo>     Source repo (required)
-  --ref <branch|tag|sha>  Git ref (default: main)
-  --dest <path>           Destination directory (default: current directory)
-  --force                 Overwrite existing .claude/ (preserves .claude/logs/)
+  --repo <owner/repo>       Source repo (required)
+  --ref <branch|tag|sha>    Git ref (default: main)
+  --dest <path>             Destination directory (default: current directory)
+  --force                   Overwrite existing .claude/ (preserves .claude/logs/)
+  --bootstrap-linux         Linux-only: run .claude/bootstrap/linux_devtools.sh after install
 EOF
 }
 
@@ -29,6 +30,7 @@ REPO=""
 REF="main"
 DEST="."
 FORCE="0"
+BOOTSTRAP_LINUX="0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -36,6 +38,7 @@ while [[ $# -gt 0 ]]; do
     --ref)    REF="${2:-}"; shift 2;;
     --dest)   DEST="${2:-}"; shift 2;;
     --force)  FORCE="1"; shift 1;;
+    --bootstrap-linux) BOOTSTRAP_LINUX="1"; shift 1;;
     -h|--help) usage; exit 0;;
     *) echo "Unknown arg: $1" >&2; usage; exit 2;;
   esac
@@ -118,7 +121,6 @@ if [[ -e "$DEST_CLAUDE" && "$FORCE" == "1" ]]; then
     -exec rm -rf {} +
 
   # Copy source .claude into destination, excluding logs/
-  # NOTE: --exclude MUST come before '.' for some tar builds.
   (
     cd "$CLAUDE_SRC"
     tar --exclude='./logs' -cf - .
@@ -148,14 +150,10 @@ if [[ "$(id -u)" -eq 0 ]]; then
   fi
 fi
 
-# Ensure logs dir exists and is writable by any user (safe-ish: sticky bit like /tmp)
+# Ensure logs dir exists and is writable by any user (sticky bit like /tmp)
 mkdir -p "$DEST_LOGS"
-
-# 1777 = rwx for everyone + sticky bit (prevents users from deleting others' files)
 chmod 1777 "$DEST_LOGS" || true
-
-# Make existing log files writable by everyone too (in case they were created root-only earlier)
-find "$DEST_LOGS" -type f -maxdepth 1 -exec chmod 666 {} \; 2>/dev/null || true
+find "$DEST_LOGS" -maxdepth 1 -type f -exec chmod 666 {} \; 2>/dev/null || true
 
 # --- Optional: Linux bootstrap (Claude Code + notify-send + LSP binaries + plugins) ---
 if [[ "$BOOTSTRAP_LINUX" == "1" ]]; then
@@ -165,7 +163,7 @@ if [[ "$BOOTSTRAP_LINUX" == "1" ]]; then
       echo "Running Linux bootstrap: $BOOTSTRAP_SCRIPT"
       chmod +x "$BOOTSTRAP_SCRIPT" 2>/dev/null || true
 
-      # If installer ran as root, run bootstrap as the target (non-root) user to avoid npm permission hell.
+      # If installer ran as root, run bootstrap as the target (non-root) user
       if [[ "$(id -u)" -eq 0 ]]; then
         if command -v su >/dev/null 2>&1; then
           su - "$TARGET_USER" -c "bash \"$BOOTSTRAP_SCRIPT\""
