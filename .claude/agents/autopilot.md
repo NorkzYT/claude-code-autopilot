@@ -27,10 +27,19 @@ Workflow:
    - Use rg to find entry points, owners, and relevant code paths.
    - Read the fewest files necessary to act.
    - For complex language-specific work, spawn a specialist agent via Task tool:
-     - JS/TS: `javascript-pro` or `typescript-pro`
+     - JavaScript: `javascript-pro`
+     - TypeScript: `typescript-pro`
      - Python: `python-pro`, `django-pro`, or `fastapi-pro`
-     - Go/Rust/C++: `systems-pro` (if installed)
-     - Java/Kotlin: `jvm-pro` (if installed)
+     - Go: `golang-pro`
+     - Rust: `rust-pro`
+     - C/C++: `c-pro` or `cpp-pro`
+     - Java: `java-pro`
+     - Scala: `scala-pro`
+     - C#/.NET: `csharp-pro`
+     - Elixir: `elixir-pro`
+     - Haskell: `haskell-pro`
+     - Temporal workflows: `temporal-python-pro`
+     - GraphQL APIs: `graphql-architect`
 
 5. Implementation:
    - Make surgical edits only.
@@ -42,7 +51,8 @@ Workflow:
 
 7. Security check (if code handles input/auth/data):
    - Look for injection risks, auth issues, data exposure.
-   - Spawn `security-scanner` agent if installed for deeper analysis.
+   - Spawn `security-auditor` agent for deeper analysis.
+   - For architecture-level security concerns, spawn `threat-modeling-expert`.
 
 8. Review gate:
    - Use Task tool to spawn `surgical-reviewer` subagent on your changes.
@@ -72,19 +82,23 @@ Workflow:
     - Follow-ups or risks.
     - Include closer's PR-ready output if available.
 
-Available specialist agents (spawn via Task tool if installed):
+Available specialist agents (spawn via Task tool):
 
-| Language/Area | Agent Names |
-|---------------|-------------|
-| JavaScript | `javascript-pro` |
-| TypeScript | `typescript-pro` |
-| Python | `python-pro`, `django-pro`, `fastapi-pro` |
-| Go/Rust/C++ | `systems-pro` |
-| Java/Kotlin | `jvm-pro` |
-| Security | `security-scanner` |
-| Review | `comprehensive-reviewer` |
-| Debugging | `debugger-pro` |
-| Refactoring | `refactoring-pro` |
+| Category | Agent Names |
+|----------|-------------|
+| **Web/Frontend** | `javascript-pro`, `typescript-pro` |
+| **Python Ecosystem** | `python-pro`, `django-pro`, `fastapi-pro`, `temporal-python-pro` |
+| **Systems Languages** | `golang-pro`, `rust-pro`, `c-pro`, `cpp-pro` |
+| **JVM Languages** | `java-pro`, `scala-pro` |
+| **Other Languages** | `csharp-pro`, `elixir-pro`, `haskell-pro` |
+| **Architecture** | `architect-review`, `backend-architect`, `graphql-architect`, `event-sourcing-architect` |
+| **Security** | `security-auditor`, `threat-modeling-expert` |
+| **Quality/Review** | `code-reviewer`, `surgical-reviewer` |
+| **Testing** | `test-automator`, `tdd-orchestrator` |
+| **Debugging** | `debugger`, `triage` |
+| **DevOps** | `deployment-engineer`, `performance-engineer` |
+| **Modernization** | `legacy-modernizer`, `dx-optimizer` |
+| **Workflow** | `autopilot-fixer`, `closer`, `runbook`, `promptsmith`, `shipper` |
 
 To check available agents: `ls .claude/agents/`
 

@@ -27,14 +27,15 @@ Workflow (automatic):
 
 2. Decide path:
    - If there is an error output or failing command → treat as TRIAGE.
-     - If installed, run `/tools:debug-trace` to parse the error.
+     - Use Task tool to spawn `debugger` agent for complex errors.
+     - Or spawn `triage` agent for quick root cause identification.
    - Else → treat as VERIFICATION GAP / MISMATCH (Runbook-style).
 
 3. Evidence collection (do this before editing):
    - Identify relevant files via rg based on the gap.
    - Read the smallest set of files to confirm assumptions.
    - If a verification command exists (package.json/README), run the most relevant one.
-   - For deeper analysis, use `/workflows:error-diagnosis` if installed.
+   - For deeper analysis, spawn `debugger` agent or use `/tools:error-analysis` skill.
 
 4. Patch (single focused change set):
    - Apply the smallest change(s) to satisfy DoD.
@@ -43,11 +44,11 @@ Workflow (automatic):
 5. Verify:
    - Re-run the same command(s) or manual repro steps.
    - Report exact commands + results.
-   - If installed, use `/tools:unit-test-runner` or `/tools:pytest-runner` for targeted tests.
+   - For comprehensive testing, spawn `test-automator` agent or use `/tools:test-harness` skill.
 
 6. Review gate:
-   - Run surgical-reviewer via Task tool on the changes.
-   - If installed, also run `/workflows:comprehensive-review` for deeper analysis.
+   - Use Task tool to spawn `surgical-reviewer` agent on the changes.
+   - For deeper analysis, spawn `code-reviewer` agent or use `/workflows:full-review` skill.
    - Apply only critical/minimal fixes.
 
 7. Final output:
@@ -55,14 +56,28 @@ Workflow (automatic):
    - How verified (commands + results).
    - If still failing: provide a single next prompt that asks for the missing evidence (bounded).
 
-Available commands (use if installed):
+Available agents (spawn via Task tool):
 
-| Category | Commands |
-|----------|----------|
-| Debug | `/tools:debug-trace`, `/workflows:error-diagnosis` |
-| Testing | `/tools:unit-test-runner`, `/tools:pytest-runner`, `/workflows:tdd-cycle` |
-| Review | `/workflows:comprehensive-review`, `/tools:code-review` |
-| Refactor | `/tools:refactor-safe` |
+| Category | Agents |
+|----------|--------|
+| Debugging | `debugger`, `triage` |
+| Testing | `test-automator`, `tdd-orchestrator` |
+| Review | `surgical-reviewer`, `code-reviewer`, `architect-review` |
+| Modernization | `legacy-modernizer` |
+| Security | `security-auditor` |
+| Performance | `performance-engineer` |
+
+Available skills (invoke via Skill tool or `/skill-name`):
+
+| Category | Skills |
+|----------|--------|
+| Debug | `/tools:error-analysis`, `/tools:debug-trace` |
+| Testing | `/tools:test-harness`, `/tools:tdd-red`, `/tools:tdd-green`, `/workflows:tdd-cycle` |
+| Review | `/workflows:full-review`, `/tools:multi-agent-review` |
+| Refactor | `/tools:refactor-clean`, `/tools:tdd-refactor` |
+| Fix | `/tools:smart-debug`, `/workflows:smart-fix` |
+
+To check available agents: `ls .claude/agents/`
 
 Required output format:
 
