@@ -8,6 +8,8 @@ set -euo pipefail
 # Installs curated agents, commands, skills from external repos without
 # converting this kit into a plugin. Everything stays in .claude/vendor/
 # (git repos) and syncs to canonical .claude/* locations.
+#
+# Idempotent: skips already-installed items on re-runs.
 # =============================================================================
 
 ROOT="${1:-$(pwd)}"
@@ -50,10 +52,11 @@ WSHOBSON_COMMAND_DIRS=(
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
-log() { printf "\n[%s] %s\n" "$(date +%H:%M:%S)" "$*"; }
+log()  { printf "\n[%s] %s\n" "$(date +%H:%M:%S)" "$*"; }
 info() { printf "  -> %s\n" "$*"; }
+skip() { printf "  [SKIP] %s\n" "$*"; }
 warn() { printf "  [WARN] %s\n" "$*" >&2; }
-die() { echo "ERROR: $*" >&2; exit 1; }
+die()  { echo "ERROR: $*" >&2; exit 1; }
 
 need() { command -v "$1" >/dev/null 2>&1 || die "Missing dependency: $1"; }
 
@@ -68,16 +71,39 @@ sedi() {
   fi
 }
 
+# Check if git repo needs update (returns 0 if update needed)
+repo_needs_update() {
+  local dest="$1"
+  if [ ! -d "$dest/.git" ]; then
+    return 0  # needs clone
+  fi
+  # Fetch and check if behind
+  git -C "$dest" fetch --quiet 2>/dev/null || return 0
+  local local_head remote_head
+  local_head="$(git -C "$dest" rev-parse HEAD 2>/dev/null || echo "")"
+  remote_head="$(git -C "$dest" rev-parse @{u} 2>/dev/null || echo "")"
+  if [ -z "$local_head" ] || [ -z "$remote_head" ]; then
+    return 0  # can't determine, assume needs update
+  fi
+  [ "$local_head" != "$remote_head" ]
+}
+
 git_clone_or_pull() {
   local url="$1" dest="$2"
   if [ -d "$dest/.git" ]; then
-    info "Updating $dest ..."
-    git -C "$dest" pull --ff-only 2>/dev/null || git -C "$dest" fetch --all
+    if repo_needs_update "$dest"; then
+      info "Updating $dest ..."
+      git -C "$dest" pull --ff-only 2>/dev/null || git -C "$dest" fetch --all
+    else
+      skip "$(basename "$dest") already up-to-date."
+      return 1  # signal no update happened
+    fi
   else
     rm -rf "$dest"
     info "Cloning $url ..."
     git clone --depth 1 "$url" "$dest"
   fi
+  return 0  # update happened
 }
 
 # If a name collision happens, prefix the frontmatter "name:" field so Claude sees it as unique.
@@ -92,31 +118,45 @@ prefix_frontmatter_name_inplace() {
 # Installers: wshobson ecosystem
 # -----------------------------------------------------------------------------
 install_wshobson_commands() {
-  log "Installing wshobson/commands into .claude/commands/ ..."
+  log "Checking wshobson/commands ..."
   mkdirp "$VENDOR_DIR"
   local repo="$VENDOR_DIR/wshobson-commands"
-  git_clone_or_pull "https://github.com/wshobson/commands.git" "$repo"
+  local updated=0
 
+  if git_clone_or_pull "https://github.com/wshobson/commands.git" "$repo"; then
+    updated=1
+  fi
+
+  # Only sync if repo was updated or destination doesn't exist
   for dir in "${WSHOBSON_COMMAND_DIRS[@]}"; do
     if [ -d "$repo/$dir" ]; then
-      mkdirp "$CLAUDE_DIR/commands/$dir"
-      info "Syncing commands/$dir/ ..."
-      rsync -a --delete "$repo/$dir/" "$CLAUDE_DIR/commands/$dir/"
+      local dest="$CLAUDE_DIR/commands/$dir"
+      if [ $updated -eq 1 ] || [ ! -d "$dest" ]; then
+        mkdirp "$dest"
+        info "Syncing commands/$dir/ ..."
+        rsync -a --delete "$repo/$dir/" "$dest/"
+      else
+        skip "commands/$dir/ already synced."
+      fi
     fi
   done
 }
 
 install_wshobson_agents_and_skills() {
-  log "Installing curated agents + skills from wshobson/agents ..."
+  log "Checking wshobson/agents ..."
   mkdirp "$VENDOR_DIR"
   local repo="$VENDOR_DIR/wshobson-agents"
-  git_clone_or_pull "https://github.com/wshobson/agents.git" "$repo"
+  local updated=0
+
+  if git_clone_or_pull "https://github.com/wshobson/agents.git" "$repo"; then
+    updated=1
+  fi
 
   mkdirp "$CLAUDE_DIR/agents"
   mkdirp "$CLAUDE_DIR/skills"
 
+  local plugins_synced=0
   for plugin in "${WSHOBSON_AGENT_PLUGINS[@]}"; do
-    info "Plugin: $plugin"
     local plugdir="$repo/plugins/$plugin"
 
     if [ ! -d "$plugdir" ]; then
@@ -132,20 +172,36 @@ install_wshobson_agents_and_skills() {
         base="$(basename "$f")"
         local dest="$CLAUDE_DIR/agents/$base"
 
-        if [ -e "$dest" ]; then
-          # collision: copy + prefix name field
-          dest="$CLAUDE_DIR/agents/wshobson-$base"
+        # Check if file exists and is same (skip if unchanged)
+        if [ -e "$dest" ] && cmp -s "$f" "$dest" 2>/dev/null; then
+          continue  # unchanged, skip silently
+        fi
+
+        if [ -e "$dest" ] && ! cmp -s "$f" "$dest" 2>/dev/null; then
+          # File exists but is different - check if it's ours or user's
+          if grep -q "^# wshobson" "$dest" 2>/dev/null || [ $updated -eq 1 ]; then
+            cp "$f" "$dest"
+            info "Updated agent: $base"
+            plugins_synced=1
+          else
+            # collision with user's file: prefix
+            dest="$CLAUDE_DIR/agents/wshobson-$base"
+            if [ ! -e "$dest" ] || ! cmp -s "$f" "$dest" 2>/dev/null; then
+              cp "$f" "$dest"
+              prefix_frontmatter_name_inplace "$dest" "wshobson-"
+              info "Agent (prefixed): wshobson-$base"
+              plugins_synced=1
+            fi
+          fi
+        elif [ ! -e "$dest" ]; then
           cp "$f" "$dest"
-          prefix_frontmatter_name_inplace "$dest" "wshobson-"
-          info "  Agent (prefixed): wshobson-$base"
-        else
-          cp "$f" "$dest"
-          info "  Agent: $base"
+          info "Agent: $base"
+          plugins_synced=1
         fi
       done
     fi
 
-    # Skills: copy each skill directory (expects SKILL.md inside) into .claude/skills/<skill-dir>
+    # Skills: copy each skill directory
     if [ -d "$plugdir/skills" ]; then
       for d in "$plugdir/skills/"*; do
         [ -d "$d" ] || continue
@@ -159,18 +215,33 @@ install_wshobson_agents_and_skills() {
           continue
         fi
 
-        if [ -e "$dest" ]; then
+        if [ -d "$dest" ]; then
+          # Check if needs update
+          if [ $updated -eq 1 ]; then
+            rsync -a "$d/" "$dest/"
+            info "Updated skill: $skill_dir"
+            plugins_synced=1
+          fi
+        elif [ -e "$dest" ]; then
           dest="$CLAUDE_DIR/skills/wshobson-$skill_dir"
-          rsync -a "$d/" "$dest/"
-          [ -f "$dest/SKILL.md" ] && prefix_frontmatter_name_inplace "$dest/SKILL.md" "wshobson-"
-          info "  Skill (prefixed): wshobson-$skill_dir"
+          if [ ! -d "$dest" ]; then
+            rsync -a "$d/" "$dest/"
+            [ -f "$dest/SKILL.md" ] && prefix_frontmatter_name_inplace "$dest/SKILL.md" "wshobson-"
+            info "Skill (prefixed): wshobson-$skill_dir"
+            plugins_synced=1
+          fi
         else
           rsync -a "$d/" "$dest/"
-          info "  Skill: $skill_dir"
+          info "Skill: $skill_dir"
+          plugins_synced=1
         fi
       done
     fi
   done
+
+  if [ $plugins_synced -eq 0 ] && [ $updated -eq 0 ]; then
+    skip "All ${#WSHOBSON_AGENT_PLUGINS[@]} plugins already synced."
+  fi
 }
 
 # -----------------------------------------------------------------------------
@@ -210,19 +281,25 @@ install_cli_tools_info() {
 }
 
 install_viwo() {
-  log "Installing viwo-cli (Docker sandbox + worktrees)..."
+  log "Checking viwo-cli ..."
   if command -v viwo >/dev/null 2>&1; then
-    info "viwo already installed"
+    skip "viwo already installed."
     return
   fi
+  info "Installing viwo-cli (Docker sandbox + worktrees)..."
   curl -fsSL https://raw.githubusercontent.com/OverseedAI/viwo/main/install.sh | bash
   echo ""
   info "Run: viwo auth && viwo register && viwo start"
 }
 
 install_run_claude_docker() {
-  log "Installing run-claude-docker..."
+  log "Checking run-claude-docker ..."
   local dest="$ROOT/scripts/run-claude.sh"
+  if [ -f "$dest" ]; then
+    skip "run-claude.sh already installed."
+    return
+  fi
+  info "Installing run-claude-docker..."
   mkdirp "$ROOT/scripts"
   curl -fsSL -o "$dest" https://raw.githubusercontent.com/icanhasjonas/run-claude-docker/main/run-claude.sh
   chmod +x "$dest"
@@ -240,6 +317,8 @@ Install curated agents, commands, and skills from external repos into your
 .claude/ directory. Everything is vendored under .claude/vendor/ and synced
 to canonical locations.
 
+Idempotent: skips already-installed items on re-runs.
+
 Options:
   --all              Install everything (commands, agents, skills)
   --commands         Install wshobson/commands only
@@ -247,14 +326,14 @@ Options:
   --viwo             Install viwo-cli
   --docker-runner    Install run-claude-docker
   --cli-info         Show CLI tools installation guide
-  --update           Update existing vendor repos (git pull)
+  --update           Force update existing vendor repos
   -h, --help         Show this help
 
 Examples:
   ./install-extras.sh                    # Install all to current directory
   ./install-extras.sh /path/to/project   # Install all to specific project
   ./install-extras.sh --commands         # Install commands only
-  ./install-extras.sh --update           # Update existing vendor repos
+  ./install-extras.sh --update           # Force update existing vendor repos
 EOF
 }
 
@@ -318,13 +397,9 @@ main() {
 
   log "Done."
   echo ""
-  echo "Restart Claude Code so it re-indexes agents/skills/commands."
-  echo ""
   echo "Command pack usage examples:"
   echo "  /workflows:full-stack-feature build <feature>"
   echo "  /tools:security-scan <target>"
-  echo ""
-  echo "To see available CLI tools: ./install-extras.sh --cli-info"
 }
 
 main "$@"
