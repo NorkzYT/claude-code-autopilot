@@ -154,4 +154,44 @@ if [[ -d "${HOME}/.cargo/bin" ]]; then
   export PATH="${HOME}/.cargo/bin:${PATH}"
 fi
 
+# ---- 5) Setup ntfy.sh notifications (cross-platform) ----
+NTFY_CONFIG="$HOME/.config/claude-code/ntfy_topic"
+if [ ! -f "$NTFY_CONFIG" ]; then
+  log "Setting up ntfy.sh notifications..."
+  mkdir -p "$(dirname "$NTFY_CONFIG")"
+
+  # Generate unique topic: claude-<username>-<random>
+  NTFY_TOPIC="claude-$(whoami)-$(head -c 6 /dev/urandom | base64 | tr -dc 'a-z0-9' | head -c 8)"
+  echo "$NTFY_TOPIC" > "$NTFY_CONFIG"
+
+  # Add to shell profiles if not already there
+  for profile in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    if [ -f "$profile" ]; then
+      if ! grep -q "CLAUDE_NTFY_TOPIC" "$profile" 2>/dev/null; then
+        echo "" >> "$profile"
+        echo "# Claude Code notifications (ntfy.sh)" >> "$profile"
+        echo "export CLAUDE_NTFY_TOPIC=\"\$(cat ~/.config/claude-code/ntfy_topic 2>/dev/null)\"" >> "$profile"
+      fi
+    fi
+  done
+
+  echo ""
+  echo "=========================================="
+  echo "  NOTIFICATIONS SETUP"
+  echo "=========================================="
+  echo ""
+  echo "Your ntfy.sh topic: $NTFY_TOPIC"
+  echo ""
+  echo "Subscribe to get notifications:"
+  echo "  Browser: https://ntfy.sh/$NTFY_TOPIC"
+  echo "  Phone:   Install 'ntfy' app, subscribe to: $NTFY_TOPIC"
+  echo "  Windows: https://github.com/binwiederhier/ntfy/releases"
+  echo ""
+  echo "Restart your shell or run: source ~/.bashrc"
+  echo "=========================================="
+else
+  NTFY_TOPIC="$(cat "$NTFY_CONFIG")"
+  skip "ntfy.sh already configured: $NTFY_TOPIC"
+fi
+
 log "Done."

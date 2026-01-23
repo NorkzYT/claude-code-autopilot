@@ -1,9 +1,35 @@
 #!/usr/bin/env python3
+"""
+Cross-platform notification hook for Claude Code.
+
+Supports multiple notification backends (configure via environment variables):
+
+1. ntfy.sh (free, recommended for remote dev):
+   export CLAUDE_NTFY_TOPIC="your-unique-topic-name"
+   # Then subscribe at https://ntfy.sh/your-unique-topic-name or install the app
+
+2. Pushover (paid, reliable):
+   export CLAUDE_PUSHOVER_USER="your-user-key"
+   export CLAUDE_PUSHOVER_TOKEN="your-app-token"
+
+3. Discord webhook:
+   export CLAUDE_DISCORD_WEBHOOK="https://discord.com/api/webhooks/..."
+
+4. Slack webhook:
+   export CLAUDE_SLACK_WEBHOOK="https://hooks.slack.com/services/..."
+
+5. Linux desktop (fallback, requires notify-send):
+   No config needed, auto-detected.
+
+Set CLAUDE_NOTIFY_DISABLE=1 to disable all notifications.
+"""
 import json
 import os
 import shutil
 import subprocess
 import sys
+import urllib.request
+import urllib.error
 from datetime import datetime
 from pathlib import Path
 
@@ -14,10 +40,108 @@ def ensure_logs_dir(project_dir: str) -> Path:
     return logs_dir
 
 
+def send_ntfy(topic: str, title: str, body: str) -> bool:
+    """Send notification via ntfy.sh"""
+    try:
+        url = f"https://ntfy.sh/{topic}"
+        data = body.encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Title": title,
+                "Priority": "high" if "Permission" in title else "default",
+                "Tags": "robot",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
+def send_pushover(user: str, token: str, title: str, body: str) -> bool:
+    """Send notification via Pushover"""
+    try:
+        data = urllib.parse.urlencode({
+            "token": token,
+            "user": user,
+            "title": title,
+            "message": body,
+            "priority": 1 if "Permission" in title else 0,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.pushover.net/1/messages.json",
+            data=data,
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
+def send_discord(webhook_url: str, title: str, body: str) -> bool:
+    """Send notification via Discord webhook"""
+    try:
+        payload = json.dumps({
+            "embeds": [{
+                "title": title,
+                "description": body,
+                "color": 0xFF6600 if "Permission" in title else 0x00FF00,
+            }]
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            webhook_url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status in (200, 204)
+    except Exception:
+        return False
+
+
+def send_slack(webhook_url: str, title: str, body: str) -> bool:
+    """Send notification via Slack webhook"""
+    try:
+        payload = json.dumps({
+            "text": f"*{title}*\n{body}",
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            webhook_url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
+def send_notify_send(title: str, body: str) -> bool:
+    """Send notification via Linux notify-send"""
+    notify_send = shutil.which("notify-send")
+    if not notify_send:
+        return False
+    try:
+        subprocess.run(
+            [notify_send, title, body],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except Exception:
+        return False
+
+
 def main() -> int:
-    # Skip notifications in remote/web environments.
-    # Claude Code exposes CLAUDE_CODE_REMOTE for this purpose. :contentReference[oaicite:1]{index=1}
-    if os.getenv("CLAUDE_CODE_REMOTE", "").lower() == "true":
+    # Disable all notifications if requested
+    if os.getenv("CLAUDE_NOTIFY_DISABLE", "").lower() in ("1", "true"):
         return 0
 
     project_dir = os.getenv("CLAUDE_PROJECT_DIR") or os.getcwd()
@@ -26,51 +150,69 @@ def main() -> int:
     try:
         payload = json.load(sys.stdin)
     except Exception as e:
-        (logs_dir / "notifications.log").write_text(
-            f"{datetime.utcnow().isoformat()}Z notify_linux.py: invalid JSON: {e}\n",
-            encoding="utf-8",
-        )
+        with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
+            f.write(f"{datetime.utcnow().isoformat()}Z notify: invalid JSON: {e}\n")
         return 0
 
     notif_type = payload.get("notification_type", "")
     message = payload.get("message", "")
     cwd = payload.get("cwd", "")
 
-    # Claude Code sends notification_type values like "permission_prompt" and "idle_prompt". :contentReference[oaicite:2]{index=2}
+    # Only notify for important events
     if notif_type == "permission_prompt":
         title = "Claude Code: Permission required"
     elif notif_type == "idle_prompt":
-        title = "Claude Code: Waiting"
+        title = "Claude Code: Waiting for input"
     else:
-        # Keep it quiet for other notification types.
         return 0
 
     body = message.strip()
     if cwd:
-        body = f"{body}\n(cwd: {cwd})".strip()
+        # Shorten path for readability
+        short_cwd = cwd.replace(os.path.expanduser("~"), "~")
+        body = f"{body}\n({short_cwd})"
 
-    # Log regardless of GUI availability
+    # Log regardless of notification success
     with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
-        f.write(f"{datetime.utcnow().isoformat()}Z {notif_type} {body}\n")
+        f.write(f"{datetime.utcnow().isoformat()}Z [{notif_type}] {body}\n")
 
-    # Linux desktop notification via notify-send (libnotify-bin on Debian/Ubuntu)
-    notify_send = shutil.which("notify-send")
-    if not notify_send:
-        return 0
+    # Try notification backends in order of preference
+    sent = False
 
-    try:
-        subprocess.run(
-            [notify_send, title, body],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except Exception:
-        # Don’t break Claude if desktop notifications aren’t available.
-        return 0
+    # 1. ntfy.sh (best for remote dev)
+    # Check env var first, then config file
+    ntfy_topic = os.getenv("CLAUDE_NTFY_TOPIC")
+    if not ntfy_topic:
+        ntfy_config = Path.home() / ".config" / "claude-code" / "ntfy_topic"
+        if ntfy_config.exists():
+            ntfy_topic = ntfy_config.read_text().strip()
+    if ntfy_topic and not sent:
+        sent = send_ntfy(ntfy_topic, title, body)
+
+    # 2. Pushover
+    pushover_user = os.getenv("CLAUDE_PUSHOVER_USER")
+    pushover_token = os.getenv("CLAUDE_PUSHOVER_TOKEN")
+    if pushover_user and pushover_token and not sent:
+        sent = send_pushover(pushover_user, pushover_token, title, body)
+
+    # 3. Discord webhook
+    discord_webhook = os.getenv("CLAUDE_DISCORD_WEBHOOK")
+    if discord_webhook and not sent:
+        sent = send_discord(discord_webhook, title, body)
+
+    # 4. Slack webhook
+    slack_webhook = os.getenv("CLAUDE_SLACK_WEBHOOK")
+    if slack_webhook and not sent:
+        sent = send_slack(slack_webhook, title, body)
+
+    # 5. Linux desktop (fallback)
+    if not sent and not os.getenv("CLAUDE_CODE_REMOTE", "").lower() == "true":
+        send_notify_send(title, body)
 
     return 0
 
 
 if __name__ == "__main__":
+    # Import urllib.parse here to avoid issues if not needed
+    import urllib.parse
     raise SystemExit(main())
