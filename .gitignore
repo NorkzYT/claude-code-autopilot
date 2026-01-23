@@ -4,7 +4,7 @@
 __pycache__/
 *.pyc
 
-# Vendored external repos (cloned by extras/install-extras.sh)
+# Vendored external repos (cloned by .claude/extras/install-extras.sh)
 .claude/vendor/
 
 # Synced commands from wshobson/commands (keep these out of git)

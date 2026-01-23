@@ -31,12 +31,12 @@ Optionally integrates curated agents/commands from [wshobson/commands](https://g
   - Python: runs Black if `pyproject.toml` exists
 - **log_prompt.py / log_bash.py / log_assistant.py** — appends to `.claude/logs/*` for traceability.
 
-### Extras (`extras/`)
+### Extras (`.claude/extras/`)
 
 - **install-extras.sh** — vendor-sync installer for external repos (wshobson commands/agents)
 - **doctor.sh** — validates `.claude/` configuration, settings schema, and hooks
 
-### Scripts (`scripts/`)
+### Scripts (`.claude/scripts/`)
 
 - **install-opencode-ohmy.sh** — optional installer for OpenCode + oh-my-opencode (separate toolchain, see ToS warning)
 
@@ -53,7 +53,7 @@ From the **target repo root** (the repo you want Claude to work on), bring in th
 
 ### Option 0 — full bootstrap (recommended for Linux)
 
-Installs everything: `.claude/`, `extras/`, devtools (git, rsync, python3), and wshobson agents/commands:
+Installs everything: `.claude/` (includes extras, scripts), devtools (git, rsync, python3), and wshobson agents/commands:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
@@ -141,7 +141,7 @@ When installed with `--bootstrap-linux`, you get curated agents and commands fro
 | **Languages** | javascript-typescript, python-development, systems-programming (Go/Rust/C++), jvm-languages, functional-programming |
 | **Quality** | debugging-toolkit, code-refactoring, unit-testing, tdd-workflows, git-pr-workflows |
 
-To install additional plugins, edit `WSHOBSON_AGENT_PLUGINS` in `extras/install-extras.sh`. See [all 72 plugins](https://github.com/wshobson/agents/tree/main/plugins).
+To install additional plugins, edit `WSHOBSON_AGENT_PLUGINS` in `.claude/extras/install-extras.sh`. See [all 72 plugins](https://github.com/wshobson/agents/tree/main/plugins).
 
 ### Usage examples
 
@@ -154,23 +154,23 @@ To install additional plugins, edit `WSHOBSON_AGENT_PLUGINS` in `extras/install-
 
 ```bash
 # Install/update extras manually
-./extras/install-extras.sh
+./.claude/extras/install-extras.sh
 
 # Update existing vendor repos
-./extras/install-extras.sh --update
+./.claude/extras/install-extras.sh --update
 
 # Install specific components only
-./extras/install-extras.sh --commands    # wshobson/commands only
-./extras/install-extras.sh --agents      # wshobson/agents only
+./.claude/extras/install-extras.sh --commands    # wshobson/commands only
+./.claude/extras/install-extras.sh --agents      # wshobson/agents only
 
 # Show CLI tools guide (viwo, recall, ccusage, etc.)
-./extras/install-extras.sh --cli-info
+./.claude/extras/install-extras.sh --cli-info
 ```
 
 ### Validate configuration
 
 ```bash
-./extras/doctor.sh
+./.claude/extras/doctor.sh
 ```
 
 Checks JSON syntax, settings schema, hook scripts, agent frontmatter, and common issues.
@@ -180,7 +180,7 @@ Checks JSON syntax, settings schema, hook scripts, agent frontmatter, and common
 A separate toolchain installer is provided for [OpenCode](https://opencode.ai/) + [oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode):
 
 ```bash
-./scripts/install-opencode-ohmy.sh
+./.claude/scripts/install-opencode-ohmy.sh
 ```
 
 > **Warning**: oh-my-opencode is designed for OpenCode, not Claude Code. The README warns about OAuth/ToS implications when used with Claude Code accounts. This installs as a completely separate toolchain.
@@ -286,5 +286,5 @@ Changed Files:
 - **Formatting didn't happen?** Prettier requires `.prettierrc*`; Black requires `pyproject.toml`.
 - **A command got blocked?** Check `.claude/hooks/guard_bash.py` patterns and adjust intentionally.
 - **npx/npm blocked?** Supply-chain guardrails block these by default. Add trusted packages to the allowlist in `guard_bash.py`.
-- **Configuration issues?** Run `./extras/doctor.sh` to validate your setup.
-- **Extras not installed?** Run `./extras/install-extras.sh` manually, or reinstall with `--bootstrap-linux`.
+- **Configuration issues?** Run `./.claude/extras/doctor.sh` to validate your setup.
+- **Extras not installed?** Run `./.claude/extras/install-extras.sh` manually, or reinstall with `--bootstrap-linux`.

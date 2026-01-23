@@ -89,19 +89,16 @@ else
   wget -qO "$archive" "$TARBALL_URL"
 fi
 
-echo "Extracting .claude/ and extras/ ..."
-tar -xzf "$archive" -C "$extract_dir" --wildcards '*/.claude/*' '*/extras/*' '*/scripts/*' >/dev/null 2>&1 || true
+echo "Extracting .claude/ ..."
+tar -xzf "$archive" -C "$extract_dir" --wildcards '*/.claude/*' >/dev/null 2>&1 || true
 
-# Find the repo root (parent of .claude)
+# Find .claude directory
 CLAUDE_SRC="$(find "$extract_dir" -type d -name ".claude" -maxdepth 6 | head -n 1 || true)"
 if [[ -z "$CLAUDE_SRC" ]]; then
   echo "ERROR: .claude/ not found in ${REPO}@${REF}" >&2
   echo "Confirm the source repo actually contains a top-level .claude directory." >&2
   exit 1
 fi
-REPO_ROOT="$(dirname "$CLAUDE_SRC")"
-EXTRAS_SRC="$REPO_ROOT/extras"
-SCRIPTS_SRC="$REPO_ROOT/scripts"
 
 DEST_ABS="$(cd "$DEST" && pwd)"
 DEST_CLAUDE="${DEST_ABS}/.claude"
@@ -118,20 +115,21 @@ fi
 mkdir -p "$DEST_CLAUDE"
 
 if [[ -e "$DEST_CLAUDE" && "$FORCE" == "1" ]]; then
-  echo "Force install: replacing .claude contents (preserving logs/)..."
+  echo "Force install: replacing .claude contents (preserving logs/, vendor/)..."
 
   # Ensure logs exists so it can be preserved
   mkdir -p "$DEST_LOGS"
 
-  # Delete everything inside .claude EXCEPT logs/
+  # Delete everything inside .claude EXCEPT logs/ and vendor/
   find "$DEST_CLAUDE" -mindepth 1 -maxdepth 1 \
     ! -name "logs" \
+    ! -name "vendor" \
     -exec rm -rf {} +
 
   # Copy source .claude into destination, excluding logs/
   (
     cd "$CLAUDE_SRC"
-    tar --exclude='./logs' -cf - .
+    tar --exclude='./logs' --exclude='./vendor' -cf - .
   ) | (
     cd "$DEST_CLAUDE"
     tar -xf -
@@ -141,22 +139,6 @@ else
   # Copy contents (not the directory itself) to avoid .claude/.claude nesting
   cp -a "$CLAUDE_SRC/." "$DEST_CLAUDE/"
   mkdir -p "$DEST_LOGS"
-fi
-
-# Also copy extras/ and scripts/ if they exist
-DEST_EXTRAS="${DEST_ABS}/extras"
-DEST_SCRIPTS="${DEST_ABS}/scripts"
-
-if [[ -d "$EXTRAS_SRC" ]]; then
-  echo "Installing extras/ ..."
-  rm -rf "$DEST_EXTRAS"
-  cp -a "$EXTRAS_SRC" "$DEST_EXTRAS"
-fi
-
-if [[ -d "$SCRIPTS_SRC" ]]; then
-  echo "Installing scripts/ ..."
-  mkdir -p "$DEST_SCRIPTS"
-  cp -a "$SCRIPTS_SRC/." "$DEST_SCRIPTS/"
 fi
 
 # --- Fix permissions/ownership so Claude hooks can write logs ---
@@ -205,7 +187,7 @@ if [[ "$BOOTSTRAP_LINUX" == "1" ]]; then
 
     # Step 2: Run install-extras.sh (installs wshobson agents/commands/skills)
     if [[ "$NO_EXTRAS" != "1" ]]; then
-      EXTRAS_SCRIPT="$DEST_EXTRAS/install-extras.sh"
+      EXTRAS_SCRIPT="$DEST_CLAUDE/extras/install-extras.sh"
       if [[ -f "$EXTRAS_SCRIPT" ]]; then
         echo ""
         echo "Running extras installer: $EXTRAS_SCRIPT"
@@ -236,7 +218,7 @@ echo ""
 echo "Done. Installed .claude/ into ${DEST_ABS} (logs preserved)."
 echo ""
 echo "Available tools:"
-echo "  - extras/doctor.sh          Validate .claude/ configuration"
-echo "  - extras/install-extras.sh  Install/update wshobson agents & commands"
+echo "  - .claude/extras/doctor.sh          Validate .claude/ configuration"
+echo "  - .claude/extras/install-extras.sh  Install/update wshobson agents & commands"
 echo ""
 echo "Restart Claude Code to re-index agents/skills/commands."

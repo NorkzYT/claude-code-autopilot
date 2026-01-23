@@ -26,11 +26,11 @@ Workflow:
 4. Repo discovery:
    - Use rg to find entry points, owners, and relevant code paths.
    - Read the fewest files necessary to act.
-   - For language-specific patterns, use these commands if installed:
-     - JS/TS: `/tools:typescript-analyzer` or `/tools:eslint-check`
-     - Python: `/tools:python-analyzer` or `/tools:pytest-runner`
-     - Go/Rust: `/tools:systems-analyzer`
-     - Java/Kotlin: `/tools:jvm-analyzer`
+   - For complex language-specific work, spawn a specialist agent via Task tool:
+     - JS/TS: `javascript-pro` or `typescript-pro`
+     - Python: `python-pro`, `django-pro`, or `fastapi-pro`
+     - Go/Rust/C++: `systems-pro` (if installed)
+     - Java/Kotlin: `jvm-pro` (if installed)
 
 5. Implementation:
    - Make surgical edits only.
@@ -39,30 +39,28 @@ Workflow:
 6. Verification:
    - Identify repo's test/lint/build commands (package.json/README/tooling).
    - Run the most relevant checks. Report exact commands + results.
-   - For test-driven work, use `/workflows:tdd-cycle` if installed.
 
 7. Security check (if code handles input/auth/data):
-   - Run `/tools:security-scan` if installed.
-   - Flag any high-severity findings before proceeding.
+   - Look for injection risks, auth issues, data exposure.
+   - Spawn `security-scanner` agent if installed for deeper analysis.
 
 8. Review gate:
-   - Use Task tool to run the surgical-reviewer subagent on your changes.
-   - If installed, also run `/workflows:comprehensive-review` for deeper analysis.
+   - Use Task tool to spawn `surgical-reviewer` subagent on your changes.
    - Apply only minimal fixes from reviewer feedback.
 
 9. If verification failed:
-   - Use Task tool to run triage subagent with the error output.
+   - Use Task tool to spawn `triage` subagent with the error output.
    - Apply the smallest patch and rerun verification once.
 
 10. If issues remain after step 9:
-    - Use Task tool to run autopilot-fixer subagent with:
+    - Use Task tool to spawn `autopilot-fixer` subagent with:
       - Original Task (the kickoff prompt)
       - Prior Output (summary of changes made so far)
       - Observed Behavior (remaining errors/failures)
     - autopilot-fixer gets one bounded patch iteration.
 
 11. Closing pass:
-    - Use Task tool to run closer subagent with:
+    - Use Task tool to spawn `closer` subagent with:
       - DoD from step 2
       - Changed files list
       - Any context/notes about what to verify
@@ -74,18 +72,21 @@ Workflow:
     - Follow-ups or risks.
     - Include closer's PR-ready output if available.
 
-Available wshobson plugins (use if installed):
+Available specialist agents (spawn via Task tool if installed):
 
-| Category | Commands/Workflows |
-|----------|-------------------|
-| Languages | `/tools:typescript-analyzer`, `/tools:python-analyzer`, `/tools:systems-analyzer`, `/tools:jvm-analyzer` |
-| Testing | `/workflows:tdd-cycle`, `/tools:unit-test-runner`, `/tools:pytest-runner` |
-| Review | `/workflows:comprehensive-review`, `/tools:code-review` |
-| Security | `/tools:security-scan`, `/workflows:security-audit` |
-| Debug | `/tools:debug-trace`, `/workflows:error-diagnosis` |
-| Refactor | `/tools:refactor-safe`, `/workflows:code-cleanup` |
+| Language/Area | Agent Names |
+|---------------|-------------|
+| JavaScript | `javascript-pro` |
+| TypeScript | `typescript-pro` |
+| Python | `python-pro`, `django-pro`, `fastapi-pro` |
+| Go/Rust/C++ | `systems-pro` |
+| Java/Kotlin | `jvm-pro` |
+| Security | `security-scanner` |
+| Review | `comprehensive-reviewer` |
+| Debugging | `debugger-pro` |
+| Refactoring | `refactoring-pro` |
 
-Check `.claude/commands/` for available commands. Use them when they match the task.
+To check available agents: `ls .claude/agents/`
 
 INPUT
 <<<
