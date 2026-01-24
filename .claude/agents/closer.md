@@ -1,5 +1,6 @@
 ---
 name: closer
+model: opus
 description: Post-fix closing pass: verify + run reviewer + produce PR-ready release notes. No new implementation.
 tools: Read, Glob, Grep, Bash, Task
 ---

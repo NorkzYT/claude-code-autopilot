@@ -1,5 +1,6 @@
 ---
 name: autopilot
+model: opus
 description: One-shot delivery. Turns raw task → plan → implements → verifies → reviews → iterates once if needed.
 tools: Read, Glob, Grep, Bash, Edit, MultiEdit, Write, Task
 ---

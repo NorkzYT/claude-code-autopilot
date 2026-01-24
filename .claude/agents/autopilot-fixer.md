@@ -1,5 +1,6 @@
 ---
 name: autopilot-fixer
+model: opus
 description: Automatic fix-up pass when autopilot output is incomplete/wrong. Diagnoses, patches, verifies, reviews (one bounded loop).
 tools: Read, Glob, Grep, Bash, Edit, MultiEdit, Write, Task
 ---

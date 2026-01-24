@@ -40,7 +40,7 @@ def ensure_logs_dir(project_dir: str) -> Path:
     return logs_dir
 
 
-def send_ntfy(topic: str, title: str, body: str) -> bool:
+def send_ntfy(topic: str, title: str, body: str, logs_dir: Path = None) -> bool:
     """Send notification via ntfy.sh"""
     try:
         url = f"https://ntfy.sh/{topic}"
@@ -57,11 +57,14 @@ def send_ntfy(topic: str, title: str, body: str) -> bool:
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status == 200
-    except Exception:
+    except Exception as e:
+        if logs_dir:
+            with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
+                f.write(f"{datetime.utcnow().isoformat()}Z ntfy error: {e}\n")
         return False
 
 
-def send_pushover(user: str, token: str, title: str, body: str) -> bool:
+def send_pushover(user: str, token: str, title: str, body: str, logs_dir: Path = None) -> bool:
     """Send notification via Pushover"""
     try:
         data = urllib.parse.urlencode({
@@ -78,11 +81,14 @@ def send_pushover(user: str, token: str, title: str, body: str) -> bool:
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status == 200
-    except Exception:
+    except Exception as e:
+        if logs_dir:
+            with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
+                f.write(f"{datetime.utcnow().isoformat()}Z pushover error: {e}\n")
         return False
 
 
-def send_discord(webhook_url: str, title: str, body: str) -> bool:
+def send_discord(webhook_url: str, title: str, body: str, logs_dir: Path = None) -> bool:
     """Send notification via Discord webhook"""
     try:
         payload = json.dumps({
@@ -100,11 +106,14 @@ def send_discord(webhook_url: str, title: str, body: str) -> bool:
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status in (200, 204)
-    except Exception:
+    except Exception as e:
+        if logs_dir:
+            with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
+                f.write(f"{datetime.utcnow().isoformat()}Z discord error: {e}\n")
         return False
 
 
-def send_slack(webhook_url: str, title: str, body: str) -> bool:
+def send_slack(webhook_url: str, title: str, body: str, logs_dir: Path = None) -> bool:
     """Send notification via Slack webhook"""
     try:
         payload = json.dumps({
@@ -118,24 +127,38 @@ def send_slack(webhook_url: str, title: str, body: str) -> bool:
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status == 200
-    except Exception:
+    except Exception as e:
+        if logs_dir:
+            with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
+                f.write(f"{datetime.utcnow().isoformat()}Z slack error: {e}\n")
         return False
 
 
-def send_notify_send(title: str, body: str) -> bool:
+def send_notify_send(title: str, body: str, logs_dir: Path = None) -> bool:
     """Send notification via Linux notify-send"""
     notify_send = shutil.which("notify-send")
     if not notify_send:
+        if logs_dir:
+            with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
+                f.write(f"{datetime.utcnow().isoformat()}Z notify-send: not found\n")
         return False
     try:
-        subprocess.run(
+        result = subprocess.run(
             [notify_send, title, body],
             check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
         )
+        if result.returncode != 0:
+            if logs_dir:
+                with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
+                    f.write(f"{datetime.utcnow().isoformat()}Z notify-send failed: {result.stderr.strip()}\n")
+            return False
         return True
-    except Exception:
+    except Exception as e:
+        if logs_dir:
+            with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
+                f.write(f"{datetime.utcnow().isoformat()}Z notify-send error: {e}\n")
         return False
 
 
@@ -178,6 +201,7 @@ def main() -> int:
 
     # Try notification backends in order of preference
     sent = False
+    backends_tried = []
 
     # 1. ntfy.sh (best for remote dev)
     # Check env var first, then config file
@@ -187,27 +211,42 @@ def main() -> int:
         if ntfy_config.exists():
             ntfy_topic = ntfy_config.read_text().strip()
     if ntfy_topic and not sent:
-        sent = send_ntfy(ntfy_topic, title, body)
+        backends_tried.append("ntfy")
+        sent = send_ntfy(ntfy_topic, title, body, logs_dir)
 
     # 2. Pushover
     pushover_user = os.getenv("CLAUDE_PUSHOVER_USER")
     pushover_token = os.getenv("CLAUDE_PUSHOVER_TOKEN")
     if pushover_user and pushover_token and not sent:
-        sent = send_pushover(pushover_user, pushover_token, title, body)
+        backends_tried.append("pushover")
+        sent = send_pushover(pushover_user, pushover_token, title, body, logs_dir)
 
     # 3. Discord webhook
     discord_webhook = os.getenv("CLAUDE_DISCORD_WEBHOOK")
     if discord_webhook and not sent:
-        sent = send_discord(discord_webhook, title, body)
+        backends_tried.append("discord")
+        sent = send_discord(discord_webhook, title, body, logs_dir)
 
     # 4. Slack webhook
     slack_webhook = os.getenv("CLAUDE_SLACK_WEBHOOK")
     if slack_webhook and not sent:
-        sent = send_slack(slack_webhook, title, body)
+        backends_tried.append("slack")
+        sent = send_slack(slack_webhook, title, body, logs_dir)
 
     # 5. Linux desktop (fallback)
-    if not sent and not os.getenv("CLAUDE_CODE_REMOTE", "").lower() == "true":
-        send_notify_send(title, body)
+    is_remote = os.getenv("CLAUDE_CODE_REMOTE", "").lower() == "true"
+    if not sent and not is_remote:
+        backends_tried.append("notify-send")
+        sent = send_notify_send(title, body, logs_dir)
+
+    # Log warning if no notification was sent
+    if not sent:
+        with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
+            if not backends_tried:
+                f.write(f"{datetime.utcnow().isoformat()}Z WARNING: No notification backend configured. "
+                        "Set CLAUDE_NTFY_TOPIC or run: bash .claude/bootstrap/linux_devtools.sh\n")
+            else:
+                f.write(f"{datetime.utcnow().isoformat()}Z WARNING: Notification failed via: {', '.join(backends_tried)}\n")
 
     return 0
 

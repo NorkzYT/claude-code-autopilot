@@ -1,5 +1,6 @@
 ---
 name: surgical-reviewer
+model: opus
 description: Reviews diffs for correctness, risk, style, and missed edge cases. Suggests minimal fixes.
 tools: Read, Glob, Grep
 ---

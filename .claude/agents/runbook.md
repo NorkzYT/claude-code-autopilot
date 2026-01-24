@@ -1,5 +1,6 @@
 ---
 name: runbook
+model: opus
 description: Turns partial Claude attempts + errors into the smallest next winning step and a pasteable next prompt.
 tools: Read, Glob, Grep
 ---

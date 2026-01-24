@@ -1,5 +1,6 @@
 ---
 name: triage
+model: opus
 description: Debugging agent. Reproduces issues, identifies likely root cause, proposes smallest fix + verification.
 tools: Read, Glob, Grep, Bash
 ---

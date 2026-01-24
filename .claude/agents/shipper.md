@@ -1,5 +1,6 @@
 ---
 name: shipper
+model: opus
 description: End-to-end implementation: inspect → plan → implement → verify → summarize.
 tools: Read, Glob, Grep, Bash, Edit, MultiEdit, Write
 ---

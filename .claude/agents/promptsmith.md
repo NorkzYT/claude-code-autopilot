@@ -1,5 +1,6 @@
 ---
 name: promptsmith
+model: opus
 description: Turns raw tasks into a single Claude Code execution prompt that succeeds in unfamiliar repos.
 tools: Read, Glob, Grep
 ---
