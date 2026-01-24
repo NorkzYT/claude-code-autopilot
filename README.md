@@ -11,6 +11,8 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux
 ```
 
+After install, you'll see your **ntfy.sh subscription URL** — subscribe to get notified when Claude needs your attention.
+
 Then restart Claude Code to load the new configuration.
 
 ---
@@ -153,6 +155,54 @@ The kit detects "continue" or "resume" and points Claude to your saved state.
 
 ---
 
+## Notifications (ntfy.sh)
+
+Get notified on your phone/browser when Claude needs your attention (permission prompts, waiting for input).
+
+After installation, you'll see your subscription URL:
+
+```
+Your default ntfy.sh topic: claude-code-yourhostname
+
+Subscribe: https://ntfy.sh/claude-code-yourhostname
+```
+
+### Subscribe Options
+
+| Platform | How to Subscribe |
+|----------|------------------|
+| Browser | Open `https://ntfy.sh/your-topic` and click "Subscribe" |
+| Android | Install [ntfy app](https://play.google.com/store/apps/details?id=io.heckel.ntfy) → Add topic |
+| iOS | Install [ntfy app](https://apps.apple.com/app/ntfy/id1625396347) → Add topic |
+| CLI | `ntfy subscribe your-topic` |
+
+### Custom Topic
+
+```bash
+# Environment variable
+export CLAUDE_NTFY_TOPIC="my-secret-topic"
+
+# Or config file
+mkdir -p ~/.config/claude-code
+echo "my-secret-topic" > ~/.config/claude-code/ntfy_topic
+```
+
+### Alternative Backends
+
+```bash
+# Discord
+export CLAUDE_DISCORD_WEBHOOK="https://discord.com/api/webhooks/..."
+
+# Slack
+export CLAUDE_SLACK_WEBHOOK="https://hooks.slack.com/services/..."
+
+# Pushover (paid)
+export CLAUDE_PUSHOVER_USER="your-user-key"
+export CLAUDE_PUSHOVER_TOKEN="your-app-token"
+```
+
+---
+
 ## Safety Guardrails
 
 ### Blocked by Default
@@ -260,6 +310,21 @@ Run the same install command with `--force` to update while preserving logs.
 | `--force` | Overwrite existing `.claude/` (preserves logs) |
 | `--bootstrap-linux` | Full bootstrap (devtools + extras) |
 | `--no-extras` | Skip wshobson agents/commands |
+
+---
+
+## Project Documentation (llms.txt)
+
+The `llms.txt` standard is a "sitemap for AI" that helps Claude navigate your project. Create one at your project root:
+
+```bash
+# Copy the template
+cp .claude/docs/llms-txt-template.md ./llms.txt
+
+# Edit to describe YOUR project
+```
+
+See `.claude/docs/llms-txt-template.md` for a full template with examples.
 
 ---
 
