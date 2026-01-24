@@ -49,6 +49,8 @@ Tool permissions allowlist/denylist + hook wiring.
 
 ## Install (use this kit in another repo)
 
+> **Warning**: Do not run as root user. Install and run this kit as a non-root user only.
+
 From the **target repo root** (the repo you want Claude to work on), bring in this kit's `.claude/` folder:
 
 ### Option 0 — full bootstrap (recommended for Linux)
