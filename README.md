@@ -12,9 +12,10 @@ Optionally integrates curated agents/commands from [wshobson/commands](https://g
 ### Agents (`.claude/agents/`)
 
 - **promptsmith** — turns a raw request into a single execution-ready prompt (TODO + DoD + discovery + verification).
-- **autopilot** — one-shot delivery: discover → implement → verify → review → (one retry if needed).
+- **autopilot** — one-shot delivery: discover → implement → verify → review → (one retry if needed). Supports horizontal scaling with parallel agent deployment.
+- **parallel-orchestrator** — orchestrates parallel agent deployment for complex multi-part tasks. Splits work, spawns agents concurrently, aggregates results.
 - **triage** — debugging when something fails (repro → evidence → smallest fix + verify).
-- **autopilot-fixer** — “finish the job” pass when output is incomplete/wrong (single bounded patch loop).
+- **autopilot-fixer** — "finish the job" pass when output is incomplete/wrong (single bounded patch loop).
 - **closer** — verification + reviewer pass + PR-ready release notes (no new implementation).
 - **shipper** — straightforward inspect → implement → verify (lighter than autopilot).
 - **surgical-reviewer** — minimal-risk review of diffs; flags correctness + edge cases.
@@ -23,9 +24,13 @@ Optionally integrates curated agents/commands from [wshobson/commands](https://g
 
 - **guard_bash.py** — blocks dangerous bash patterns + supply-chain attacks:
   - Destructive commands: `rm -rf`, `sudo`, `mkfs`
+  - Git operations: `git commit`, `git add` (prevents auto-staging and auto-commits)
   - Remote code execution: `curl|bash`, `wget|sh`, base64-to-shell
   - Supply-chain: `npx` (hallucinated packages), `npm install` (postinstall scripts), `pip install` from URLs
   - Allowlist support for trusted packages
+- **protect_files.py** — blocks edits to sensitive files:
+  - Protected: `.env`, secrets, keys, certs, prod configs
+  - Allowed: `.env.example`, `.env.sample`, `.env.template`, `docker-compose.prod*.yml` (tracked in git)
 - **format_if_configured.py** — formats the _edited file only_ when a formatter config exists:
   - JS/TS: runs Prettier if `.prettierrc*` exists
   - Python: runs Black if `pyproject.toml` exists

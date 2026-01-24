@@ -14,6 +14,9 @@ ALLOWED_PATTERNS = [
     "**/.env.example",
     "**/.env.sample",
     "**/.env.template",
+    # docker-compose prod files are safe to edit (tracked in git)
+    "**/docker-compose.prod*.yml",
+    "**/docker-compose.production*.yml",
 ]
 
 # Conservative defaults. Tune to your org.

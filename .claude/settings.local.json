@@ -47,6 +47,8 @@
       "Bash(scp *:*)",
       "Bash(rsync *:*)",
       "Bash(git commit *:*)",
+      "Bash(git add *:*)",
+      "Bash(git stage *:*)",
       "Bash(powershell *:*)",
       "Bash(cmd.exe *:*)"
     ]

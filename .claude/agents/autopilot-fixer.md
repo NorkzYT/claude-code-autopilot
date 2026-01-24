@@ -47,10 +47,12 @@ Workflow (automatic):
    - Report exact commands + results.
    - For comprehensive testing, spawn `test-automator` agent or use `/tools:test-harness` skill.
 
-6. Review gate:
-   - Use Task tool to spawn `surgical-reviewer` agent on the changes.
+6. Review gate (parallel when possible):
+   - Use Task tool to spawn multiple agents in parallel for faster feedback:
+     - `surgical-reviewer` for code correctness
+     - `security-auditor` for security issues (if applicable)
    - For deeper analysis, spawn `code-reviewer` agent or use `/workflows:full-review` skill.
-   - Apply only critical/minimal fixes.
+   - Aggregate findings and apply only critical/minimal fixes.
 
 7. Final output:
    - What changed (file list + brief).

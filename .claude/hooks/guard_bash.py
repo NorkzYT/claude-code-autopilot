@@ -64,6 +64,10 @@ blocked = [
     # Git commit (prevent auto-commits)
     (r"\bgit\s+commit\b", "git commit"),
 
+    # Git staging (prevent auto-staging - files should not be staged automatically)
+    (r"\bgit\s+add\b", "git add"),
+    (r"\bgit\s+stage\b", "git stage"),
+
     # Windows shells
     (r"\bpowershell\b", "powershell"),
     (r"\bcmd\.exe\b", "cmd.exe"),

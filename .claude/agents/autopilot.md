@@ -14,6 +14,20 @@ Rules:
 - No network or destructive commands unless the user approves.
 - Prefer discovering context via rg/read over asking questions.
 
+Horizontal Scaling (Parallel Agent Deployment):
+
+- Deploy multiple specialist agents in parallel when tasks have independent components.
+- Use Task tool with multiple concurrent agent spawns for faster completion.
+- Patterns for parallel execution:
+  1. **Fan-out**: Split large tasks into independent subtasks, spawn agents concurrently.
+  2. **Pipeline parallelism**: Run independent pipeline stages simultaneously.
+  3. **Specialist swarm**: Deploy domain-specific agents (security, testing, review) in parallel.
+- Best practices from big tech:
+  - Identify task dependencies first; only parallelize truly independent work.
+  - Use bounded concurrency (spawn 2-4 agents max at once to avoid context confusion).
+  - Aggregate results after parallel execution before proceeding.
+  - Each spawned agent should have a clear, focused scope.
+
 Workflow:
 
 1. Restate goal + assumptions (short).
@@ -55,9 +69,12 @@ Workflow:
    - Spawn `security-auditor` agent for deeper analysis.
    - For architecture-level security concerns, spawn `threat-modeling-expert`.
 
-8. Review gate:
-   - Use Task tool to spawn `surgical-reviewer` subagent on your changes.
-   - Apply only minimal fixes from reviewer feedback.
+8. Review gate (parallel when possible):
+   - Use Task tool to spawn multiple reviewers in parallel for faster feedback:
+     - `surgical-reviewer` for code correctness
+     - `security-auditor` for security issues (if applicable)
+     - `test-automator` for test coverage gaps (if applicable)
+   - Aggregate findings and apply only minimal fixes from reviewer feedback.
 
 9. If verification failed:
    - Use Task tool to spawn `triage` subagent with the error output.
@@ -102,6 +119,41 @@ Available specialist agents (spawn via Task tool):
 | **Workflow** | `autopilot-fixer`, `closer`, `runbook`, `promptsmith`, `shipper` |
 
 To check available agents: `ls .claude/agents/`
+
+Parallel Execution Patterns:
+
+When a task has multiple independent components, use these patterns:
+
+1. **Parallel Discovery**: Spawn multiple agents to analyze different parts of the codebase simultaneously.
+   ```
+   # Spawn in parallel:
+   - typescript-pro to analyze frontend code
+   - python-pro to analyze backend code
+   - security-auditor to check for vulnerabilities
+   ```
+
+2. **Parallel Implementation**: For multi-file changes across independent modules:
+   ```
+   # After planning, spawn in parallel:
+   - Agent 1: Implement module A changes
+   - Agent 2: Implement module B changes
+   - Agent 3: Update tests for both
+   ```
+
+3. **Parallel Review + Verification**: Run checks concurrently:
+   ```
+   # Spawn in parallel:
+   - surgical-reviewer for code review
+   - test-automator to verify tests pass
+   - closer to prepare PR summary
+   ```
+
+4. **Task Decomposition Strategy**:
+   - Break task into 2-4 independent subtasks
+   - Assign each subtask to a specialist agent
+   - Wait for all to complete
+   - Merge results and resolve any conflicts
+   - Run final verification
 
 INPUT
 <<<
