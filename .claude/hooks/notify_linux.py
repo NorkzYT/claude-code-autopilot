@@ -4,9 +4,10 @@ Cross-platform notification hook for Claude Code.
 
 Supports multiple notification backends (configure via environment variables):
 
-1. ntfy.sh (free, recommended for remote dev):
+1. ntfy.sh (DEFAULT - always used, free, recommended):
    export CLAUDE_NTFY_TOPIC="your-unique-topic-name"
-   # Then subscribe at https://ntfy.sh/your-unique-topic-name or install the app
+   # If not set, defaults to "claude-code-{hostname}"
+   # Subscribe at https://ntfy.sh/your-topic-name or install the app
 
 2. Pushover (paid, reliable):
    export CLAUDE_PUSHOVER_USER="your-user-key"
@@ -18,13 +19,14 @@ Supports multiple notification backends (configure via environment variables):
 4. Slack webhook:
    export CLAUDE_SLACK_WEBHOOK="https://hooks.slack.com/services/..."
 
-5. Linux desktop (fallback, requires notify-send):
-   No config needed, auto-detected.
+Note: Desktop notifications (notify-send) are disabled by default.
+      Set CLAUDE_NOTIFY_DESKTOP=1 to enable them.
 
 Set CLAUDE_NOTIFY_DISABLE=1 to disable all notifications.
 """
 import json
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -32,6 +34,14 @@ import urllib.request
 import urllib.error
 from datetime import datetime
 from pathlib import Path
+
+
+def get_default_ntfy_topic() -> str:
+    """Generate a default ntfy topic based on hostname."""
+    hostname = platform.node() or "unknown"
+    # Sanitize hostname for use as ntfy topic (alphanumeric and hyphens only)
+    sanitized = "".join(c if c.isalnum() or c == "-" else "-" for c in hostname.lower())
+    return f"claude-code-{sanitized}"
 
 
 def ensure_logs_dir(project_dir: str) -> Path:
@@ -134,8 +144,41 @@ def send_slack(webhook_url: str, title: str, body: str, logs_dir: Path = None) -
         return False
 
 
+def is_display_available() -> bool:
+    """Check if X11 DISPLAY or Wayland display is available for GUI notifications."""
+    # Check for X11 display
+    display = os.getenv("DISPLAY")
+    if display:
+        return True
+    # Check for Wayland display
+    wayland_display = os.getenv("WAYLAND_DISPLAY")
+    if wayland_display:
+        return True
+    return False
+
+
+def send_terminal_bell() -> bool:
+    """Send a terminal bell as a fallback notification."""
+    try:
+        # Send BEL character to stderr (works in most terminals)
+        sys.stderr.write("\a")
+        sys.stderr.flush()
+        return True
+    except Exception:
+        return False
+
+
 def send_notify_send(title: str, body: str, logs_dir: Path = None) -> bool:
     """Send notification via Linux notify-send"""
+    # Check if display is available (X11 or Wayland)
+    if not is_display_available():
+        if logs_dir:
+            with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
+                f.write(f"{datetime.utcnow().isoformat()}Z notify-send: skipped (no DISPLAY/WAYLAND_DISPLAY - headless environment)\n")
+        # Try terminal bell as fallback
+        send_terminal_bell()
+        return False
+
     notify_send = shutil.which("notify-send")
     if not notify_send:
         if logs_dir:
@@ -203,16 +246,19 @@ def main() -> int:
     sent = False
     backends_tried = []
 
-    # 1. ntfy.sh (best for remote dev)
-    # Check env var first, then config file
+    # 1. ntfy.sh (DEFAULT - always used)
+    # Check env var first, then config file, then use default based on hostname
     ntfy_topic = os.getenv("CLAUDE_NTFY_TOPIC")
     if not ntfy_topic:
         ntfy_config = Path.home() / ".config" / "claude-code" / "ntfy_topic"
         if ntfy_config.exists():
             ntfy_topic = ntfy_config.read_text().strip()
-    if ntfy_topic and not sent:
-        backends_tried.append("ntfy")
-        sent = send_ntfy(ntfy_topic, title, body, logs_dir)
+    if not ntfy_topic:
+        # Use hostname-based default topic
+        ntfy_topic = get_default_ntfy_topic()
+
+    backends_tried.append("ntfy")
+    sent = send_ntfy(ntfy_topic, title, body, logs_dir)
 
     # 2. Pushover
     pushover_user = os.getenv("CLAUDE_PUSHOVER_USER")
@@ -233,9 +279,9 @@ def main() -> int:
         backends_tried.append("slack")
         sent = send_slack(slack_webhook, title, body, logs_dir)
 
-    # 5. Linux desktop (fallback)
-    is_remote = os.getenv("CLAUDE_CODE_REMOTE", "").lower() == "true"
-    if not sent and not is_remote:
+    # 5. Linux desktop (opt-in only - disabled by default)
+    enable_desktop = os.getenv("CLAUDE_NOTIFY_DESKTOP", "").lower() in ("1", "true")
+    if enable_desktop and not sent:
         backends_tried.append("notify-send")
         sent = send_notify_send(title, body, logs_dir)
 
