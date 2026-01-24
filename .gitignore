@@ -1,5 +1,11 @@
 *logs
 
+# Session state (three-file pattern) - local working memory
+# Keep templates, ignore actual session directories
+.claude/context/*
+!.claude/context/templates/
+!.claude/context/.gitkeep
+
 # Python bytecode (created when hooks run)
 __pycache__/
 *.pyc
@@ -14,5 +20,5 @@ __pycache__/
 # Synced skills from external repos
 .claude/skills/wshobson-*
 
-# Local settings (may contain user-specific paths)
-.claude/settings.local.json
+# Note: .claude/settings.local.json IS tracked in this repo (it's part of the bundle)
+# Users may override with their own settings after installation

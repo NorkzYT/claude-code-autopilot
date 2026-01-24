@@ -1,0 +1,11 @@
+# This directory stores session state for the three-file pattern.
+# Contents are gitignored except this placeholder.
+#
+# Structure:
+# .claude/context/
+# └── <task-name>/
+#     ├── plan.md     - High-level architectural plan
+#     ├── context.md  - Key learnings and decisions
+#     └── tasks.md    - Granular checklist
+#
+# See .claude/docs/session-state.md for documentation.

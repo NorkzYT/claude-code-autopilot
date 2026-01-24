@@ -1,297 +1,317 @@
-# claude-autopilot-kit
+# Claude Code Autopilot Kit
 
-A reusable `.claude/` setup for **Claude Code** that boosts one-shot task completion by enforcing a simple, repeatable pipeline:
+A portable `.claude/` bundle that supercharges Claude Code with **automatic task execution**, **safety guardrails**, and **session persistence**.
 
-**promptsmith → autopilot/shipper → (triage) → autopilot-fixer → closer**
-…with **permissions guardrails**, **supply-chain security**, **auto-format on touched files**, and **session logging**.
+Once installed, Claude automatically launches the **autopilot agent** for substantive tasks — no manual invocation needed.
 
-Optionally integrates curated agents/commands from [wshobson/commands](https://github.com/wshobson/commands) and [wshobson/agents](https://github.com/wshobson/agents) for additional productivity operators.
-
-## What’s inside
-
-### Agents (`.claude/agents/`)
-
-- **promptsmith** — turns a raw request into a single execution-ready prompt (TODO + DoD + discovery + verification).
-- **autopilot** — one-shot delivery: discover → implement → verify → review → (one retry if needed). Supports horizontal scaling with parallel agent deployment.
-- **parallel-orchestrator** — orchestrates parallel agent deployment for complex multi-part tasks. Splits work, spawns agents concurrently, aggregates results.
-- **triage** — debugging when something fails (repro → evidence → smallest fix + verify).
-- **autopilot-fixer** — "finish the job" pass when output is incomplete/wrong (single bounded patch loop).
-- **closer** — verification + reviewer pass + PR-ready release notes (no new implementation).
-- **shipper** — straightforward inspect → implement → verify (lighter than autopilot).
-- **surgical-reviewer** — minimal-risk review of diffs; flags correctness + edge cases.
-
-### Hooks (`.claude/hooks/`)
-
-- **guard_bash.py** — blocks dangerous bash patterns + supply-chain attacks:
-  - Destructive commands: `rm -rf`, `sudo`, `mkfs`
-  - Git operations: `git commit`, `git add` (prevents auto-staging and auto-commits)
-  - Remote code execution: `curl|bash`, `wget|sh`, base64-to-shell
-  - Supply-chain: `npx` (hallucinated packages), `npm install` (postinstall scripts), `pip install` from URLs
-  - Allowlist support for trusted packages
-- **protect_files.py** — blocks edits to sensitive files:
-  - Protected: `.env`, secrets, keys, certs, prod configs
-  - Allowed: `.env.example`, `.env.sample`, `.env.template`, `docker-compose.prod*.yml` (tracked in git)
-- **format_if_configured.py** — formats the _edited file only_ when a formatter config exists:
-  - JS/TS: runs Prettier if `.prettierrc*` exists
-  - Python: runs Black if `pyproject.toml` exists
-- **log_prompt.py / log_bash.py / log_assistant.py** — appends to `.claude/logs/*` for traceability.
-
-### Extras (`.claude/extras/`)
-
-- **install-extras.sh** — vendor-sync installer for external repos (wshobson commands/agents)
-- **doctor.sh** — validates `.claude/` configuration, settings schema, and hooks
-
-### Scripts (`.claude/scripts/`)
-
-- **install-opencode-ohmy.sh** — optional installer for OpenCode + oh-my-opencode (separate toolchain, see ToS warning)
-
-### Settings (`.claude/settings.local.json`)
-
-Tool permissions allowlist/denylist + hook wiring.
-
-> Tip: Claude Code commonly reads project config from `.claude/settings.json`. If your install expects that, copy:
-> `cp .claude/settings.local.json .claude/settings.json`
-
-## Install (use this kit in another repo)
-
-> **Warning**: Do not run as root user. Install and run this kit as a non-root user only.
-
-From the **target repo root** (the repo you want Claude to work on), bring in this kit's `.claude/` folder:
-
-### Option 0 — full bootstrap (recommended for Linux)
-
-Installs everything: `.claude/` (includes extras, scripts), devtools (git, rsync, python3), and wshobson agents/commands:
+## Quick Install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux
 ```
 
-This runs:
-1. `linux_devtools.sh` — installs git, rsync, python3, notify-send, LSP binaries
-2. `install-extras.sh` — clones and syncs wshobson commands/agents/skills
+Then restart Claude Code to load the new configuration.
 
-### Option 1 — kit only (no extras)
+---
+
+## How It Works
+
+After installation, the kit automatically:
+
+1. **Injects autopilot** — A hook detects substantive prompts and triggers the autopilot agent
+2. **Guards dangerous operations** — Blocks `rm -rf`, `sudo`, `curl|bash`, auto-commits, etc.
+3. **Protects sensitive files** — Blocks edits to `.env`, secrets, certs, prod configs
+4. **Auto-formats code** — Runs Prettier/Black on edited files when configured
+5. **Logs everything** — Prompts, commands, and responses go to `.claude/logs/`
+
+---
+
+## Usage Guide
+
+### Just Ask Naturally
+
+For most tasks, simply describe what you want:
+
+```
+Add a logout button to the navbar that clears the session and redirects to /login
+```
+
+The autopilot agent automatically:
+- Explores the codebase to understand the structure
+- Plans the implementation
+- Makes the changes
+- Verifies the result
+- Reviews for issues
+
+### Structured Prompts (For Complex Tasks)
+
+For complex or multi-step tasks, use this structure for best results:
+
+```
+1) GOAL
+- Add user authentication with JWT tokens
+
+2) DEFINITION OF DONE
+- [ ] Login endpoint returns JWT on valid credentials
+- [ ] Protected routes reject requests without valid token
+- [ ] Tests pass
+
+3) CONTEXT
+- Using Express.js backend in /src/api
+- User model already exists at /src/models/user.js
+
+4) DETAILS
+- Use bcrypt for password hashing
+- Token expiry: 24 hours
+```
+
+### Skip Autopilot for Simple Questions
+
+Simple questions bypass autopilot automatically:
+
+```
+What files handle authentication?
+How does the routing work?
+Explain the database schema
+```
+
+---
+
+## Available Agents
+
+| Agent | Use Case | How to Invoke |
+|-------|----------|---------------|
+| **autopilot** | Full task execution (explore → implement → verify → review) | Automatic for substantive prompts |
+| **autopilot-fixer** | Fix incomplete/broken autopilot output | `Use the autopilot-fixer subagent` |
+| **closer** | Final verification + PR notes (no new code) | `Use the closer subagent` |
+| **triage** | Debug failures (repro → diagnose → fix) | `Use the triage subagent` |
+| **parallel-orchestrator** | Multi-part tasks needing parallel work | `Use the parallel-orchestrator subagent` |
+
+### When Autopilot Doesn't Finish
+
+```
+Use the autopilot-fixer subagent.
+
+Original Task:
+<<<
+[paste your original prompt]
+>>>
+
+What's Still Wrong:
+<<<
+[paste error messages or describe the issue]
+>>>
+```
+
+### Final Verification Before PR
+
+```
+Use the closer subagent.
+
+Acceptance Criteria:
+<<<
+- [ ] Feature works as described
+- [ ] Tests pass
+- [ ] No console errors
+>>>
+```
+
+---
+
+## Session Persistence (Three-File Pattern)
+
+For complex tasks spanning multiple sessions, the kit provides templates to externalize state:
+
+### Setup
+
+```bash
+# Create a task directory
+mkdir -p .claude/context/my-feature
+
+# Copy templates
+cp .claude/context/templates/*.md .claude/context/my-feature/
+```
+
+### The Three Files
+
+| File | Purpose | Update Frequency |
+|------|---------|------------------|
+| `plan.md` | High-level strategy, architecture decisions | Rarely (only when approach changes) |
+| `context.md` | Key discoveries, file locations, gotchas | Each session |
+| `tasks.md` | Granular checklist of work items | Frequently |
+
+### Resuming Work
+
+When you return to a task, say:
+
+```
+Continue working on my-feature. Resume from where we left off.
+```
+
+The kit detects "continue" or "resume" and points Claude to your saved state.
+
+---
+
+## Safety Guardrails
+
+### Blocked by Default
+
+| Category | Examples |
+|----------|----------|
+| Destructive | `rm -rf`, `sudo`, `mkfs`, `dd` |
+| Git operations | `git commit`, `git add`, `git push --force` |
+| Remote execution | `curl \| bash`, `wget \| sh`, base64 decode to shell |
+| Supply chain | `npx [unknown]`, `pip install` from URLs |
+
+### Protected Files (Sentinel Zones)
+
+These require explicit approval:
+- `.env` files (except `.env.example`)
+- `**/secrets/**`, `**/*credentials*`
+- `**/*.pem`, `**/*.key`
+- Code with `LEGACY_PROTECTED`, `DO_NOT_MODIFY`, or `SECURITY_CRITICAL` comments
+
+### Override Protection (Use Carefully)
+
+```bash
+export CLAUDE_ALLOW_PROTECTED_EDITS=1
+claude
+```
+
+---
+
+## Directory Structure
+
+```
+.claude/
+├── CLAUDE.md                 # Constitution (universal rules)
+├── settings.local.json       # Permissions + hook config
+├── agents/
+│   ├── CLAUDE.md             # Agent documentation
+│   ├── autopilot.md          # Main task executor
+│   ├── autopilot-fixer.md    # Fix-up pass
+│   └── ...                   # Other agents
+├── hooks/
+│   ├── CLAUDE.md             # Hook documentation
+│   ├── autopilot_inject.py   # Auto-triggers autopilot
+│   ├── guard_bash.py         # Blocks dangerous commands
+│   ├── protect_files.py      # Blocks sensitive file edits
+│   └── ...                   # Other hooks
+├── context/
+│   ├── templates/            # Three-file pattern templates
+│   └── <task>/               # Your session state (gitignored)
+├── docs/                     # Reference documentation
+├── logs/                     # Session logs (gitignored)
+└── extras/
+    ├── doctor.sh             # Validate configuration
+    └── install-extras.sh     # Install wshobson agents/commands
+```
+
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Autopilot not launching | Restart Claude Code after install. Check `.claude/settings.local.json` exists |
+| Command blocked | Check `.claude/hooks/guard_bash.py` — add to allowlist if safe |
+| File edit blocked | Check for sentinel markers in code. Use `CLAUDE_ALLOW_PROTECTED_EDITS=1` to override |
+| Formatting not working | Requires `.prettierrc*` (JS/TS) or `pyproject.toml` (Python) in repo |
+| Hooks not running | Copy settings: `cp .claude/settings.local.json .claude/settings.json` |
+
+### Validate Configuration
+
+```bash
+./.claude/extras/doctor.sh
+```
+
+---
+
+## Installation Options
+
+### Full Bootstrap (Recommended for Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
+  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux
+```
+
+Installs: kit + devtools (git, python3, notify-send) + wshobson agents/commands
+
+### Kit Only (No Extras)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force
 ```
 
-Or with bootstrap but without wshobson extras:
+### Update Existing Install
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
-  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --no-extras
-```
+Run the same install command with `--force` to update while preserving logs.
 
-### Installer options
+### Installer Options
 
 | Option | Description |
 |--------|-------------|
 | `--repo <owner/repo>` | Source repo (required) |
 | `--ref <branch\|tag\|sha>` | Git ref (default: main) |
-| `--dest <path>` | Destination directory (default: current directory) |
+| `--dest <path>` | Destination (default: current directory) |
 | `--force` | Overwrite existing `.claude/` (preserves logs) |
-| `--bootstrap-linux` | Run full bootstrap (devtools + extras) |
-| `--no-extras` | Skip wshobson agents/commands/skills |
+| `--bootstrap-linux` | Full bootstrap (devtools + extras) |
+| `--no-extras` | Skip wshobson agents/commands |
 
-#### Updating an existing install
+---
 
-To update/refresh the kit, run the **same install command** again with `--force`:
+## Git Hygiene
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
-  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux
-```
-
-Notes:
-
-* `--force` overwrites the kit files to match the latest version, while preserving your local `.claude/logs/`.
-* If you want to pin to a specific version, replace `--ref main` with a tag or commit SHA.
-
-### Option A — copy (simplest)
-
-```bash
-cp -R /path/to/claude-autopilot-kit/.claude .
-```
-
-### Option B — symlink (keeps it centralized)
-
-```bash
-ln -s /path/to/claude-autopilot-kit/.claude .claude
-```
-
-### Git hygiene
-
-Add these to `.gitignore` in your target repos:
+Add to your `.gitignore`:
 
 ```gitignore
 .claude/logs/
+.claude/context/*
+!.claude/context/templates/
 .claude/vendor/
-.claude/commands/tools/
-.claude/commands/workflows/
-.claude/skills/wshobson-*
 ```
 
-## Extras (wshobson integration)
+---
 
-When installed with `--bootstrap-linux`, you get curated agents and commands from:
-- [wshobson/commands](https://github.com/wshobson/commands) — `/tools:...` and `/workflows:...` operators
-- [wshobson/agents](https://github.com/wshobson/agents) — 72 specialized plugins (14 installed by default)
+## Customization
 
-### Default plugins installed
+| Want to... | Do this... |
+|------------|------------|
+| Tighten permissions | Edit `permissions.allow` in `.claude/settings.local.json` |
+| Allow a blocked command | Add pattern to allowlist in `.claude/hooks/guard_bash.py` |
+| Disable auto-formatting | Remove `format_if_configured.py` from PostToolUse hooks |
+| Add protected paths | Edit `PROTECTED_GLOBS` in `.claude/hooks/protect_files.py` |
+| Disable autopilot auto-launch | Remove `autopilot_inject.py` from UserPromptSubmit hooks |
 
-| Category | Plugins |
-|----------|---------|
-| **Workflow** | full-stack-orchestration, comprehensive-review, security-scanning, backend-development |
-| **Languages** | javascript-typescript, python-development, systems-programming (Go/Rust/C++), jvm-languages, functional-programming |
-| **Quality** | debugging-toolkit, code-refactoring, unit-testing, tdd-workflows, git-pr-workflows |
+---
 
-To install additional plugins, edit `WSHOBSON_AGENT_PLUGINS` in `.claude/extras/install-extras.sh`. See [all 72 plugins](https://github.com/wshobson/agents/tree/main/plugins).
+## Optional: wshobson Integration
 
-### Usage examples
+When installed with `--bootstrap-linux`, you get curated agents from:
+- [wshobson/commands](https://github.com/wshobson/commands)
+- [wshobson/agents](https://github.com/wshobson/agents)
 
-```text
-/workflows:full-stack-feature build user authentication
+Usage:
+```
+/workflows:full-stack-feature build user dashboard
 /tools:security-scan src/
 ```
 
-### Manual extras management
-
+Manage extras:
 ```bash
-# Install/update extras manually
-./.claude/extras/install-extras.sh
-
-# Update existing vendor repos
-./.claude/extras/install-extras.sh --update
-
-# Install specific components only
-./.claude/extras/install-extras.sh --commands    # wshobson/commands only
-./.claude/extras/install-extras.sh --agents      # wshobson/agents only
-
-# Show CLI tools guide (viwo, recall, ccusage, etc.)
-./.claude/extras/install-extras.sh --cli-info
+./.claude/extras/install-extras.sh           # Install/update
+./.claude/extras/install-extras.sh --update  # Update only
 ```
 
-### Validate configuration
+---
 
-```bash
-./.claude/extras/doctor.sh
-```
+## Core Principles
 
-Checks JSON syntax, settings schema, hook scripts, agent frontmatter, and common issues.
-
-## Optional: OpenCode + oh-my-opencode
-
-A separate toolchain installer is provided for [OpenCode](https://opencode.ai/) + [oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode):
-
-```bash
-./.claude/scripts/install-opencode-ohmy.sh
-```
-
-> **Warning**: oh-my-opencode is designed for OpenCode, not Claude Code. The README warns about OAuth/ToS implications when used with Claude Code accounts. This installs as a completely separate toolchain.
-
-## Recommended daily usage
-
-### 1) Start Claude Code
-
-Safer default (plan first):
-
-```bash
-claude --permission-mode plan
-```
-
-Then switch to execution:
-
-```bash
-claude --permission-mode ask
-# or: claude --permission-mode allow  (only if you trust your allowlist + hooks)
-```
-
-### 2) Run a one-shot task (fast path)
-
-Paste into Claude Code:
-
-```text
-Use the autopilot subagent.
-
-1) GOAL
-- <one sentence>
-
-2) DEFINITION OF DONE
-- [ ] <measurable outcome>
-- [ ] <measurable outcome>
-- [ ] Tests/lint/build pass OR exact manual steps pass
-
-3) CONTEXT (optional)
-- Constraints: minimal changes; follow repo patterns; no network/destructive commands unless approved
-- Suspected files/keywords: <paths/terms>
-
-4) DETAILS
-<<<
-<paste errors, repro steps, expected vs actual, requirements>
->>>
-```
-
-### 3) If it’s “mostly done” and still wrong
-
-Use the bounded fix-up pass:
-
-```text
-Use the autopilot-fixer subagent.
-
-Original Task:
-<<<
-<paste the kickoff prompt you used>
->>>
-
-Prior Claude Output:
-<<<
-<paste Claude’s last summary / claims / changed files>
->>>
-
-Observed Behavior / Logs:
-<<<
-<paste what’s still wrong + command output>
->>>
-```
-
-### 4) Close it out (verification + PR notes)
-
-```text
-Use the closer subagent.
-
-DoD / Acceptance Criteria:
-<<<
-<paste DoD>
->>>
-
-Changed Files:
-<<<
-<paste list or "unknown">
->>>
-```
-
-## Operating rules (the whole point of this kit)
-
-- **Smallest change that satisfies the task** (no drive-by refactors).
-- **Discovery first**: search/read before deciding.
-- **Always verify**: run repo checks (tests/lint/build) or provide a precise manual checklist.
-- **One bounded retry** when something fails (triage → patch → re-verify once).
-- **No network or destructive commands unless you explicitly approve.**
-
-## Customization (quick + safe)
-
-- Want stricter permissions? tighten `.claude/settings*.json` allowlist.
-- Want quieter diffs? disable `format_if_configured.py` or limit formatters.
-- Want more auditing? keep logs on; rotate `.claude/logs/*` as needed.
-
-## Troubleshooting
-
-- **Hooks not running?** Ensure the settings file is the one Claude Code loads (`.claude/settings.json` vs `settings.local.json`).
-- **Formatting didn't happen?** Prettier requires `.prettierrc*`; Black requires `pyproject.toml`.
-- **A command got blocked?** Check `.claude/hooks/guard_bash.py` patterns and adjust intentionally.
-- **npx/npm blocked?** Supply-chain guardrails block these by default. Add trusted packages to the allowlist in `guard_bash.py`.
-- **Configuration issues?** Run `./.claude/extras/doctor.sh` to validate your setup.
-- **Extras not installed?** Run `./.claude/extras/install-extras.sh` manually, or reinstall with `--bootstrap-linux`.
+1. **Smallest change that satisfies the task** — No drive-by refactors
+2. **Discovery first** — Search and read before deciding
+3. **Always verify** — Run tests/lint/build or provide manual steps
+4. **One bounded retry** — Triage → patch → verify once if it fails
+5. **No destructive commands** — Unless explicitly approved

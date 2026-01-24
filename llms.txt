@@ -1,0 +1,97 @@
+# Claude Code Autopilot Kit
+
+> A reusable .claude/ setup for Claude Code with one-shot task completion, permissions guardrails, and session management.
+
+## Quick Start
+
+For any task, use the autopilot subagent:
+```
+Use the autopilot subagent (Task tool with subagent_type=autopilot) for this task
+```
+
+## Documentation Map
+
+### Core Configuration
+- /.claude/CLAUDE.md - Constitution and universal rules
+- /.claude/settings.local.json - Permissions and hook configuration
+- /.claude/settings.json - Model and plugin settings
+
+### Agents
+- /.claude/agents/CLAUDE.md - Agent catalog and usage guide
+- /.claude/agents/autopilot.md - One-shot delivery agent
+- /.claude/agents/parallel-orchestrator.md - Parallel task orchestration
+- /.claude/agents/orchestrator.md - Planning with forced delegation
+- /.claude/agents/autopilot-fixer.md - Fix-up pass for incomplete work
+- /.claude/agents/closer.md - Verification and PR summary
+- /.claude/agents/triage.md - Debugging and root cause analysis
+- /.claude/agents/surgical-reviewer.md - Code review
+- /.claude/agents/promptsmith.md - Raw task to execution-ready prompt
+- /.claude/agents/shipper.md - Lightweight implementation agent
+- /.claude/agents/runbook.md - Next-action prompt generator
+- /.claude/agents/*.md - More agents added
+
+### Hooks
+- /.claude/hooks/CLAUDE.md - Hook documentation and patterns
+- /.claude/hooks/protect_files.py - Sentinel zone enforcement
+- /.claude/hooks/guard_bash.py - Dangerous command blocking
+- /.claude/hooks/format_if_configured.py - Auto-formatting on edit
+- /.claude/hooks/log_*.py - Audit logging hooks
+- /.claude/hooks/notify_linux.py - Desktop notifications
+- /.claude/hooks/persist_session.py - Session state persistence
+- /.claude/hooks/inject_context.py - Dynamic context injection
+
+### Workflow Guides
+- /.claude/WORKFLOW.md - Session startup and daily usage
+- /.claude/WORKFLOW_EXAMPLE.md - Example workflows
+- /.claude/WORKFLOW_FIXUP.md - Fix-up procedures
+
+### Documentation
+- /.claude/docs/session-state.md - Three-file pattern for session resilience
+- /.claude/docs/sentinel-zones.md - Protected code zone configuration
+
+### Bootstrap and Extras
+- /.claude/bootstrap/linux_devtools.sh - Linux development tools installer
+- /.claude/extras/install-extras.sh - External agent/command installer
+- /.claude/extras/doctor.sh - Configuration validator
+
+## Key Concepts
+
+### Hierarchical Context Architecture
+Root CLAUDE.md is the Constitution (<200 lines). Subdirectory CLAUDE.md files provide domain-specific guidance loaded on-demand.
+
+### Three-File Pattern
+For session resilience: plan.md (North Star), context.md (learnings), tasks.md (checklist). Store in .claude/context/<task>/.
+
+### Sentinel Zones
+Protected code areas requiring explicit approval: .env files, secrets, prod configs, legacy code marked with @sentinel.
+
+### Parallel Agent Deployment
+Spawn 2-4 agents concurrently for independent subtasks. Use parallel-orchestrator for complex multi-part tasks.
+
+### Forced Delegation
+The orchestrator agent cannot directly access code. It must spawn specialist agents.
+
+## API Reference
+
+### Spawning Agents
+```
+Task tool with subagent_type=<agent-name>
+```
+
+### Hook Return Codes
+- Exit 0: Allow operation
+- Exit 2: Block operation (PreToolUse only)
+
+### Environment Variables
+- CLAUDE_PROJECT_DIR: Project root
+- CLAUDE_SESSION_ID: Current session
+- CLAUDE_ALLOW_PROTECTED_EDITS: Override sentinel protection
+
+## Optional Integration
+
+### External Commands (wshobson)
+Install with --bootstrap-linux flag for /tools: and /workflows: commands.
+
+### Desktop Notifications
+Linux: notify_linux.py uses notify-send
+macOS: Use osascript notification hooks

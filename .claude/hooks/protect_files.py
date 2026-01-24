@@ -1,6 +1,17 @@
 #!/usr/bin/env python3
+"""
+Sentinel zone enforcement hook.
+Blocks edits to protected files and code marked with sentinel markers.
+
+Sentinel Zones:
+- Files matching PROTECTED_GLOBS patterns
+- Code containing sentinel markers in comments (code files only)
+
+See .claude/docs/sentinel-zones.md for full documentation.
+"""
 import json
 import os
+import re
 import sys
 from pathlib import Path, PurePosixPath
 
@@ -8,6 +19,22 @@ from pathlib import Path, PurePosixPath
 # Temporary escape hatch (set before starting claude):
 #   export CLAUDE_ALLOW_PROTECTED_EDITS=1
 ALLOW_OVERRIDE_ENV = "CLAUDE_ALLOW_PROTECTED_EDITS"
+
+# Sentinel markers in code that indicate protected sections
+# These must appear in code comments to be recognized
+SENTINEL_MARKER_PATTERNS = [
+    r"LEGACY_PROTECTED\b",
+    r"DO_NOT_MODIFY\b",
+    r"SECURITY_CRITICAL\b",
+]
+
+# File extensions that support sentinel marker detection
+# Only check code files, not documentation or config
+CODE_EXTENSIONS = {
+    ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".java", ".scala",
+    ".c", ".cpp", ".h", ".hpp", ".cs", ".rb", ".php", ".swift", ".kt",
+    ".sh", ".bash", ".zsh", ".fish",
+}
 
 # Allowlist: these patterns are safe to edit even if they match protected globs
 ALLOWED_PATTERNS = [
@@ -95,10 +122,40 @@ def is_protected(rel_posix: str) -> bool:
     return False
 
 
+def is_code_file(file_path: str) -> bool:
+    """Check if file is a code file that supports sentinel markers."""
+    ext = Path(file_path).suffix.lower()
+    return ext in CODE_EXTENSIONS
+
+
+def has_sentinel_marker(file_path: str) -> tuple[bool, str | None]:
+    """
+    Check if code file contains sentinel markers in comments.
+    Returns (is_protected, marker_found).
+    Only checks code files (not markdown, config, etc).
+    """
+    # Only check code files
+    if not is_code_file(file_path):
+        return False, None
+
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read(50000)  # Only check first 50KB
+
+            # Look for markers that indicate truly protected code
+            for marker_pattern in SENTINEL_MARKER_PATTERNS:
+                match = re.search(marker_pattern, content, re.IGNORECASE)
+                if match:
+                    return True, match.group(0)
+    except (OSError, IOError):
+        pass  # File doesn't exist yet or can't be read
+    return False, None
+
+
 def extract_paths(tool_name: str, tool_input: dict) -> list[str]:
     paths: list[str] = []
 
-    # Write/Edit have file_path. :contentReference[oaicite:4]{index=4}
+    # Write/Edit have file_path.
     fp = tool_input.get("file_path")
     if isinstance(fp, str) and fp.strip():
         paths.append(fp.strip())
@@ -133,7 +190,7 @@ def main() -> int:
         payload = json.load(sys.stdin)
     except Exception as e:
         print(f"protect_files: invalid JSON input: {e}", file=sys.stderr)
-        return 0  # don’t break the session
+        return 0  # don't break the session
 
     tool_name = payload.get("tool_name", "")
     tool_input = payload.get("tool_input", {}) or {}
@@ -147,6 +204,8 @@ def main() -> int:
     paths = extract_paths(tool_name, tool_input)
     for p in paths:
         rel = to_project_relative(p, project_dir)
+
+        # Check glob-based protection
         if is_protected(rel):
             print(
                 "\n".join(
@@ -159,7 +218,25 @@ def main() -> int:
                 ),
                 file=sys.stderr,
             )
-            return 2  # Exit code 2 blocks PreToolUse tool call. :contentReference[oaicite:5]{index=5}
+            return 2  # Exit code 2 blocks PreToolUse tool call.
+
+        # Check sentinel markers in existing code files
+        abs_path = Path(project_dir) / rel
+        has_marker, marker = has_sentinel_marker(str(abs_path))
+        if has_marker:
+            print(
+                "\n".join(
+                    [
+                        f"Blocked edit to sentinel-protected file: {rel}",
+                        f"File contains '{marker}' marker indicating protected code.",
+                        "This code requires explicit approval before modification.",
+                        f"To override temporarily: export {ALLOW_OVERRIDE_ENV}=1 (then restart Claude).",
+                        "See .claude/docs/sentinel-zones.md for documentation.",
+                    ]
+                ),
+                file=sys.stderr,
+            )
+            return 2
 
     return 0
 
