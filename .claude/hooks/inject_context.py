@@ -12,6 +12,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Optional, Dict, List
 
 
 # Keyword to context mapping
@@ -89,7 +90,7 @@ def detect_context_needs(prompt: str) -> list:
     return list(set(snippets))  # Dedupe
 
 
-def detect_task_continuation(prompt: str) -> str | None:
+def detect_task_continuation(prompt: str) -> Optional[str]:
     """Check if user is continuing a previous task and find context."""
     prompt_lower = prompt.lower()
 
@@ -109,7 +110,7 @@ def detect_task_continuation(prompt: str) -> str | None:
     return None
 
 
-def build_injection(prompt: str) -> dict | None:
+def build_injection(prompt: str) -> Optional[Dict]:
     """Build context injection based on prompt analysis."""
     snippets = detect_context_needs(prompt)
     continuation_dir = detect_task_continuation(prompt)

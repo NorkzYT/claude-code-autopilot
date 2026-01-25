@@ -15,6 +15,7 @@ import re
 import sys
 from pathlib import Path, PurePosixPath
 
+from typing import List, Optional, Tuple
 
 # Temporary escape hatch (set before starting claude):
 #   export CLAUDE_ALLOW_PROTECTED_EDITS=1
@@ -128,7 +129,7 @@ def is_code_file(file_path: str) -> bool:
     return ext in CODE_EXTENSIONS
 
 
-def has_sentinel_marker(file_path: str) -> tuple[bool, str | None]:
+def has_sentinel_marker(file_path: str) -> Tuple[bool, Optional[str]]:
     """
     Check if code file contains sentinel markers in comments.
     Returns (is_protected, marker_found).
@@ -152,8 +153,8 @@ def has_sentinel_marker(file_path: str) -> tuple[bool, str | None]:
     return False, None
 
 
-def extract_paths(tool_name: str, tool_input: dict) -> list[str]:
-    paths: list[str] = []
+def extract_paths(tool_name: str, tool_input: dict) -> List[str]:
+    paths: List[str] = []
 
     # Write/Edit have file_path.
     fp = tool_input.get("file_path")
@@ -171,7 +172,7 @@ def extract_paths(tool_name: str, tool_input: dict) -> list[str]:
                     paths.append(p.strip())
 
     # Dedup
-    out: list[str] = []
+    out: List[str] = []
     seen: set[str] = set()
     for p in paths:
         if p not in seen:
