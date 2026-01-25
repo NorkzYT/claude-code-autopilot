@@ -15,6 +15,8 @@ After install, you'll see your **ntfy.sh subscription URL** — subscribe to get
 
 Then restart Claude Code to load the new configuration.
 
+> **Note:** Run Claude Code as a **non-root user**. The kit's hooks, logs, and VS Code integration are designed for regular user accounts. If using VS Code Remote (SSH/Tailscale), ensure you attach as the same user that runs Claude.
+
 ---
 
 ## How It Works
@@ -265,10 +267,25 @@ claude
 Press `Ctrl+G` in Claude Code to open an external editor for composing prompts.
 
 The kit includes a dynamic `claude-editor` wrapper that automatically detects:
-1. VS Code (local install)
-2. VS Code Remote-SSH (`~/.vscode-server`)
-3. Cursor (VS Code fork)
-4. Falls back to nano/vim if no GUI editor found
+1. VS Code local install (`code` on PATH)
+2. VS Code integrated terminal (`VSCODE_IPC_HOOK_CLI` env var)
+3. VS Code Remote-SSH server (`~/.vscode-server/`)
+4. Cursor (VS Code fork)
+5. Falls back to nano/vim if no GUI editor found
+
+### Requirements for VS Code on Remote Machines
+
+For VS Code to work as the external editor on a **remote machine**, you must:
+
+1. **Connect via VS Code Remote-SSH** (or Tailscale SSH extension) - This installs `~/.vscode-server/` on the remote machine
+2. **Run Claude inside VS Code's integrated terminal** - This sets the required environment variables
+3. **Run as a non-root user** - The VS Code server and IPC socket are installed per-user in `~/.vscode-server/`
+
+If you run Claude in a regular SSH terminal (not VS Code's terminal), the editor falls back to nano because there's no way to communicate with VS Code.
+
+> **Important for Tailscale SSH users:** When attaching to a remote machine via VS Code with the Tailscale extension, ensure you connect as the **same non-root user** that runs Claude Code. The VS Code IPC socket (`VSCODE_IPC_HOOK_CLI`) and server files are user-specific. If you attach as root but run Claude as another user, the editor integration won't work.
+
+**Debug:** Run `CLAUDE_EDITOR_DEBUG=1 claude-editor test.txt` to see which editor is detected.
 
 ### VS Code Keybinding Conflict
 
