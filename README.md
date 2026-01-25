@@ -280,9 +280,16 @@ If `Ctrl+G` opens VS Code's "Go to Recent Directory" picker instead of the edito
     "key": "ctrl+g",
     "command": "-workbench.action.terminal.goToRecentDirectory",
     "when": "terminalFocus"
+  },
+  {
+    "key": "ctrl+shift+alt+p",
+    "command": "workbench.action.terminal.goToRecentDirectory",
+    "when": "terminalFocus"
   }
 ]
 ```
+
+This unbinds Ctrl+G and rebinds "Go to Recent Directory" to Ctrl+Shift+Alt+P. Alternatively, use `"key": "escape"` to disable the feature completely.
 
 ### Manual Editor Override
 

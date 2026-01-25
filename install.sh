@@ -300,7 +300,9 @@ echo "    4. Falls back to nano/vim if no GUI editor found"
 echo ""
 echo "  VS Code keybinding conflict fix (if Ctrl+G opens directory picker):"
 echo "    Add to your VS Code keybindings.json:"
-echo '    {"key": "ctrl+g", "command": "-workbench.action.terminal.goToRecentDirectory", "when": "terminalFocus"}'
+echo '    {"key": "ctrl+g", "command": "-workbench.action.terminal.goToRecentDirectory", "when": "terminalFocus"},'
+echo '    {"key": "ctrl+shift+alt+p", "command": "workbench.action.terminal.goToRecentDirectory", "when": "terminalFocus"}'
+echo "    (Or use \"key\": \"escape\" to disable completely)"
 echo ""
 echo "=============================================="
 echo ""
