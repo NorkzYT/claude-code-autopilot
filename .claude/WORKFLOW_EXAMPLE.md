@@ -4,6 +4,10 @@ Fill in the 4 sections. Then paste the block below into Claude Code.
 
 (Replace <...> placeholders with real text; remove unused sections.)
 
+> **Ralph loops are automatically enabled.** When you use the autopilot subagent,
+> it will iterate automatically until the Definition of Done is fully met.
+> The task completes when autopilot outputs `<promise>TASK_COMPLETE</promise>`.
+
 ```text
 Use the autopilot subagent.
 
@@ -65,3 +69,17 @@ Use the autopilot subagent.
 ## One rule that makes this work
 
 When in doubt, put more into **DETAILS**. Autopilot is strongest when it has the raw error text, the exact UI text, and the real constraints.
+
+---
+
+## How automatic completion works
+
+1. **You paste** the task template with `Use the autopilot subagent.`
+2. **Autopilot starts** and automatically creates a Ralph loop (if not already active)
+3. **Work proceeds** through the pipeline: plan -> implement -> verify -> review
+4. **Iteration continues** automatically if verification fails or DoD is not met
+5. **Task completes** when closer confirms DoD and outputs `<promise>TASK_COMPLETE</promise>`
+
+Default settings: 30 max iterations, TASK_COMPLETE promise.
+
+To manually control iterations, use `/ralph-loop` or `/ship` commands instead.

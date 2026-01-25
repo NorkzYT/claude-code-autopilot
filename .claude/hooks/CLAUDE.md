@@ -47,6 +47,7 @@ User Prompt → PreToolUse → Tool Execution → PostToolUse → Response
 |------|---------|
 | `log_assistant.py` | Logs assistant responses |
 | `persist_session.py` | Saves session state to context directory |
+| `ralph_loop_hook.py` | Ralph Wiggum iterative loop - blocks exit until completion promise fulfilled |
 
 ### Notification Hooks
 
@@ -140,3 +141,67 @@ ALLOWLISTED_NPX = [
     r"^npx\s+eslint\b",
 ]
 ```
+
+## Ralph Wiggum Iterative Loop
+
+The `ralph_loop_hook.py` implements iterative, self-referential development loops.
+
+### How It Works
+
+1. **Setup**: Use `/ralph-loop` command or `setup-ralph-loop.sh` script to create state file
+2. **Iteration**: On each Stop event, the hook checks if the completion promise was fulfilled
+3. **Continuation**: If not complete, blocks exit (exit code 2) and injects the prompt for next iteration
+4. **Completion**: When `<promise>DONE</promise>` is output, loop ends and session exits normally
+
+### State File Format
+
+Location: `.claude/ralph-loop.local.md`
+
+```markdown
+---
+active: true
+iteration: 1
+max_iterations: 20
+completion_promise: "DONE"
+started_at: "2024-01-01T00:00:00Z"
+---
+
+Your task prompt here
+```
+
+### Commands
+
+- `/ralph-loop [max_iter] [promise] "task"` - Start a new loop
+- `/cancel-ralph` - Cancel an active loop
+
+### Integration with Autopilot Pipeline
+
+The Ralph loop enhances the staged subagent pipeline by enabling:
+- **Iterative refinement**: Keep working until tests pass
+- **Self-healing**: Automatically retry failed tasks
+- **Convergence loops**: Refine until quality gates pass
+
+Example workflow:
+```
+/ralph-loop 10 TESTS_PASS "Implement feature X. Run tests after each change.
+When all tests pass, output <promise>TESTS_PASS</promise>"
+```
+
+### Default Execution via /ship
+
+The recommended way to execute tasks is via `/ship`, which sets up a Ralph loop with:
+- `max_iterations: 30`
+- `completion_promise: TASK_COMPLETE`
+
+```
+/ship "Build a REST API with tests"
+```
+
+This executes the full autopilot pipeline and loops until the closer agent outputs `<promise>TASK_COMPLETE</promise>`.
+
+### Completion Promise Protocol
+
+Agents in a Ralph loop should:
+1. Check for `.claude/ralph-loop.local.md` at start
+2. Output `<promise>PROMISE_TEXT</promise>` ONLY when truly done
+3. The closer agent is the final gate that decides completion

@@ -30,6 +30,7 @@ Agents follow the **Orchestrator -> Explorer/Coder** pattern:
 | `triage` | Debugging and root cause analysis | Read, Glob, Grep, Bash |
 | `surgical-reviewer` | Code review focused on correctness | Read, Glob, Grep |
 | `runbook` | Generates next-action prompts when stuck | Read only |
+| `accessibility-auditor` | WCAG 2.1 AA compliance audit and remediation | Full access |
 
 ## Spawning Agents
 
@@ -103,6 +104,7 @@ After frontmatter, include:
 | Architecture | `architect-review`, `backend-architect`, `graphql-architect`, `event-sourcing-architect` |
 | Security | `security-auditor`, `threat-modeling-expert` |
 | Quality/Review | `code-reviewer`, `surgical-reviewer` |
+| Accessibility | `accessibility-auditor` |
 | Testing | `test-automator`, `tdd-orchestrator` |
 | Debugging | `debugger`, `triage` |
 | DevOps | `deployment-engineer`, `performance-engineer` |
@@ -110,3 +112,28 @@ After frontmatter, include:
 | Workflow | `autopilot-fixer`, `closer`, `runbook`, `promptsmith`, `shipper` |
 
 To check installed agents: `ls .claude/agents/`
+
+## Ralph Loop Integration
+
+Agents can run inside Ralph loops for guaranteed task completion.
+
+### Recommended Execution
+
+Use `/ship` for fire-and-forget execution:
+```
+/ship "Build a REST API with tests"
+```
+
+### How It Works
+
+1. `/ship` creates a Ralph loop with `TASK_COMPLETE` promise
+2. Autopilot executes the full pipeline
+3. Closer verifies DoD and outputs `<promise>TASK_COMPLETE</promise>` when done
+4. Loop continues if promise not output
+
+### Agent Responsibilities in Ralph Loops
+
+- **autopilot**: Check `.claude/ralph-loop.local.md` at start; aware of iteration count
+- **closer**: Final gate; outputs completion promise when DoD met
+
+See `.claude/hooks/CLAUDE.md` for full Ralph loop documentation.

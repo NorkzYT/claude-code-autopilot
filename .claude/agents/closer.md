@@ -63,6 +63,35 @@ C) Security findings (if applicable)
 D) Reviewer findings (Blockers / Warnings / Nice-to-have)
 E) PR Release Notes (ready to paste)
 F) Follow-ups (if any)
+G) Completion status (see below)
+
+## Ralph Loop Completion Gate
+
+Closer is the **final gate** that decides if a task is truly done.
+
+When running inside a Ralph loop (check `.claude/ralph-loop.local.md`):
+
+1. **Evaluate DoD**: All acceptance criteria must be met
+2. **Verify no blockers**: Section D must have zero blockers
+3. **Confirm verification passed**: Section B must show all checks passing
+
+**Completion Decision**:
+- IF DoD fully met AND no blockers AND verification passed:
+  - Output: `<promise>TASK_COMPLETE</promise>` at the very end
+- ELSE:
+  - List remaining items
+  - Do NOT output the promise (loop will continue)
+
+### Completion Protocol
+
+```
+IF in ralph loop:
+  IF DoD_met AND no_blockers AND verification_passed:
+    Final line: <promise>TASK_COMPLETE</promise>
+  ELSE:
+    "Remaining work: [list items]"
+    "Loop will continue."
+```
 
 INPUT
 DoD / Acceptance Criteria:

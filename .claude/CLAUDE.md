@@ -47,6 +47,30 @@ Instead of embedding full docs, load on-demand:
         └── tasks.md       # Granular checklist
 ```
 
+## High-Success Execution (Ralph Loops)
+
+For guaranteed task completion, use **Ralph loops** as the default execution mode.
+
+**Recommended**: Use `/ship` for fire-and-forget execution:
+```
+/ship "Build a REST API with tests"
+```
+
+This wraps the autopilot pipeline with a Ralph loop that continues until `<promise>TASK_COMPLETE</promise>` is output.
+
+### Completion Promise Protocol
+
+- Tasks running in Ralph loops must output `<promise>TASK_COMPLETE</promise>` when done
+- The closer agent is the final gate that decides if the task is truly complete
+- Loop continues automatically if the promise is not output
+
+### Manual Ralph Loop
+
+For custom iteration limits or promises:
+```
+/ralph-loop 20 TESTS_PASS "Make all tests pass"
+```
+
 ## Default Agents
 
 For general tasks, use the **autopilot** subagent:

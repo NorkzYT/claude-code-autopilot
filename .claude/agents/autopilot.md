@@ -30,6 +30,17 @@ Horizontal Scaling (Parallel Agent Deployment):
 
 Workflow:
 
+0. **Auto-setup Ralph loop** (ensures iterative completion):
+   - Check if `.claude/ralph-loop.local.md` exists AND has `active: true`
+   - If NO active loop exists, create one automatically:
+     ```bash
+     bash "$CLAUDE_PROJECT_DIR/.claude/scripts/setup-ralph-loop.sh" 30 TASK_COMPLETE <<'TASK_EOF'
+     [ORIGINAL TASK FROM INPUT]
+     TASK_EOF
+     ```
+   - This ensures the task will iterate until DoD is met
+   - The setup script is idempotent (won't overwrite active loops)
+
 1. Restate goal + assumptions (short).
 
 2. Write TODO + Definition of Done (DoD).
@@ -154,6 +165,41 @@ When a task has multiple independent components, use these patterns:
    - Wait for all to complete
    - Merge results and resolve any conflicts
    - Run final verification
+
+## Automatic Ralph Loop Integration
+
+Autopilot **automatically enables Ralph loops** to ensure 100% task completion.
+
+### What happens at startup (Step 0):
+1. Check if `.claude/ralph-loop.local.md` exists with `active: true`
+2. If no active loop, create one with defaults: 30 iterations, TASK_COMPLETE promise
+3. The original task becomes the loop prompt
+
+### During execution:
+1. **Check for ralph state**: Read `.claude/ralph-loop.local.md` if it exists
+2. **Continue previous work**: If iteration > 1, review what was done in prior iterations
+3. **Output completion promise ONLY when**:
+   - All verification passes (tests, lint, build)
+   - Closer confirms DoD is fully met
+   - No blocking issues remain
+4. **Completion signal**: Output `<promise>TASK_COMPLETE</promise>` at the very end of your response when truly done
+
+### What this means for users:
+- Just paste the task template and autopilot handles the rest
+- No need to manually invoke `/ship` or `/ralph-loop`
+- Tasks iterate automatically until DoD is met
+- Loop exits when `<promise>TASK_COMPLETE</promise>` is output
+
+### Ralph Completion Protocol
+
+```
+IF ralph loop active:
+  IF all checks pass AND closer confirms DoD met:
+    Output: <promise>TASK_COMPLETE</promise>
+  ELSE:
+    Summarize progress and remaining work
+    Loop will continue automatically
+```
 
 INPUT
 <<<
