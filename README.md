@@ -260,6 +260,45 @@ claude
 
 ---
 
+## External Editor (Ctrl+G)
+
+Press `Ctrl+G` in Claude Code to open an external editor for composing prompts.
+
+The kit includes a dynamic `claude-editor` wrapper that automatically detects:
+1. VS Code (local install)
+2. VS Code Remote-SSH (`~/.vscode-server`)
+3. Cursor (VS Code fork)
+4. Falls back to nano/vim if no GUI editor found
+
+### VS Code Keybinding Conflict
+
+If `Ctrl+G` opens VS Code's "Go to Recent Directory" picker instead of the editor, add this to your VS Code `keybindings.json`:
+
+```json
+[
+  {
+    "key": "ctrl+g",
+    "command": "-workbench.action.terminal.goToRecentDirectory",
+    "when": "terminalFocus"
+  }
+]
+```
+
+### Manual Editor Override
+
+To use a specific editor, set in `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "EDITOR": "/path/to/your/editor --wait",
+    "VISUAL": "/path/to/your/editor --wait"
+  }
+}
+```
+
+---
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -269,6 +308,8 @@ claude
 | File edit blocked | Check for sentinel markers in code. Use `CLAUDE_ALLOW_PROTECTED_EDITS=1` to override |
 | Formatting not working | Requires `.prettierrc*` (JS/TS) or `pyproject.toml` (Python) in repo |
 | Hooks not running | Copy settings: `cp .claude/settings.local.json .claude/settings.json` |
+| Ctrl+G opens nano instead of VS Code | Run: `sudo cp .claude/scripts/claude-editor.sh /usr/local/bin/claude-editor && sudo chmod +x /usr/local/bin/claude-editor` |
+| VS Code exited with code 127 | The `code` command is not found. Install `claude-editor` wrapper (see above) |
 
 ### Validate Configuration
 

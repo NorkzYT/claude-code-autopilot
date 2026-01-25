@@ -52,12 +52,9 @@ def main() -> int:
     if "autopilot" in prompt_lower or "subagent" in prompt_lower:
         return 0
 
-    # Inject the autopilot instruction
-    result = {
-        "decision": "modify",
-        "context": AUTOPILOT_INSTRUCTION,
-    }
-    print(json.dumps(result))
+    # Inject the autopilot instruction using correct hook schema
+    # Plain text to stdout is the simplest way to add context
+    print(AUTOPILOT_INSTRUCTION)
     return 0
 
 

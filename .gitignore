@@ -22,3 +22,5 @@ __pycache__/
 
 # Note: .claude/settings.local.json IS tracked in this repo (it's part of the bundle)
 # Users may override with their own settings after installation
+
+tmp

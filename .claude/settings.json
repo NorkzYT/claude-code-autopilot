@@ -9,7 +9,7 @@
     "greptile@claude-plugins-official": true
   },
   "env": {
-    "EDITOR": "nano",
-    "VISUAL": "nano"
+    "EDITOR": "claude-editor",
+    "VISUAL": "claude-editor"
   }
 }

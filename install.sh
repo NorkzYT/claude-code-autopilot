@@ -161,6 +161,40 @@ mkdir -p "$DEST_LOGS"
 chmod 1777 "$DEST_LOGS" || true
 find "$DEST_LOGS" -maxdepth 1 -type f -exec chmod 666 {} \; 2>/dev/null || true
 
+# --- Install claude-editor wrapper script (dynamic VS Code / terminal editor) ---
+EDITOR_SCRIPT="$DEST_CLAUDE/scripts/claude-editor.sh"
+if [[ -f "$EDITOR_SCRIPT" ]]; then
+  echo "Installing claude-editor wrapper to /usr/local/bin/..."
+  chmod +x "$EDITOR_SCRIPT" 2>/dev/null || true
+
+  # Create target directory if it doesn't exist
+  if [[ "$(id -u)" -eq 0 ]]; then
+    mkdir -p /usr/local/bin
+    cp "$EDITOR_SCRIPT" /usr/local/bin/claude-editor
+    chmod +x /usr/local/bin/claude-editor
+    echo "  Installed: /usr/local/bin/claude-editor"
+  else
+    # Not root - try with sudo
+    if command -v sudo >/dev/null 2>&1; then
+      sudo mkdir -p /usr/local/bin 2>/dev/null || true
+      if sudo cp "$EDITOR_SCRIPT" /usr/local/bin/claude-editor 2>/dev/null; then
+        sudo chmod +x /usr/local/bin/claude-editor
+        echo "  Installed: /usr/local/bin/claude-editor"
+      else
+        echo "  WARN: Could not install to /usr/local/bin (no sudo access)"
+        echo "  To install manually, run:"
+        echo "    sudo cp \"$EDITOR_SCRIPT\" /usr/local/bin/claude-editor && sudo chmod +x /usr/local/bin/claude-editor"
+      fi
+    else
+      echo "  WARN: sudo not available - skipping system-wide claude-editor install"
+      echo "  To install manually, run:"
+      echo "    sudo cp \"$EDITOR_SCRIPT\" /usr/local/bin/claude-editor && sudo chmod +x /usr/local/bin/claude-editor"
+    fi
+  fi
+else
+  echo "WARN: claude-editor script not found at $EDITOR_SCRIPT"
+fi
+
 # --- Optional: Linux bootstrap (Claude Code + notify-send + LSP binaries + plugins) ---
 if [[ "$BOOTSTRAP_LINUX" == "1" ]]; then
   if [[ "$(uname -s 2>/dev/null || echo '')" == "Linux" ]]; then
@@ -250,5 +284,24 @@ echo ""
 echo "Available tools:"
 echo "  - .claude/extras/doctor.sh          Validate .claude/ configuration"
 echo "  - .claude/extras/install-extras.sh  Install/update wshobson agents & commands"
+echo ""
+echo "=============================================="
+echo "  EXTERNAL EDITOR (Ctrl+G)"
+echo "=============================================="
+echo ""
+echo "  Installed: claude-editor (dynamic VS Code wrapper)"
+echo ""
+echo "  Press Ctrl+G in Claude Code to open an external editor."
+echo "  The wrapper automatically detects and uses:"
+echo "    1. VS Code (local install)"
+echo "    2. VS Code Remote-SSH (per-user ~/.vscode-server)"
+echo "    3. Cursor (VS Code fork)"
+echo "    4. Falls back to nano/vim if no GUI editor found"
+echo ""
+echo "  VS Code keybinding conflict fix (if Ctrl+G opens directory picker):"
+echo "    Add to your VS Code keybindings.json:"
+echo '    {"key": "ctrl+g", "command": "-workbench.action.terminal.goToRecentDirectory", "when": "terminalFocus"}'
+echo ""
+echo "=============================================="
 echo ""
 echo "Restart Claude Code to re-index agents/skills/commands."

@@ -12,7 +12,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional
 
 
 # Keyword to context mapping
@@ -110,7 +110,7 @@ def detect_task_continuation(prompt: str) -> Optional[str]:
     return None
 
 
-def build_injection(prompt: str) -> Optional[Dict]:
+def build_injection(prompt: str) -> Optional[str]:
     """Build context injection based on prompt analysis."""
     snippets = detect_context_needs(prompt)
     continuation_dir = detect_task_continuation(prompt)
@@ -133,10 +133,7 @@ def build_injection(prompt: str) -> Optional[Dict]:
         injection_parts.append("Read plan.md, context.md, and tasks.md to resume.")
 
     if injection_parts:
-        return {
-            "decision": "modify",
-            "context": "\n".join(injection_parts),
-        }
+        return "\n".join(injection_parts)
 
     return None
 
@@ -154,8 +151,8 @@ def main() -> int:
     injection = build_injection(prompt)
 
     if injection:
-        # Output JSON that modifies the prompt with added context
-        print(json.dumps(injection))
+        # Output plain text to stdout - gets added as context
+        print(injection)
 
     return 0
 
