@@ -252,6 +252,34 @@ echo ""
 echo "Done. Installed .claude/ into ${DEST_ABS} (logs preserved)."
 echo ""
 
+# --- Setup user-level ~/.claude/CLAUDE.md for autopilot default ---
+USER_HOME=""
+if [[ "$(id -u)" -eq 0 && -n "${SUDO_USER:-}" ]]; then
+  USER_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6 2>/dev/null || echo "")"
+fi
+if [[ -z "$USER_HOME" ]]; then
+  USER_HOME="$HOME"
+fi
+
+USER_CLAUDE_DIR="$USER_HOME/.claude"
+USER_CLAUDE_MD="$USER_CLAUDE_DIR/CLAUDE.md"
+
+echo "Setting up user-level autopilot default..."
+mkdir -p "$USER_CLAUDE_DIR"
+
+cat > "$USER_CLAUDE_MD" << 'AUTOPILOT_EOF'
+Use the autopilot subagent (Task tool with subagent_type=autopilot) for this task
+AUTOPILOT_EOF
+
+# Fix ownership if running as root
+if [[ "$(id -u)" -eq 0 && -n "${SUDO_USER:-}" ]]; then
+  chown -R "${TARGET_USER}:${TARGET_GROUP}" "$USER_CLAUDE_DIR" 2>/dev/null || \
+  chown -R "${TARGET_USER}" "$USER_CLAUDE_DIR" 2>/dev/null || true
+fi
+
+echo "  Created: $USER_CLAUDE_MD"
+echo ""
+
 # --- Show ntfy.sh subscription info ---
 HOSTNAME="$(hostname 2>/dev/null || echo 'unknown')"
 # Sanitize hostname: lowercase, replace non-alphanumeric with hyphens
