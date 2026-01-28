@@ -155,6 +155,35 @@ def check_completion_promise(text: str, promise: str) -> bool:
     return False
 
 
+def is_idle_response(text: str) -> bool:
+    """
+    Detect if a response indicates the agent is idle/waiting for input.
+    These patterns indicate the task is done but agent didn't output completion promise.
+    """
+    text = text.strip()
+
+    # Very short responses (under 50 chars) that are just waiting
+    idle_patterns = [
+        r"^\.*$",  # Just dots
+        r"^standing by\.?$",
+        r"^ready\.?$",
+        r"^ready when you are\.?$",
+        r"^awaiting.*input\.?$",
+        r"^listening\.?$",
+        r"^waiting\.?$",
+    ]
+
+    for pattern in idle_patterns:
+        if re.match(pattern, text, re.IGNORECASE):
+            return True
+
+    # Very short responses (under 20 chars) are likely idle
+    if len(text) < 20 and not text.startswith("<"):
+        return True
+
+    return False
+
+
 def main() -> int:
     # Read hook input
     try:
@@ -195,6 +224,9 @@ def main() -> int:
 
     # Get transcript path from hook input
     transcript_path = payload.get("transcript_path")
+    consecutive_idle = frontmatter.get("consecutive_idle", 0)
+    max_idle = 3  # Auto-exit after 3 consecutive idle responses
+
     if transcript_path:
         transcript_path = os.path.expanduser(transcript_path)
         last_output = extract_last_assistant_text(transcript_path)
@@ -208,20 +240,34 @@ def main() -> int:
             write_state_file(state_path, frontmatter, body)
             return 0  # Allow exit
 
+        # Check for idle/waiting responses
+        if is_idle_response(last_output):
+            consecutive_idle += 1
+            frontmatter["consecutive_idle"] = consecutive_idle
+
+            if consecutive_idle >= max_idle:
+                print(f"Ralph loop detected idle agent ({consecutive_idle} consecutive). Auto-exiting.", file=sys.stderr)
+                frontmatter["active"] = False
+                frontmatter["ended_at"] = datetime.utcnow().isoformat() + "Z"
+                frontmatter["end_reason"] = "idle_detected"
+                write_state_file(state_path, frontmatter, body)
+                return 0  # Allow exit
+        else:
+            # Reset idle counter on substantive response
+            frontmatter["consecutive_idle"] = 0
+
     # Loop continues - increment iteration and block exit
     frontmatter["iteration"] = iteration + 1
     frontmatter["last_run_at"] = datetime.utcnow().isoformat() + "Z"
     write_state_file(state_path, frontmatter, body)
 
     # Output the prompt to continue the loop
-    # The "continue" output tells Claude Code to block exit and inject the prompt
-    print(f"Ralph loop iteration {iteration + 1}/{max_iterations}", file=sys.stderr)
-
+    # Use stdout for status (not stderr which shows as "error" in CLI)
     # Return the prompt as JSON to inject into next iteration
     output = {
         "decision": "block",
-        "reason": f"Ralph loop iteration {iteration + 1}/{max_iterations}",
-        "outputToUser": f"[Ralph Loop] Iteration {iteration + 1}/{max_iterations} - continuing task...",
+        "reason": f"Ralph loop continuing ({iteration + 1}/{max_iterations})",
+        "outputToUser": f"🔄 Ralph Loop: Iteration {iteration + 1}/{max_iterations}",
         "prompt": body
     }
     print(json.dumps(output))

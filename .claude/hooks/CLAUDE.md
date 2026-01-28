@@ -152,6 +152,7 @@ The `ralph_loop_hook.py` implements iterative, self-referential development loop
 2. **Iteration**: On each Stop event, the hook checks if the completion promise was fulfilled
 3. **Continuation**: If not complete, blocks exit (exit code 2) and injects the prompt for next iteration
 4. **Completion**: When `<promise>DONE</promise>` is output, loop ends and session exits normally
+5. **Idle Detection**: If agent outputs 3 consecutive idle responses (e.g., ".", "Standing by"), loop auto-exits
 
 ### State File Format
 
@@ -163,11 +164,19 @@ active: true
 iteration: 1
 max_iterations: 20
 completion_promise: "DONE"
+consecutive_idle: 0
 started_at: "2024-01-01T00:00:00Z"
 ---
 
 Your task prompt here
 ```
+
+### Exit Reasons
+
+When the loop ends, `end_reason` is set to one of:
+- `promise_fulfilled` - Completion promise was output
+- `max_iterations` - Reached iteration limit
+- `idle_detected` - Agent was idle for 3+ consecutive responses
 
 ### Commands
 

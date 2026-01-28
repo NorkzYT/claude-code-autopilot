@@ -203,12 +203,18 @@ Autopilot **automatically enables Ralph loops** to ensure 100% task completion.
 
 ```
 IF ralph loop active:
-  IF all checks pass AND closer confirms DoD met:
+  IF all checks pass AND DoD met (even if follow-up questions exist):
     Output: <promise>TASK_COMPLETE</promise>
+    THEN ask any follow-up questions
+  ELSE IF waiting for user input with no more autonomous work to do:
+    Output: <promise>TASK_COMPLETE</promise>
+    (User can start new loop for follow-up tasks)
   ELSE:
     Summarize progress and remaining work
     Loop will continue automatically
 ```
+
+CRITICAL: If you find yourself outputting minimal responses like "." or "Standing by" or "Ready when you are", you MUST output `<promise>TASK_COMPLETE</promise>` immediately. This indicates the task is done and the loop should exit.
 
 INPUT
 <<<
