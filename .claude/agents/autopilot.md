@@ -37,22 +37,41 @@ Horizontal Scaling (Parallel Agent Deployment):
   - Aggregate results after parallel execution before proceeding.
   - Each spawned agent should have a clear, focused scope.
 
+Execution Model: For each sub-task, follow Reason -> Act -> Observe -> Repeat:
+- REASON: What needs to change and why
+- ACT: Make the surgical edit
+- OBSERVE: Re-read changed file, verify it matches intent
+- REPEAT: If mismatch, fix before moving on
+
 Workflow:
 
 0. **Auto-setup Ralph loop** (ensures iterative completion):
-   - Check if `.claude/ralph-loop.local.md` exists AND has `active: true`
-   - If NO active loop exists, create one automatically:
-     ```bash
-     bash "$CLAUDE_PROJECT_DIR/.claude/scripts/setup-ralph-loop.sh" 30 TASK_COMPLETE <<'TASK_EOF'
+   - Read `.claude/ralph-loop.local.md` to check if it exists AND has `active: true`
+   - If NO active loop exists, use the Write tool to create `.claude/ralph-loop.local.md` with:
+     ```
+     ---
+     active: true
+     iteration: 1
+     max_iterations: 30
+     completion_promise: "TASK_COMPLETE"
+     consecutive_idle: 0
+     started_at: "<current ISO timestamp>"
+     ---
+
      [ORIGINAL TASK FROM INPUT]
-     TASK_EOF
      ```
    - This ensures the task will iterate until DoD is met
-   - The setup script is idempotent (won't overwrite active loops)
+   - Do NOT use bash/scripts/heredocs for this -- use the Write tool directly
 
 1. Restate goal + assumptions (short).
 
 2. Write TODO + Definition of Done (DoD).
+
+2b. **Task decomposition** (multi-part tasks):
+    - If task has 3+ distinct deliverables, decompose into numbered sub-tasks
+    - Each sub-task gets a mini-DoD (1-2 checkable items)
+    - Execute sequentially: implement sub-task -> self-verify -> checkpoint
+    - Track in `.claude/context/<task>/tasks.md`
 
 3. Detect project stack:
    - Check package.json, pyproject.toml, go.mod, Cargo.toml, pom.xml, etc.
@@ -80,6 +99,12 @@ Workflow:
    - Make surgical edits only.
    - Follow language idioms from step 3.
 
+5b. **Self-verification** (Observe step):
+    - Re-read EVERY file you just changed
+    - For each change: Does it match the intent from step 1?
+    - Check: Did I introduce any regressions? Missing imports? Type errors?
+    - If mismatch: fix immediately before proceeding
+
 6. Verification:
    - Identify repo's test/lint/build commands (package.json/README/tooling).
    - Run the most relevant checks. Report exact commands + results.
@@ -89,12 +114,10 @@ Workflow:
    - Spawn `security-auditor` agent for deeper analysis.
    - For architecture-level security concerns, spawn `threat-modeling-expert`.
 
-8. Review gate (parallel when possible):
-   - Use Task tool to spawn multiple reviewers in parallel for faster feedback:
-     - `surgical-reviewer` for code correctness
-     - `security-auditor` for security issues (if applicable)
-     - `test-automator` for test coverage gaps (if applicable)
-   - Aggregate findings and apply only minimal fixes from reviewer feedback.
+8. Quality assurance chain:
+   - Spawn `review-chain` agent (Task tool) with: changed files + DoD
+   - review-chain handles: review -> fix -> re-review (max 2 cycles)
+   - If BLOCKERS_REMAIN verdict: note in closing summary as risks
 
 9. If verification failed:
    - Use Task tool to spawn `triage` subagent with the error output.
@@ -106,6 +129,11 @@ Workflow:
       - Prior Output (summary of changes made so far)
       - Observed Behavior (remaining errors/failures)
     - autopilot-fixer gets one bounded patch iteration.
+
+10b. **Pre-close self-consistency**:
+     - Re-read ALL changed files
+     - Walk through DoD item by item -- is each satisfied?
+     - If any item not met, fix it (max 1 pass to avoid infinite loop)
 
 11. Closing pass:
     - Use Task tool to spawn `closer` subagent with:

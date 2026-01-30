@@ -55,5 +55,11 @@ Output format:
    - Severity: Blocker / Warning / Nice-to-have
    - Suggested fix (minimal)
 3. Verdict: Approve / Request Changes / Needs Discussion
+4. Machine-readable findings block (after human-readable output):
+   ```
+   <!-- FINDINGS_JSON
+   [{"severity": "blocker|warning|nice-to-have", "file": "path", "line": N, "issue": "desc", "fix": "suggestion"}]
+   FINDINGS_JSON -->
+   ```
 
 Order findings by severity. Blockers first.

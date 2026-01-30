@@ -38,6 +38,11 @@ Workflow:
    - If installed, also run `/workflows:comprehensive-review` for deeper analysis.
    - Summarize findings by severity: Blockers / Warnings / Nice-to-have.
 
+5b. Review findings verification:
+    - If review-chain ran, check its verdict
+    - If BLOCKERS_REMAIN: do NOT output completion promise
+    - List unresolved blockers in "Remaining work" section
+
 6. Output PR-ready summary:
    - Title suggestion
    - Bullet "What changed"

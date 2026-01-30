@@ -24,12 +24,28 @@ import json
 import os
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 # State file location
 STATE_FILE = ".claude/ralph-loop.local.md"
+LOG_FILE = ".claude/logs/ralph-loop.log"
+
+# Stale loop threshold in hours
+STALE_HOURS = 24
+
+
+def _log(project_dir: str, message: str):
+    """Append a timestamped line to the ralph-loop log file."""
+    try:
+        log_path = Path(project_dir) / LOG_FILE
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {message}\n")
+    except Exception:
+        pass
 
 
 def parse_state_file(content: str) -> tuple[dict, str]:
@@ -207,11 +223,31 @@ def main() -> int:
 
     # Check if loop is active
     if not frontmatter.get("active", False):
+        _log(project_dir, "Loop not active, allowing exit")
         return 0  # Loop not active, allow exit
 
     iteration = frontmatter.get("iteration", 1)
     max_iterations = frontmatter.get("max_iterations", 20)
     completion_promise = frontmatter.get("completion_promise", "DONE")
+
+    _log(project_dir, f"Loop active: iteration={iteration}/{max_iterations}, promise={completion_promise}")
+
+    # Check for stale loop (>24h old)
+    started_at = frontmatter.get("started_at", "")
+    if started_at:
+        try:
+            start_dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+            age_hours = (datetime.now(timezone.utc) - start_dt).total_seconds() / 3600
+            if age_hours > STALE_HOURS:
+                _log(project_dir, f"Stale loop detected ({age_hours:.1f}h old). Deactivating.")
+                print(f"Ralph loop stale ({age_hours:.1f}h old). Deactivating.", file=sys.stderr)
+                frontmatter["active"] = False
+                frontmatter["ended_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                frontmatter["end_reason"] = "stale_timeout"
+                write_state_file(state_path, frontmatter, body)
+                return 0
+        except (ValueError, TypeError):
+            pass
 
     # Check iteration limit
     if iteration >= max_iterations:
@@ -233,6 +269,7 @@ def main() -> int:
 
         # Check for completion promise
         if check_completion_promise(last_output, completion_promise):
+            _log(project_dir, f"Promise '{completion_promise}' fulfilled. Loop complete.")
             print(f"Ralph loop completed: Promise '{completion_promise}' fulfilled.", file=sys.stderr)
             frontmatter["active"] = False
             frontmatter["ended_at"] = datetime.utcnow().isoformat() + "Z"
@@ -257,6 +294,7 @@ def main() -> int:
             frontmatter["consecutive_idle"] = 0
 
     # Loop continues - increment iteration and block exit
+    _log(project_dir, f"Incrementing iteration to {iteration + 1}/{max_iterations}. Blocking exit.")
     frontmatter["iteration"] = iteration + 1
     frontmatter["last_run_at"] = datetime.utcnow().isoformat() + "Z"
     write_state_file(state_path, frontmatter, body)
