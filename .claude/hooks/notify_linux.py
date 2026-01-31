@@ -227,6 +227,17 @@ def main() -> int:
     # Build terminal identifier for multi-terminal disambiguation
     session_id = os.getenv("CLAUDE_SESSION_ID", "")
     short_session = session_id[:8] if session_id else ""
+
+    # Try to get memorable terminal name from terminal identity hook
+    terminal_name = ""
+    identity_path = Path(project_dir) / ".claude" / "terminal-identity.local.json"
+    if identity_path.exists():
+        try:
+            identity_data = json.loads(identity_path.read_text(encoding="utf-8"))
+            terminal_name = identity_data.get("name", "")
+        except Exception:
+            pass
+
     # Try to get task name from ralph loop state
     task_label = ""
     ralph_state = Path(project_dir) / ".claude" / "ralph-loop.local.md"
@@ -245,11 +256,14 @@ def main() -> int:
         except Exception:
             pass
 
+    # Prefer terminal_name over short_session for the tag
     terminal_tag = ""
-    if short_session:
+    if terminal_name:
+        terminal_tag = f" [{terminal_name}]"
+    elif short_session:
         terminal_tag = f" [{short_session}]"
     if task_label:
-        terminal_tag = f" [{task_label[:40]}]"
+        terminal_tag = f" [{terminal_name or short_session}] {task_label[:40]}"
 
     # Only notify for important events
     if notif_type == "permission_prompt":
@@ -264,7 +278,11 @@ def main() -> int:
         # Shorten path for readability
         short_cwd = cwd.replace(os.path.expanduser("~"), "~")
         body = f"{body}\n({short_cwd})"
-    if short_session and task_label:
+    if terminal_name and task_label:
+        body = f"Terminal: {terminal_name} | Task: {task_label}\n{body}"
+    elif terminal_name:
+        body = f"Terminal: {terminal_name}\n{body}"
+    elif short_session and task_label:
         body = f"Session: {short_session} | Task: {task_label}\n{body}"
     elif short_session:
         body = f"Session: {short_session}\n{body}"

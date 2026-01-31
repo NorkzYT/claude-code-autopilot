@@ -23,6 +23,7 @@ __pycache__/
 # Ephemeral local state files
 .claude/checkpoint-state.local.json
 .claude/ralph-loop.local.md
+.claude/terminal-identity.local.json
 
 # Note: .claude/settings.local.json IS tracked in this repo (it's part of the bundle)
 # Users may override with their own settings after installation
