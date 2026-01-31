@@ -224,11 +224,38 @@ def main() -> int:
     message = payload.get("message", "")
     cwd = payload.get("cwd", "")
 
+    # Build terminal identifier for multi-terminal disambiguation
+    session_id = os.getenv("CLAUDE_SESSION_ID", "")
+    short_session = session_id[:8] if session_id else ""
+    # Try to get task name from ralph loop state
+    task_label = ""
+    ralph_state = Path(project_dir) / ".claude" / "ralph-loop.local.md"
+    if ralph_state.exists():
+        try:
+            content = ralph_state.read_text()
+            # Extract first non-frontmatter line as task label
+            in_frontmatter = False
+            for line in content.splitlines():
+                if line.strip() == "---":
+                    in_frontmatter = not in_frontmatter
+                    continue
+                if not in_frontmatter and line.strip():
+                    task_label = line.strip()[:60]
+                    break
+        except Exception:
+            pass
+
+    terminal_tag = ""
+    if short_session:
+        terminal_tag = f" [{short_session}]"
+    if task_label:
+        terminal_tag = f" [{task_label[:40]}]"
+
     # Only notify for important events
     if notif_type == "permission_prompt":
-        title = "Claude Code: Permission required"
+        title = f"Claude Code: Permission required{terminal_tag}"
     elif notif_type == "idle_prompt":
-        title = "Claude Code: Waiting for input"
+        title = f"Claude Code: Waiting for input{terminal_tag}"
     else:
         return 0
 
@@ -237,6 +264,10 @@ def main() -> int:
         # Shorten path for readability
         short_cwd = cwd.replace(os.path.expanduser("~"), "~")
         body = f"{body}\n({short_cwd})"
+    if short_session and task_label:
+        body = f"Session: {short_session} | Task: {task_label}\n{body}"
+    elif short_session:
+        body = f"Session: {short_session}\n{body}"
 
     # Log regardless of notification success
     with (logs_dir / "notifications.log").open("a", encoding="utf-8") as f:
