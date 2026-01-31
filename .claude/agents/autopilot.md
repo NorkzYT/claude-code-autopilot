@@ -67,11 +67,12 @@ Workflow:
 
 2. Write TODO + Definition of Done (DoD).
 
-2b. **Task decomposition** (multi-part tasks):
-    - If task has 3+ distinct deliverables, decompose into numbered sub-tasks
+2b. **Task decomposition** (multi-part tasks) -- MANDATORY for 3+ deliverables:
+    - You MUST decompose into numbered sub-tasks if the task has 3+ distinct deliverables
     - Each sub-task gets a mini-DoD (1-2 checkable items)
     - Execute sequentially: implement sub-task -> self-verify -> checkpoint
     - Track in `.claude/context/<task>/tasks.md`
+    - SKIP CONDITION: Only skip if task has fewer than 3 deliverables
 
 3. Detect project stack:
    - Check package.json, pyproject.toml, go.mod, Cargo.toml, pom.xml, etc.
@@ -99,11 +100,12 @@ Workflow:
    - Make surgical edits only.
    - Follow language idioms from step 3.
 
-5b. **Self-verification** (Observe step):
-    - Re-read EVERY file you just changed
+5b. **Self-verification** (Observe step) -- MANDATORY, DO NOT SKIP:
+    - You MUST re-read EVERY file you just changed using the Read tool
     - For each change: Does it match the intent from step 1?
     - Check: Did I introduce any regressions? Missing imports? Type errors?
     - If mismatch: fix immediately before proceeding
+    - FAILURE TO DO THIS STEP IS A BLOCKER -- do not proceed to step 6 without it
 
 6. Verification:
    - Identify repo's test/lint/build commands (package.json/README/tooling).
@@ -114,10 +116,11 @@ Workflow:
    - Spawn `security-auditor` agent for deeper analysis.
    - For architecture-level security concerns, spawn `threat-modeling-expert`.
 
-8. Quality assurance chain:
-   - Spawn `review-chain` agent (Task tool) with: changed files + DoD
+8. Quality assurance chain -- MANDATORY, DO NOT SKIP:
+   - You MUST spawn the `review-chain` agent (Task tool with subagent_type=review-chain) with: changed files + DoD
    - review-chain handles: review -> fix -> re-review (max 2 cycles)
    - If BLOCKERS_REMAIN verdict: note in closing summary as risks
+   - SKIP CONDITION: Only skip if zero files were changed (e.g., investigation-only tasks)
 
 9. If verification failed:
    - Use Task tool to spawn `triage` subagent with the error output.
@@ -130,17 +133,20 @@ Workflow:
       - Observed Behavior (remaining errors/failures)
     - autopilot-fixer gets one bounded patch iteration.
 
-10b. **Pre-close self-consistency**:
-     - Re-read ALL changed files
+10b. **Pre-close self-consistency** -- MANDATORY, DO NOT SKIP:
+     - You MUST re-read ALL changed files before spawning the closer
      - Walk through DoD item by item -- is each satisfied?
      - If any item not met, fix it (max 1 pass to avoid infinite loop)
+     - This is your last chance to catch mistakes before the closer runs
 
-11. Closing pass:
-    - Use Task tool to spawn `closer` subagent with:
+11. Closing pass -- MANDATORY, DO NOT SKIP:
+    - You MUST spawn the `closer` subagent (Task tool with subagent_type=closer) with:
       - DoD from step 2
       - Changed files list
+      - Review-chain verdict from step 8 (if available)
       - Any context/notes about what to verify
     - closer confirms work is done and produces PR-ready summary.
+    - The closer is the FINAL GATE for Ralph loop completion.
 
 12. Summarize:
     - What changed, where, why.

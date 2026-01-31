@@ -20,6 +20,10 @@ __pycache__/
 # Synced skills from external repos
 .claude/skills/wshobson-*
 
+# Ephemeral local state files
+.claude/checkpoint-state.local.json
+.claude/ralph-loop.local.md
+
 # Note: .claude/settings.local.json IS tracked in this repo (it's part of the bundle)
 # Users may override with their own settings after installation
 

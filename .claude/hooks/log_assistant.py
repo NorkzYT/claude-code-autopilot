@@ -101,8 +101,10 @@ def main():
     if len(last_text) > MAX_CHARS:
         last_text = last_text[:MAX_CHARS] + "\n...[truncated]..."
 
-    os.makedirs(".claude/logs", exist_ok=True)
-    out_path = Path(".claude/logs/assistant_output.log")
+    project_dir = os.getenv("CLAUDE_PROJECT_DIR") or os.getcwd()
+    logs_dir = Path(project_dir) / ".claude" / "logs"
+    os.makedirs(logs_dir, exist_ok=True)
+    out_path = logs_dir / "assistant_output.log"
 
     ts = datetime.datetime.utcnow().isoformat() + "Z"
     with out_path.open("a", encoding="utf-8") as f:

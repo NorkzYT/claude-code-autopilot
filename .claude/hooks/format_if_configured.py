@@ -13,9 +13,10 @@ def run(cmd):
     return subprocess.call(cmd, shell=True)
 
 # JS/TS: only if prettier config exists
-if os.path.exists("package.json") and any(os.path.exists(p) for p in [".prettierrc", ".prettierrc.json", ".prettierrc.yml", ".prettierrc.yaml"]):
+project_dir = os.getenv("CLAUDE_PROJECT_DIR") or os.getcwd()
+if os.path.exists(os.path.join(project_dir, "package.json")) and any(os.path.exists(os.path.join(project_dir, p)) for p in [".prettierrc", ".prettierrc.json", ".prettierrc.yml", ".prettierrc.yaml"]):
     run(f'npx -y prettier --write "{file_path}" 1>/dev/null 2>/dev/null || true')
 
 # Python: only if pyproject exists
-if os.path.exists("pyproject.toml"):
+if os.path.exists(os.path.join(project_dir, "pyproject.toml")):
     run(f'python3 -m black "{file_path}" 1>/dev/null 2>/dev/null || true')
