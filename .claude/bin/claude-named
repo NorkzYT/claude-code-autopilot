@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Wrapper that gives each Claude Code terminal a random memorable name.
+# Usage: claude-named [any claude args...]
+#   e.g. claude-named --dangerously-skip-permissions
+#
+# The name appears in the terminal tab title and is stored for notification hooks.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Word lists (same as terminal_identity.py)
+ADJECTIVES=(cosmic thunder velvet neon shadow crystal phantom golden iron arctic
+  blazing crimson mystic quantum swift silent brave clever fierce noble lunar
+  solar frosty ember coral azure scarlet jade obsidian silver copper ruby amber
+  ivory onyx turbo rapid primal vivid bold keen wild stormy dusty pixel cyber
+  stealth sonic atomic radiant)
+
+ANIMALS=(penguin falcon panther wolf dragon phoenix tiger cobra raven hawk fox
+  bear shark eagle lynx otter viper mustang jaguar puma dolphin mantis condor
+  badger bison crane gecko heron ibex koala lemur moose narwhal osprey parrot
+  quail raptor salmon toucan urchin walrus yak zebra coyote ferret gorilla
+  hyena iguana jackal octopus)
+
+# Pick random name
+ADJ=${ADJECTIVES[$((RANDOM % ${#ADJECTIVES[@]}))]}
+ANI=${ANIMALS[$((RANDOM % ${#ANIMALS[@]}))]}
+NAME="${ADJ}-${ANI}"
+
+# Set terminal title (works in xterm, gnome-terminal, VSCode terminal, etc.)
+printf '\033]0;Claude: %s\007' "$NAME" >&2
+
+# Write identity file for notification hooks to read
+IDENTITY_FILE="$PROJECT_DIR/.claude/terminal-identity.local.json"
+mkdir -p "$(dirname "$IDENTITY_FILE")"
+cat > "$IDENTITY_FILE" <<EOF
+{
+  "session_id": "$$",
+  "name": "$NAME",
+  "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+
+echo "═══ Terminal: $NAME ═══" >&2
+
+# Launch claude with all passed arguments
+exec claude "$@"
