@@ -1,5 +1,10 @@
 {
   "model": "opus",
+  "statusLine": {
+    "type": "command",
+    "command": "$CLAUDE_PROJECT_DIR/.claude/bin/statusline.sh",
+    "padding": 0
+  },
   "defaultMode": "acceptEdits",
   "outputStyle": "default",
   "permissions": {

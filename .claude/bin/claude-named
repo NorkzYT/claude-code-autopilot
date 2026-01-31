@@ -44,5 +44,8 @@ EOF
 
 echo "═══ Terminal: $NAME ═══" >&2
 
+# Export so the statusline script can read it
+export CLAUDE_TERMINAL_NAME="$NAME"
+
 # Launch claude with all passed arguments
 exec claude "$@"
