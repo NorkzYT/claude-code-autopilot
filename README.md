@@ -19,6 +19,30 @@ Then restart Claude Code to load the new configuration.
 
 ---
 
+## Terminal Names & `cca` Alias
+
+Each Claude Code session gets a **random memorable name** (e.g., `cosmic-penguin`, `thunder-falcon`) so you can easily identify multiple terminals. The name appears in:
+
+- The **terminal tab title**
+- **Notification messages** (so you know which terminal needs attention)
+- A local identity file at `.claude/terminal-identity.local.json`
+
+Launch Claude with the **`cca` alias** (added to your shell during install):
+
+```bash
+cca
+```
+
+This runs `claude --dangerously-skip-permissions` with automatic terminal naming. Equivalent to:
+
+```bash
+.claude/bin/claude-named --dangerously-skip-permissions
+```
+
+> **Note:** After install, open a new shell or run `source ~/.bashrc` (or `~/.zshrc`) to activate the `cca` alias.
+
+---
+
 ## How It Works
 
 After installation, the kit automatically:
