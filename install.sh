@@ -303,6 +303,15 @@ if [[ "$(id -u)" -eq 0 && -n "${SUDO_USER:-}" ]]; then
   done
 fi
 
+# Source the current shell's rc file so the alias is available immediately
+# (works when install.sh is run directly; piped curl|bash inherits this subshell)
+CURRENT_SHELL="$(basename "${SHELL:-bash}")"
+if [[ "$CURRENT_SHELL" == "zsh" && -f "$USER_HOME/.zshrc" ]]; then
+  source "$USER_HOME/.zshrc" 2>/dev/null || true
+elif [[ -f "$USER_HOME/.bashrc" ]]; then
+  source "$USER_HOME/.bashrc" 2>/dev/null || true
+fi
+
 echo ""
 
 # --- Show ntfy.sh subscription info ---
