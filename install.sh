@@ -280,6 +280,31 @@ fi
 echo "  Created: $USER_CLAUDE_MD"
 echo ""
 
+# --- Setup cca alias in shell rc files ---
+CCA_ALIAS="alias cca='${DEST_ABS}/.claude/bin/claude-named --dangerously-skip-permissions'"
+CCA_COMMENT="# Claude Code autopilot alias"
+
+for rcfile in "$USER_HOME/.bashrc" "$USER_HOME/.zshrc"; do
+  if [[ -f "$rcfile" ]] || [[ "$(basename "$rcfile")" == ".bashrc" ]]; then
+    touch "$rcfile" 2>/dev/null || true
+    if ! grep -qF "alias cca=" "$rcfile" 2>/dev/null; then
+      printf '\n%s\n%s\n' "$CCA_COMMENT" "$CCA_ALIAS" >> "$rcfile"
+      echo "  Added cca alias to $rcfile"
+    else
+      echo "  cca alias already present in $rcfile"
+    fi
+  fi
+done
+
+# Fix ownership of rc files if running as root
+if [[ "$(id -u)" -eq 0 && -n "${SUDO_USER:-}" ]]; then
+  for rcfile in "$USER_HOME/.bashrc" "$USER_HOME/.zshrc"; do
+    [[ -f "$rcfile" ]] && chown "${TARGET_USER}" "$rcfile" 2>/dev/null || true
+  done
+fi
+
+echo ""
+
 # --- Show ntfy.sh subscription info ---
 HOSTNAME="$(hostname 2>/dev/null || echo 'unknown')"
 # Sanitize hostname: lowercase, replace non-alphanumeric with hyphens
@@ -310,6 +335,7 @@ echo ""
 echo "=============================================="
 echo ""
 echo "Available tools:"
+echo "  - cca                               Launch Claude with terminal naming + skip-permissions (Claude Code Autopilot)"
 echo "  - .claude/extras/doctor.sh          Validate .claude/ configuration"
 echo "  - .claude/extras/install-extras.sh  Install/update wshobson agents & commands"
 echo ""
