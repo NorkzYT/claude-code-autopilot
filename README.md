@@ -462,6 +462,20 @@ Manage extras:
 
 ---
 
+## Productivity Tip: Plan Mode for Context Rotation
+
+Instead of using `/clear` when context gets large, use **Plan mode** to preserve knowledge across context resets:
+
+1. When context usage nears **~50%**, switch to **Plan mode** and send your next prompt
+2. Claude drafts a plan using all the context it already has
+3. If you're satisfied, select **"Yes, clear context and bypass permissions"** (the first option)
+
+This is highly effective because the plan is crafted with the full accumulated context from your session. The result is a well-curated plan that you can agree to immediately, and Claude starts fresh with a clear directive. You rarely need to modify it.
+
+> **Why this works:** A `/clear` discards everything. Plan mode distills your session into an actionable plan *before* clearing, so nothing meaningful is lost.
+
+---
+
 ## Core Principles
 
 1. **Smallest change that satisfies the task** — No drive-by refactors
