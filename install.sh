@@ -48,6 +48,114 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# --- Auto-install missing dependencies on Linux ---
+ensure_dependencies() {
+  [[ "$(uname -s 2>/dev/null)" == "Linux" ]] || return 0
+
+  # Detect package manager
+  local pm=""
+  if command -v apt-get >/dev/null 2>&1; then pm="apt-get"
+  elif command -v dnf >/dev/null 2>&1; then pm="dnf"
+  elif command -v yum >/dev/null 2>&1; then pm="yum"
+  elif command -v apk >/dev/null 2>&1; then pm="apk"
+  elif command -v pacman >/dev/null 2>&1; then pm="pacman"
+  elif command -v zypper >/dev/null 2>&1; then pm="zypper"
+  else
+    echo "WARN: No supported package manager found. Skipping auto-install." >&2
+    return 0
+  fi
+
+  # Map command -> package name per distro family
+  # Format: "command:apt:dnf:apk:pacman:zypper"
+  local mappings=(
+    "curl:curl:curl:curl:curl:curl"
+    "tar:tar:tar:tar:tar:tar"
+    "git:git:git:git:git:git"
+    "rsync:rsync:rsync:rsync:rsync:rsync"
+    "jq:jq:jq:jq:jq:jq"
+    "python3:python3:python3:python3:python:python3"
+    "sudo:sudo:sudo:sudo:sudo:sudo"
+    "sed:sed:sed:sed:sed:sed"
+    "grep:grep:grep:grep:grep:grep"
+    "find:findutils:findutils:findutils:findutils:findutils"
+    "hostname:hostname:hostname::inetutils:hostname"
+    "cmp:diffutils:diffutils:diffutils:diffutils:diffutils"
+    "tput:ncurses-bin:ncurses:ncurses:ncurses:ncurses"
+    "getent:libc-bin:glibc-common::glibc:glibc"
+  )
+
+  # Determine column index for this package manager
+  local col
+  case "$pm" in
+    apt-get) col=2;;
+    dnf|yum) col=3;;
+    apk)     col=4;;
+    pacman)  col=5;;
+    zypper)  col=6;;
+  esac
+
+  # Collect missing packages
+  local missing=()
+  local entry cmd pkg
+  for entry in "${mappings[@]}"; do
+    cmd="${entry%%:*}"
+    pkg="$(echo "$entry" | cut -d: -f"$col")"
+    [[ -z "$pkg" ]] && continue
+    command -v "$cmd" >/dev/null 2>&1 && continue
+    # Avoid duplicates
+    local dup=0
+    local m
+    for m in "${missing[@]+"${missing[@]}"}"; do
+      [[ "$m" == "$pkg" ]] && { dup=1; break; }
+    done
+    [[ "$dup" -eq 1 ]] && continue
+    missing+=("$pkg")
+  done
+
+  [[ ${#missing[@]} -eq 0 ]] && return 0
+
+  echo "Installing missing dependencies: ${missing[*]}"
+
+  # Build install prefix (sudo if needed and available)
+  local pfx=""
+  if [[ "$(id -u)" -ne 0 ]]; then
+    if command -v sudo >/dev/null 2>&1; then
+      pfx="sudo "
+    else
+      echo "WARN: Not root and sudo not available. Cannot install packages." >&2
+      return 0
+    fi
+  fi
+
+  case "$pm" in
+    apt-get)
+      ${pfx}apt-get update -qq
+      ${pfx}apt-get install -y -qq "${missing[@]}"
+      ;;
+    dnf)
+      ${pfx}dnf install -y -q "${missing[@]}"
+      ;;
+    yum)
+      ${pfx}yum install -y -q "${missing[@]}"
+      ;;
+    apk)
+      ${pfx}apk update --quiet
+      ${pfx}apk add --quiet "${missing[@]}"
+      ;;
+    pacman)
+      ${pfx}pacman -Sy --noconfirm --quiet "${missing[@]}"
+      ;;
+    zypper)
+      ${pfx}zypper --quiet refresh
+      ${pfx}zypper install -y --quiet "${missing[@]}"
+      ;;
+  esac
+
+  echo "Dependencies installed."
+}
+
+ensure_dependencies
+
 need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing dependency: $1" >&2; exit 1; }; }
 need tar
 need find
