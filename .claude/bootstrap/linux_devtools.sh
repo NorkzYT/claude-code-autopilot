@@ -194,4 +194,22 @@ else
   skip "ntfy.sh already configured: $NTFY_TOPIC"
 fi
 
+# ---- 6) OpenClaw (optional, when INSTALL_OPENCLAW=1) ----
+if [[ "${INSTALL_OPENCLAW:-0}" == "1" ]]; then
+  if ! has openclaw; then
+    # Verify Node 22+ for OpenClaw
+    NODE_MAJOR="$(node -v 2>/dev/null | sed -E 's/^v([0-9]+)\..*/\1/' || echo 0)"
+    if [[ "$NODE_MAJOR" -lt 22 ]]; then
+      warn "OpenClaw requires Node.js 22+. Current: $(node -v 2>/dev/null || echo 'not installed'). Skipping OpenClaw install."
+    else
+      log "Installing OpenClaw..."
+      npm install -g openclaw@latest || warn "Failed to install openclaw via npm."
+    fi
+  else
+    skip "OpenClaw already installed: $(openclaw --version 2>/dev/null || echo 'unknown')"
+  fi
+else
+  skip "OpenClaw install not requested (use --with-openclaw to enable)."
+fi
+
 log "Done."

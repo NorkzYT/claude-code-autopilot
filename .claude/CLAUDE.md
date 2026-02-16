@@ -25,6 +25,7 @@ Instead of embedding full docs, load on-demand:
 | Hook documentation | Read `.claude/hooks/CLAUDE.md` |
 | Session state | Read `.claude/docs/session-state.md` |
 | Sentinel zones | Read `.claude/docs/sentinel-zones.md` |
+| OpenClaw integration | Read `.claude/docs/openclaw-integration.md` |
 
 ## Hierarchical Context Architecture
 

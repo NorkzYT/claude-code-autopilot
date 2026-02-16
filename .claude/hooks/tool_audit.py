@@ -174,6 +174,12 @@ def format_summary(summary: dict) -> str:
         for err in summary["errors"]:
             lines.append(f"Errors: {err}")
 
+
+    # Cost data from recent cost-tracker.log entry
+    cost_line = _get_recent_cost_entry(os.getenv("CLAUDE_PROJECT_DIR") or os.getcwd())
+    if cost_line:
+        lines.append(f"Cost: {cost_line}")
+
     return "\n".join(lines)
 
 
@@ -183,6 +189,28 @@ def _short_path(path: str) -> str:
     if len(parts) <= 3:
         return path
     return str(Path(*parts[-3:]))
+
+
+def _get_recent_cost_entry(project_dir: str) -> str:
+    """Get the most recent cost-tracker.log entry, if any."""
+    try:
+        cost_log = Path(project_dir) / ".claude/logs/cost-tracker.log"
+        if not cost_log.exists():
+            return ""
+        # Read last line
+        with open(cost_log, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        if not lines:
+            return ""
+        last = lines[-1].strip()
+        # Extract just the token counts and cost
+        # Format: [timestamp] session=xxx in=N out=N cache=N cost=$N.NN
+        parts = last.split("] ", 1)
+        if len(parts) == 2:
+            return parts[1]
+        return last
+    except Exception:
+        return ""
 
 
 def main() -> int:

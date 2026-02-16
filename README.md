@@ -476,6 +476,62 @@ This is highly effective because the plan is crafted with the full accumulated c
 
 ---
 
+## OpenClaw Integration (Optional)
+
+[OpenClaw](https://openclaw.dev) extends Claude Code Autopilot with remote access, automation, and cross-session intelligence. Combined with **Claude Max subscription** ($200/month flat rate), this creates a 24/7 autonomous development system.
+
+### What OpenClaw Adds
+
+| Feature | Description |
+|---------|-------------|
+| Discord Remote | Trigger tasks from any device via `!ship`, `!test`, `!status` |
+| Cron Scheduling | Nightly tests, weekly dep audits, daily cost summaries |
+| Cost Tracking | Token usage visibility (informational on Max flat rate) |
+| Browser Automation | Visual regression testing, E2E automation via CDP |
+| Cross-Session Memory | RAG-powered search across all past sessions |
+| Gateway | WebSocket gateway for multi-agent coordination |
+
+### Quick Setup
+
+```bash
+# Install with OpenClaw support
+curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
+  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw
+```
+
+### Claude Max Authentication
+
+```bash
+# Generate setup token
+claude setup-token
+
+# Paste into OpenClaw
+openclaw models auth paste-token --provider anthropic
+
+# Verify
+openclaw models status
+```
+
+### Discord Commands
+
+| Command | Description |
+|---------|-------------|
+| `!ship <task>` | Execute full autopilot pipeline |
+| `!test` | Run project test suite |
+| `!review <PR#>` | Review a pull request |
+| `!status` | Project status overview |
+| `!ask <question>` | Query the codebase |
+| `!cron list` | Show scheduled jobs |
+| `!memory <query>` | Search past sessions |
+
+### Learn More
+
+- Setup guide: `.claude/docs/openclaw-integration.md`
+- Command reference: `.claude/docs/openclaw-commands.md`
+- Remote commands: `.claude/docs/openclaw-remote-commands.md`
+
+---
+
 ## Core Principles
 
 1. **Smallest change that satisfies the task** — No drive-by refactors

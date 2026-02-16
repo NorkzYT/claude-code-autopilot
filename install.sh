@@ -25,6 +25,7 @@ Options:
   --bootstrap-linux         Linux-only: run full bootstrap (devtools + extras)
                             Includes: linux_devtools.sh, install-extras.sh (wshobson agents/commands)
   --no-extras               Skip installing extras (wshobson agents/commands/skills)
+  --with-openclaw           Install and configure OpenClaw integration
 EOF
 }
 
@@ -34,6 +35,7 @@ DEST="."
 FORCE="0"
 BOOTSTRAP_LINUX="0"
 NO_EXTRAS="0"
+INSTALL_OPENCLAW="0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -43,6 +45,7 @@ while [[ $# -gt 0 ]]; do
     --force)  FORCE="1"; shift 1;;
     --bootstrap-linux) BOOTSTRAP_LINUX="1"; shift 1;;
     --no-extras) NO_EXTRAS="1"; shift 1;;
+    --with-openclaw) INSTALL_OPENCLAW="1"; shift 1;;
     -h|--help) usage; exit 0;;
     *) echo "Unknown arg: $1" >&2; usage; exit 2;;
   esac
@@ -356,6 +359,29 @@ if [[ "$BOOTSTRAP_LINUX" == "1" ]]; then
   fi
 fi
 
+# --- Optional: OpenClaw integration ---
+if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
+  OPENCLAW_SCRIPT="$DEST_CLAUDE/bootstrap/openclaw_setup.sh"
+  if [[ -f "$OPENCLAW_SCRIPT" ]]; then
+    echo ""
+    echo "Running OpenClaw setup: $OPENCLAW_SCRIPT"
+    chmod +x "$OPENCLAW_SCRIPT" 2>/dev/null || true
+
+    if [[ "$(id -u)" -eq 0 ]]; then
+      if command -v su >/dev/null 2>&1; then
+        su - "$TARGET_USER" -c "bash \"$OPENCLAW_SCRIPT\" \"$DEST_ABS\""
+      else
+        echo "WARN: 'su' not found; running OpenClaw setup as root."
+        bash "$OPENCLAW_SCRIPT" "$DEST_ABS"
+      fi
+    else
+      bash "$OPENCLAW_SCRIPT" "$DEST_ABS"
+    fi
+  else
+    echo "WARN: OpenClaw setup script not found at $OPENCLAW_SCRIPT"
+  fi
+fi
+
 echo ""
 echo "Done. Installed .claude/ into ${DEST_ABS} (logs preserved)."
 echo ""
@@ -506,4 +532,27 @@ echo "  The plan preserves your session knowledge across the reset."
 echo ""
 echo "=============================================="
 echo ""
+if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
+  echo "=============================================="
+  echo "  OPENCLAW INTEGRATION"
+  echo "=============================================="
+  echo ""
+  echo "  OpenClaw has been configured for this workspace."
+  echo ""
+  echo "  Start the gateway:"
+  echo "    openclaw gateway start"
+  echo ""
+  echo "  Auth with Claude Max:"
+  echo "    claude setup-token"
+  echo "    openclaw models auth paste-token --provider anthropic"
+  echo ""
+  echo "  Setup Discord:"
+  echo "    openclaw channels add discord"
+  echo ""
+  echo "  Status:"
+  echo "    openclaw status"
+  echo ""
+  echo "=============================================="
+  echo ""
+fi
 echo "Restart Claude Code to re-index agents/skills/commands."

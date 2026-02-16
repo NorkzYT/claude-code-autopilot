@@ -1,0 +1,65 @@
+{
+  "$schema": "https://openclaw.dev/schema/config.json",
+  "version": "1.0",
+  "workspace": {
+    "path": "__PROJECT_DIR__",
+    "name": "claude-code-autopilot"
+  },
+  "models": {
+    "default": "anthropic/claude-sonnet-4-5-20250929",
+    "complex": "anthropic/claude-opus-4-6",
+    "image": "anthropic/claude-sonnet-4-5-20250929",
+    "subscription": "claude-max"
+  },
+  "cache": {
+    "retention": "short",
+    "ttl_seconds": 300
+  },
+  "gateway": {
+    "enabled": true,
+    "port": 18789,
+    "host": "127.0.0.1"
+  },
+  "browser": {
+    "enabled": true,
+    "headless": true
+  },
+  "cron": {
+    "enabled": true,
+    "timezone": "UTC"
+  },
+  "vectorSearch": {
+    "enabled": true,
+    "engine": "sqlite",
+    "hybridWeight": {
+      "vector": 0.7,
+      "bm25": 0.3
+    }
+  },
+  "exec": {
+    "policy": "allowlist",
+    "allowed": [
+      "git status",
+      "git diff",
+      "git log",
+      "npm test",
+      "npm run lint",
+      "python -m pytest"
+    ]
+  },
+  "heartbeat": {
+    "enabled": false,
+    "interval_minutes": 30,
+    "active_hours": {
+      "start": 8,
+      "end": 24
+    },
+    "report_on_issues_only": true
+  },
+  "channels": {
+    "discord": {
+      "enabled": false,
+      "announce_delivery": true
+    }
+  }
+}
