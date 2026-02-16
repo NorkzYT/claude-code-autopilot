@@ -35,7 +35,7 @@ DEST="."
 FORCE="0"
 BOOTSTRAP_LINUX="0"
 NO_EXTRAS="0"
-INSTALL_OPENCLAW="0"
+export INSTALL_OPENCLAW="0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -84,6 +84,7 @@ ensure_dependencies() {
     "hostname:hostname:hostname::inetutils:hostname"
     "cmp:diffutils:diffutils:diffutils:diffutils:diffutils"
     "tput:ncurses-bin:ncurses:ncurses:ncurses:ncurses"
+    "unzip:unzip:unzip:unzip:unzip:unzip"
     "getent:libc-bin:glibc-common::glibc:glibc"
   )
 
