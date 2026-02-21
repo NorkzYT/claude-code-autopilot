@@ -87,7 +87,7 @@ generate_env_file() {
     done
   fi
 
-  local chrome_args="--no-first-run --disable-features=Translate"
+  local chrome_args="--no-first-run --disable-features=Translate --start-maximized --window-size=1920,1080"
   if [[ -n "$ext_flags" ]]; then
     chrome_args="$chrome_args $ext_flags"
   fi
@@ -134,6 +134,7 @@ services:
     environment:
       - SE_SCREEN_WIDTH=1920
       - SE_SCREEN_HEIGHT=1080
+      - SE_SCREEN_DEPTH=24
       - SE_VNC_NO_PASSWORD=1
       - SE_START_XVFB=true
       - SE_NODE_MAX_SESSIONS=1
@@ -314,7 +315,7 @@ for ext_dir in "$EXTENSIONS_DIR"/*/; do
   fi
 done
 
-CHROME_ARGS="--no-first-run --disable-features=Translate"
+CHROME_ARGS="--no-first-run --disable-features=Translate --start-maximized --window-size=1920,1080"
 if [[ -n "$EXT_FLAGS" ]]; then
   CHROME_ARGS="$CHROME_ARGS $EXT_FLAGS"
 fi
