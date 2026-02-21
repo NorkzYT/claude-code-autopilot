@@ -15,6 +15,10 @@ import sys
 data = json.load(sys.stdin)
 cmd = (data.get("tool_input", {}) or {}).get("command", "") or ""
 
+# Autonomous mode: activated by OPENCLAW_AUTONOMOUS=1 env var
+# Selectively promotes specific commands from blocked to allowed
+AUTONOMOUS_MODE = os.getenv("OPENCLAW_AUTONOMOUS", "0") == "1"
+
 # -----------------------------------------------------------------------------
 # Allowlist: explicitly permitted npx/pip/npm commands
 # Add packages here that you trust and want to allow
@@ -31,6 +35,47 @@ ALLOWLISTED_PIP = [
 ALLOWLISTED_NPM = [
     # Example: r"^npm\s+install\s+--save-dev\s+typescript\b",
 ]
+
+# Commands promoted from blocked to allowed in autonomous mode only
+# These are safe for unattended operation on feature branches
+AUTONOMOUS_PROMOTED = [
+    # Git operations (feature branches only)
+    r"^\s*git\s+add\b",
+    r"^\s*git\s+stage\b",
+    r"^\s*git\s+commit\b(?!.*--amend\s+(main|master))",
+    # Network downloads (no pipe-to-interpreter)
+    r"^\s*curl\s+(?!.*\|\s*(sh|bash|zsh|python))",
+    r"^\s*wget\s+(?!.*\|\s*(sh|bash|zsh|python))",
+    # Package managers for project setup
+    r"^\s*npm\s+install\b",
+    r"^\s*npm\s+i\b",
+    r"^\s*pip3?\s+install\b",
+    # Git push to feature branches only (block main/master)
+    r"^\s*git\s+push\b(?!.*\b(main|master)\b)",
+]
+
+# Patterns blocked even in autonomous mode (commit policy enforcement)
+AUTONOMOUS_BLOCKED = [
+    # NEVER allow Co-Authored-By in commit messages -- commits must appear as the user's own
+    (r"Co-Authored-By", "Co-Authored-By in commit (policy: commits must appear as user's own)"),
+    # No --author override
+    (r"git\s+commit\b.*--author", "--author flag (policy: commits must appear as user's own)"),
+    # No amend on main/master
+    (r"git\s+commit\b.*--amend", "--amend (policy: no amending in autonomous mode)"),
+    # No push to main/master
+    (r"git\s+push\b.*\b(main|master)\b", "push to main/master (policy: feature branches only)"),
+    # No force push
+    (r"git\s+push\b.*--force", "force push (policy: never force push)"),
+]
+
+
+def is_autonomous_promoted(cmd: str) -> bool:
+    """Check if command matches an autonomous promoted pattern."""
+    for pattern in AUTONOMOUS_PROMOTED:
+        if re.search(pattern, cmd, re.IGNORECASE):
+            return True
+    return False
+
 
 def is_allowlisted(cmd: str, allowlist: list) -> bool:
     """Check if command matches any allowlist pattern."""
@@ -105,9 +150,19 @@ blocked_supply_chain = [
     (r"^\s*pip3?\s+install\s+(?!-r\s+requirements)(?!-e\s+\.)(?!--upgrade\s+pip)", "pip install (unvetted)", ALLOWLISTED_PIP),
 ]
 
+# Check autonomous mode policy violations first (always blocked regardless)
+if AUTONOMOUS_MODE:
+    for pattern, reason in AUTONOMOUS_BLOCKED:
+        if re.search(pattern, cmd, re.IGNORECASE):
+            print(f"BLOCKED: {reason}", file=sys.stderr)
+            sys.exit(2)
+
 # Check standard blocked patterns
 for pattern, name in blocked:
     if re.search(pattern, cmd, re.IGNORECASE):
+        # In autonomous mode, check if this command is promoted
+        if AUTONOMOUS_MODE and is_autonomous_promoted(cmd):
+            continue
         print(f"BLOCKED: '{name}' command not allowed. Pattern: {pattern}", file=sys.stderr)
         sys.exit(2)
 
@@ -115,6 +170,9 @@ for pattern, name in blocked:
 for pattern, name, allowlist in blocked_supply_chain:
     if re.search(pattern, cmd, re.IGNORECASE):
         if not is_allowlisted(cmd, allowlist):
+            # In autonomous mode, npm install and pip install are promoted
+            if AUTONOMOUS_MODE and is_autonomous_promoted(cmd):
+                continue
             print(f"BLOCKED: '{name}' - add to allowlist in guard_bash.py if trusted", file=sys.stderr)
             sys.exit(2)
 

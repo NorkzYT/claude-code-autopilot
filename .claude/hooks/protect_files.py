@@ -79,6 +79,10 @@ PROTECTED_GLOBS = [
     "**/terraform/prod/**",
     "**/config/prod/**",
     "**/config/production/**",
+
+    # OpenClaw credential protection
+    "**/.openclaw/credentials/**",
+    "**/.openclaw/**/vault*",
 ]
 
 

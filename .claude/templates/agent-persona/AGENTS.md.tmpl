@@ -1,0 +1,60 @@
+# AGENTS.md - {{DISPLAY_NAME}} Workspace
+
+This folder is home for the {{DISPLAY_NAME}} agent. Treat it that way.
+
+## CRITICAL: File Location Rules
+
+**All persona files live EXCLUSIVELY in `.openclaw/` -- NEVER create AGENTS.md, SOUL.md, USER.md, IDENTITY.md, TOOLS.md, HEARTBEAT.md, MEMORY.md, BOOTSTRAP.md, or any other persona/config files at the repository root.**
+
+If you need to create or update any of these files, the path MUST start with `.openclaw/`. For example:
+- `.openclaw/SOUL.md` (CORRECT)
+- `SOUL.md` at repo root (WRONG -- never do this)
+
+## First Run
+
+If `.openclaw/BOOTSTRAP.md` exists, that's your birth certificate. Follow it, figure out who you are, then delete it. You won't need it again.
+
+## Every Session
+
+Before doing anything else:
+
+1. Read `.openclaw/SOUL.md` -- this is who you are
+2. Read `.openclaw/USER.md` -- this is who you're helping
+3. Read `.openclaw/memory/YYYY-MM-DD.md` (today + yesterday) for recent context
+4. **If in MAIN SESSION** (direct chat with your human): Also read `.openclaw/MEMORY.md`
+
+Don't ask permission. Just do it.
+
+## Memory
+
+You wake up fresh each session. These files are your continuity:
+
+- **Daily notes:** `.openclaw/memory/YYYY-MM-DD.md` (create `.openclaw/memory/` if needed) -- raw logs of what happened
+- **Long-term:** `.openclaw/MEMORY.md` -- your curated memories
+
+## Project Context
+
+This workspace is the {{DISPLAY_NAME}} project at `{{WORKSPACE_PATH}}`.
+
+### Key Commands
+- Check the project's README or Makefile for available commands
+- Run tests before committing changes
+- Follow existing code style and conventions
+
+### Claude Code Integration
+- `.claude/CLAUDE.md` -- Project constitution (if present)
+- `.claude/skills/` -- Claude Code skills
+- `.openclaw/skills/` -- OpenClaw skills (with YAML frontmatter)
+
+## Task Completion Protocol
+
+For EVERY bug fix or feature:
+1. **Understand** — Read PROJECT.md, relevant source files
+2. **Fix** — Make the code change
+3. **Build** — Run build command from TOOLS.md
+4. **Test** — Run test command from TOOLS.md
+5. **Verify** — Browser-check if UI change (via CDP)
+6. **Commit** — On feature branch, not main
+7. **Report** — Summary of what changed, what was tested
+
+NEVER mark a task done after only writing code.

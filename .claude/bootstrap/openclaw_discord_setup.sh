@@ -74,16 +74,27 @@ read -rp "  Paste your Discord bot token: " BOT_TOKEN
 
 if [[ -z "$BOT_TOKEN" ]]; then
   warn "No token provided. You can configure later with:"
-  echo "  openclaw channels add discord"
+  echo "  openclaw channels add --channel discord --token <your-token>"
   exit 0
 fi
 
+# Enable Discord plugin if not already enabled
+openclaw plugins enable discord 2>/dev/null || true
+
 # Add Discord channel to OpenClaw
-if openclaw channels add discord --token "$BOT_TOKEN" 2>/dev/null; then
+if openclaw channels add --channel discord --token "$BOT_TOKEN" 2>/dev/null; then
   log "Discord channel configured successfully!"
+
+  # Restart gateway to pick up new channel
+  openclaw gateway restart 2>/dev/null || systemctl --user restart openclaw-gateway.service 2>/dev/null || true
+  log "Gateway restarted to connect Discord bot."
+  sleep 3
 else
   warn "Failed to configure Discord channel."
-  echo "  Try manually: openclaw channels add discord --token <your-token>"
+  echo "  Try manually:"
+  echo "    1. openclaw plugins enable discord"
+  echo "    2. openclaw channels add --channel discord --token <your-token>"
+  echo "    3. openclaw gateway restart"
   exit 1
 fi
 

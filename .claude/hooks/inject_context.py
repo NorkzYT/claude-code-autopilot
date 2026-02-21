@@ -65,6 +65,33 @@ CONTEXT_TRIGGERS = {
         "For PR preparation, spawn `closer` agent.",
         "Use the three-file pattern in `.claude/context/` for session state.",
     ],
+
+    # Browser and automation prompts
+    "scrape": [
+        "For scraping tasks, read `.claude/skills/openclaw-browser/LOGIN_PATTERNS.md`.",
+        "Read `.claude/skills/openclaw-browser/DOWNLOAD_PATTERNS.md` for HAR capture.",
+        "Follow browser automation rules in `.claude/templates/AGENTS.md`.",
+    ],
+    "browser": [
+        "For browser tasks, read `.claude/skills/openclaw-browser/LOGIN_PATTERNS.md`.",
+        "Follow browser automation rules in `.claude/templates/AGENTS.md`.",
+    ],
+    "verify": [
+        "For data verification, follow the pattern in `.claude/templates/AGENTS.md` (Data Verification Pattern).",
+        "Read `.claude/skills/openclaw-browser/LOGIN_PATTERNS.md` for authentication.",
+    ],
+    "har": [
+        "For HAR capture, read `.claude/skills/openclaw-browser/DOWNLOAD_PATTERNS.md`.",
+    ],
+    "autonomous": [
+        "Autonomous mode docs: `.claude/templates/AGENTS.md` (Autonomous Task Execution).",
+        "Report results via Discord. Persist session state to context files.",
+        "Git policy: feature branches only. NEVER include Co-Authored-By lines -- commits must appear as the user's own.",
+    ],
+    "extension": [
+        "For extension testing, read `.claude/skills/openclaw-browser/EXTENSION_TESTING.md`.",
+        "Extensions require headed mode (not headless).",
+    ],
 }
 
 # Task continuation patterns

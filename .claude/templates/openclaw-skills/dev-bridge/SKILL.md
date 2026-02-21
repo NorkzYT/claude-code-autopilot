@@ -48,6 +48,36 @@
   - Runs: `openclaw memory search "<query>"`
   - Returns: relevant past session context
 
+### Browser
+- `!browse <url>` — Navigate to URL and return screenshot
+  - Runs: `openclaw browser navigate <url> && openclaw browser screenshot`
+  - Returns: screenshot image in Discord
+
+### Data Verification
+- `!verify <task>` — Run full data verification pattern
+  - Runs: `OPENCLAW_AUTONOMOUS=1 claude --print "Run data verification pattern: <task>"`
+  - Returns: discrepancy report with fix status
+
+### HAR Capture
+- `!har <url>` — Capture HAR file and return endpoint summary
+  - Runs: `openclaw browser har start && openclaw browser navigate <url> && openclaw browser har stop && openclaw browser har analyze`
+  - Returns: list of API endpoints found
+
+### Workspace Management
+- `!workspace list` — Show configured workspaces
+  - Runs: `openclaw workspace list`
+  - Returns: workspace names and paths
+- `!workspace switch <name>` — Switch active workspace
+  - Runs: `openclaw workspace set <name>`
+  - Returns: confirmation with new workspace path
+
+### Autonomous Execution
+- `!autonomous <task>` — Execute task with autonomous permissions
+  - Sets `OPENCLAW_AUTONOMOUS=1` environment
+  - Runs: `OPENCLAW_AUTONOMOUS=1 claude --print "Use the autopilot subagent for this task: <task>"`
+  - Returns: task report with branch name, commits, test results
+  - **Safety:** Creates feature branch, never commits to main
+
 ## Implementation Notes
 
 ### Exec Translation

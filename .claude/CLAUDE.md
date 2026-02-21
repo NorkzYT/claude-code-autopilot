@@ -26,6 +26,8 @@ Instead of embedding full docs, load on-demand:
 | Session state | Read `.claude/docs/session-state.md` |
 | Sentinel zones | Read `.claude/docs/sentinel-zones.md` |
 | OpenClaw integration | Read `.claude/docs/openclaw-integration.md` |
+| Browser login patterns | Read `.claude/skills/openclaw-browser/LOGIN_PATTERNS.md` |
+| Extension testing | Read `.claude/skills/openclaw-browser/EXTENSION_TESTING.md` |
 
 ## Hierarchical Context Architecture
 

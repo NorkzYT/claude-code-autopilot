@@ -45,6 +45,45 @@
       "on_failure": "alert",
       "report_on_issues_only": true,
       "timeout_seconds": 180
+    },
+    {
+      "name": "data-verification",
+      "description": "Compare scraped data against live website data and fix discrepancies",
+      "schedule": "0 3 * * *",
+      "timezone": "UTC",
+      "enabled": false,
+      "command": "OPENCLAW_AUTONOMOUS=1 claude --print 'Use the autopilot subagent for this task: Run data verification pattern from AGENTS.md. Compare scraped vs live data, fix any scraping bugs, commit fixes on feature branch, report results.'",
+      "delivery": "announce",
+      "on_failure": "alert",
+      "timeout_seconds": 1800,
+      "env": {
+        "OPENCLAW_AUTONOMOUS": "1"
+      }
+    },
+    {
+      "name": "api-discovery",
+      "description": "Capture HAR files and document API patterns from target sites",
+      "schedule": "0 4 * * 1",
+      "timezone": "UTC",
+      "enabled": false,
+      "command": "OPENCLAW_AUTONOMOUS=1 claude --print 'Use the autopilot subagent for this task: Run API reverse engineering pattern from AGENTS.md. Capture HAR files, analyze endpoints, document findings in context.md.'",
+      "delivery": "announce",
+      "on_failure": "alert",
+      "timeout_seconds": 1200,
+      "env": {
+        "OPENCLAW_AUTONOMOUS": "1"
+      }
+    },
+    {
+      "name": "repo-index-refresh",
+      "description": "Weekly refresh of project metadata and deep codebase scan",
+      "schedule": "0 3 * * 0",
+      "timezone": "UTC",
+      "enabled": false,
+      "command": "bash .claude/bootstrap/analyze_repo.sh $WORKSPACE --deep",
+      "delivery": "log",
+      "on_failure": "log",
+      "timeout_seconds": 300
     }
   ]
 }
