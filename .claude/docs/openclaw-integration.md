@@ -32,7 +32,7 @@ bash .claude/bootstrap/openclaw_setup.sh
 
 - `openclaw` CLI tool (global npm package)
 - `~/.openclaw/` directory with configuration
-- `~/.openclaw/openclaw.json` (Claude Max optimized config)
+- OpenClaw configuration (via `openclaw config set` commands)
 - `~/.openclaw/AGENTS.md` (agent operating instructions)
 - `~/.openclaw/HEARTBEAT.md` (health check template)
 - Recommended ClawHub skills (github, docker, monitoring)
@@ -86,7 +86,9 @@ openclaw models auth paste-token --provider anthropic
 bash .claude/bootstrap/openclaw_discord_setup.sh
 
 # Or manual setup
-openclaw channels add discord --token <your-bot-token>
+openclaw plugins enable discord
+openclaw channels add --channel discord --token <your-bot-token>
+openclaw gateway restart
 
 # Test connection
 openclaw notify "Hello from Claude Code Autopilot!"
@@ -285,3 +287,173 @@ Claude Code Autopilot          OpenClaw Platform
          └──────── Discord ◀────────────┘
                    !ship, !test, !status
 ```
+
+## Phase 8: Autonomous Engineering Mode
+
+### Overview
+
+Autonomous mode allows Claude Code to work unattended — fixing code, verifying data, and committing changes on feature branches. It's activated by the `OPENCLAW_AUTONOMOUS=1` environment variable, which is set by cron jobs or the `!autonomous` Discord command.
+
+### Enabling Autonomous Mode
+
+```bash
+# Via environment variable (for cron/scripts)
+OPENCLAW_AUTONOMOUS=1 claude --print "task description"
+
+# Via Discord
+!autonomous "Fix the failing test in auth module"
+
+# Via cron (see .claude/templates/cron-jobs.json)
+# data-verification and api-discovery jobs are pre-configured
+```
+
+### Security Model
+
+| Command | Interactive | Autonomous |
+|---------|------------|------------|
+| `sudo`, `rm -rf` | BLOCKED | BLOCKED |
+| `curl \| bash` | BLOCKED | BLOCKED |
+| `curl <url>` | BLOCKED | ALLOWED |
+| `git commit` | BLOCKED | ALLOWED (feature branch) |
+| `git push main` | BLOCKED | BLOCKED |
+| `git push branch` | BLOCKED | ALLOWED |
+| `npm install` | BLOCKED | ALLOWED |
+| `Co-Authored-By` | BLOCKED | BLOCKED |
+
+### Browser Authentication
+
+For automated tasks that require website access:
+
+1. **Manual login once** in headed mode: `openclaw browser launch --headed`
+2. **Export cookies:** `openclaw browser cookies export --domain <domain>`
+3. **Store in vault:** `openclaw vault set <site>.cookies <path>`
+
+Automated tasks import cookies before accessing authenticated pages. See `.claude/skills/openclaw-browser/LOGIN_PATTERNS.md`.
+
+### Chrome Extension Testing
+
+Use Extension Relay mode to test extensions in a real Chrome instance:
+
+1. Create dedicated Chrome profile for automation
+2. Install extensions in that profile
+3. Install OpenClaw Browser Relay extension
+4. Configure relay to connect to gateway
+
+See `.claude/skills/openclaw-browser/EXTENSION_TESTING.md` for full guide.
+
+### Git Commit Policy
+
+- All autonomous commits go on feature branches (`openclaw/<name>`)
+- NEVER include `Co-Authored-By` lines in commit messages -- commits must appear as the user's own
+- Conventional commit format (`feat:`, `fix:`, `chore:`)
+- After work is complete, a PR is created for user review
+- Direct pushes to main/master are blocked
+
+### Autonomous Cron Jobs
+
+| Job | Schedule | Description |
+|-----|----------|-------------|
+| `data-verification` | 3 AM daily | Compare scraped vs live data, fix discrepancies |
+| `api-discovery` | 4 AM Monday | Capture HAR files, document API patterns |
+
+Enable: `openclaw cron enable data-verification`
+
+### Discord Commands (Autonomous)
+
+- `!autonomous <task>` — Execute with full autonomous permissions
+- `!browse <url>` — Navigate and screenshot
+- `!verify <task>` — Run data verification pattern
+- `!har <url>` — Capture HAR and analyze endpoints
+- `!workspace list/switch` — Multi-workspace management
+
+### Multi-Workspace Setup
+
+```bash
+# Add additional workspaces
+openclaw workspace add <name> <path>
+
+# Switch between workspaces
+openclaw workspace set <name>
+# or from Discord: !workspace switch <name>
+
+# List all workspaces
+openclaw workspace list
+```
+
+## Phase 9: Agent Onboarding
+
+### Overview
+
+The `add_openclaw_agent.sh` script automates all steps needed to register a project directory as an OpenClaw agent. It replaces the 10+ manual steps previously required.
+
+### Usage
+
+```bash
+bash .claude/bootstrap/add_openclaw_agent.sh <agent-name> <workspace-path> [options]
+```
+
+### Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--name <display-name>` | Display name | Capitalized agent-name |
+| `--emoji <emoji>` | Agent emoji | 🔧 |
+| `--skip-persona` | Don't create persona files | - |
+| `--skip-skills` | Don't create skills directory | - |
+| `--no-restart` | Don't restart the gateway | - |
+
+### Example
+
+```bash
+# Register the Kairo project
+bash .claude/bootstrap/add_openclaw_agent.sh kairo /opt/github/Kairo --name "Kairo" --emoji "🔧"
+```
+
+### What It Does
+
+The script performs 9 idempotent steps:
+
+1. **Validation** -- Checks agent name format, workspace exists, `openclaw` CLI available
+2. **Register agent** -- `openclaw agents add` (skips if already registered)
+3. **Copy auth** -- Copies `auth.json` + `auth-profiles.json` from existing agent (skips if present)
+4. **Config sync** -- Adds agent to both `~/.openclaw/openclaw.json` and `~/.openclaw/.openclaw/openclaw.json`
+5. **Create persona** -- Generates AGENTS.md, SOUL.md, USER.md, IDENTITY.md, TOOLS.md, HEARTBEAT.md, BOOTSTRAP.md from templates
+6. **Workspace state** -- Creates `.openclaw/workspace-state.json` in workspace root
+7. **Skills directory** -- Creates `skills/` directory for OpenClaw skill discovery
+8. **Skill conversion** -- Converts `.claude/skills/*/SKILL.md` to OpenClaw format with YAML frontmatter
+9. **Gateway restart** -- Restarts the gateway to pick up new agent
+
+### Persona Templates
+
+Templates live in `.claude/templates/agent-persona/` and use placeholder variables:
+
+| Placeholder | Description |
+|-------------|-------------|
+| `{{AGENT_NAME}}` | Lowercase agent identifier (e.g., `kairo`) |
+| `{{DISPLAY_NAME}}` | Human-readable name (e.g., `Kairo`) |
+| `{{WORKSPACE_PATH}}` | Absolute path to workspace |
+| `{{EMOJI}}` | Agent emoji |
+
+### Skills Discovery
+
+Skills are stored in `{workspace}/.openclaw/skills/` and registered via `skills.load.extraDirs` in the OpenClaw config. Each skill must have YAML frontmatter:
+
+```yaml
+---
+name: skill-name
+description: "What this skill does"
+---
+```
+
+The script automatically converts Claude Code skills (from `.claude/skills/`) to OpenClaw format in `.openclaw/skills/`.
+
+### Config Sync (Root Cause Fix)
+
+The "unknown agent id" bug occurs when the agent exists in one config file but not the other. The script ensures the agent entry exists in **both**:
+
+- `~/.openclaw/openclaw.json` (gateway reads this)
+- `~/.openclaw/.openclaw/openclaw.json` (CLI state reads this)
+
+### Idempotency
+
+Running the script multiple times is safe. Each section checks for existing state before making changes and prints "already exists, skipping" messages for items that don't need updating.

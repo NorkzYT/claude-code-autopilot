@@ -1,0 +1,25 @@
+services:
+  chrome:
+    image: selenium/standalone-chromium:latest
+    container_name: openclaw-chrome
+    env_file:
+      - ./data/.env
+    ports:
+      - "18800:18800"  # CDP
+      - "5900:5900"    # VNC
+      - "7900:7900"    # noVNC web viewer
+    volumes:
+      - openclaw-chrome-profile:/home/seluser/.config/chromium
+      - ./data/cookies:/cookies:ro
+      - ./data/extensions:/extensions:ro
+    environment:
+      - SE_SCREEN_WIDTH=1920
+      - SE_SCREEN_HEIGHT=1080
+      - SE_VNC_NO_PASSWORD=1
+      - SE_START_XVFB=true
+      - SE_NODE_MAX_SESSIONS=1
+    shm_size: 2gb
+    restart: always
+
+volumes:
+  openclaw-chrome-profile:
