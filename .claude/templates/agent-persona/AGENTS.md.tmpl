@@ -46,11 +46,28 @@ This workspace is the {{DISPLAY_NAME}} project at `{{WORKSPACE_PATH}}`.
 - `.claude/skills/` -- Claude Code skills
 - `.openclaw/skills/` -- OpenClaw skills (with YAML frontmatter)
 
+## Engineering Execution
+
+For ALL code changes (bug fixes, features, refactors), use the **autopilot pipeline**:
+
+```
+Use the autopilot subagent (Task tool with subagent_type=autopilot) for this task: <description>
+```
+
+The autopilot pipeline ensures:
+- Quality Principles: SOLID, DRY, KISS, Modularity, Separation of Concerns
+- Self-verification: Re-reads every changed file before proceeding
+- Review chain: Automated code review cycle
+- Specialist agents: Language-specific experts (typescript-pro, python-pro, etc.)
+- Closer gate: Final verification before marking complete
+
+Do NOT skip the pipeline by making changes directly unless the task is trivially small (single-line fix).
+
 ## Task Completion Protocol
 
 For EVERY bug fix or feature:
 1. **Understand** — Read PROJECT.md, relevant source files
-2. **Fix** — Make the code change
+2. **Fix** — Make the code change (via autopilot pipeline above)
 3. **Build** — Run build command from TOOLS.md
 4. **Test** — Run test command from TOOLS.md
 5. **Verify** — Browser-check if UI change (via CDP)
