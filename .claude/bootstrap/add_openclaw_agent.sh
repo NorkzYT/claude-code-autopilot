@@ -22,6 +22,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="$(cd "$SCRIPT_DIR/../templates/agent-persona" && pwd 2>/dev/null || echo "")"
 CODEX_TEMPLATE_DIR="$(cd "$SCRIPT_DIR/../templates/codex" && pwd 2>/dev/null || echo "")"
+GIT_HOOK_TEMPLATE_DIR="$(cd "$SCRIPT_DIR/../templates/git-hooks" && pwd 2>/dev/null || echo "")"
 OPENCLAW_HOME="${OPENCLAW_HOME:-$HOME/.openclaw}"
 
 # ─── Defaults ───────────────────────────────────────────────
@@ -45,6 +46,47 @@ ensure_gitignore_entry() {
     return 1
   fi
   printf '%s\n' "$entry" >> "$file"
+  return 0
+}
+
+install_commit_msg_hook() {
+  local workspace="$1"
+  local hook_template="$GIT_HOOK_TEMPLATE_DIR/commit-msg-no-coauthors.sh"
+  local git_dir="$workspace/.git"
+  local hooks_dir="$git_dir/hooks"
+  local hook_path="$hooks_dir/commit-msg"
+  local managed_marker="commit-msg-no-coauthors (managed by add_openclaw_agent.sh)"
+
+  if [[ ! -d "$git_dir" ]]; then
+    warn "No .git directory found; skipping commit-msg hook installation"
+    return 1
+  fi
+
+  mkdir -p "$hooks_dir"
+
+  if [[ -f "$hook_path" ]] && ! grep -q "$managed_marker" "$hook_path" 2>/dev/null; then
+    warn "Existing commit-msg hook detected (unmanaged). Skipping overwrite."
+    warn "Manually add Co-Authored-By blocking or merge with $hook_template"
+    return 1
+  fi
+
+  if [[ -f "$hook_template" ]]; then
+    cp "$hook_template" "$hook_path"
+  else
+    cat > "$hook_path" << 'HOOKEOF'
+#!/usr/bin/env bash
+# commit-msg-no-coauthors (managed by add_openclaw_agent.sh)
+set -euo pipefail
+MSG_FILE="${1:-}"
+if [[ -n "$MSG_FILE" && -f "$MSG_FILE" ]] && grep -Eiq '^[[:space:]]*Co-Authored-By:' "$MSG_FILE"; then
+  echo "ERROR: Commit message contains Co-Authored-By trailer. Remove it and retry." >&2
+  exit 1
+fi
+HOOKEOF
+  fi
+
+  chmod +x "$hook_path" 2>/dev/null || true
+  log "Installed .git/hooks/commit-msg (blocks Co-Authored-By trailers)"
   return 0
 }
 
@@ -417,6 +459,10 @@ GUARDHOOK
   fi
 fi
 
+# ─── Section 4c: Install git commit-msg hook (no co-authors) ───────────────
+log "Section 4c: Installing git commit-msg guard..."
+install_commit_msg_hook "$WORKSPACE_PATH" || true
+
 # Create settings.local.json with hook config
 SETTINGS_TARGET="$WORKSPACE_CLAUDE_DIR/settings.local.json"
 if [[ -f "$SETTINGS_TARGET" ]]; then
@@ -424,6 +470,7 @@ if [[ -f "$SETTINGS_TARGET" ]]; then
 else
   cat > "$SETTINGS_TARGET" << 'SETTINGSJSON'
 {
+  "model": "sonnet",
   "hooks": {
     "PreToolUse": [
       {
@@ -675,6 +722,8 @@ prefix_rule(pattern=["git", "push", "--force"], decision="forbidden", justificat
 prefix_rule(pattern=["git", "push", "-f"], decision="forbidden", justification="Force push is blocked")
 prefix_rule(pattern=["git", "push", "origin", "main"], decision="forbidden", justification="Push to main is blocked")
 prefix_rule(pattern=["git", "push", "origin", "master"], decision="forbidden", justification="Push to master is blocked")
+prefix_rule(pattern=["git", "commit", "--amend"], decision="forbidden", justification="Amend commits are blocked")
+prefix_rule(pattern=["git", "commit", "--author"], decision="forbidden", justification="Overriding commit author is blocked")
 EOF
       log "Created .codex/rules/default.rules (fallback)"
     fi

@@ -1,7 +1,7 @@
 ---
-name: autopilot
-model: inherit
-description: Cost-optimized one-shot delivery. Uses current model (Sonnet-first) and is suitable for most tasks.
+name: autopilot-opus
+model: opus
+description: High-confidence one-shot delivery for complex/high-risk tasks. Turns raw task → plan → implements → verifies → reviews → iterates once if needed.
 tools: Read, Glob, Grep, Bash, Edit, MultiEdit, Write, Task
 ---
 

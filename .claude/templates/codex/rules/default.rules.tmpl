@@ -51,3 +51,14 @@ prefix_rule(
     justification="Push to master is blocked",
 )
 
+prefix_rule(
+    pattern=["git", "commit", "--amend"],
+    decision="forbidden",
+    justification="Amend commits are blocked in automated workflows",
+)
+
+prefix_rule(
+    pattern=["git", "commit", "--author"],
+    decision="forbidden",
+    justification="Overriding commit author is blocked",
+)

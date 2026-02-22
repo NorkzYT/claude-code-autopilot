@@ -415,19 +415,20 @@ bash .claude/bootstrap/add_openclaw_agent.sh kairo /opt/github/Kairo --name "Kai
 
 ### What It Does
 
-The script performs 11 idempotent steps:
+The script performs 12 idempotent steps:
 
 1. **Validation** -- Checks agent name format, workspace exists, `openclaw` CLI available
 2. **Register agent** -- `openclaw agents add` (skips if already registered)
 3. **Copy auth** -- Copies `auth.json` + `auth-profiles.json` from existing agent (skips if present)
 4. **Config sync** -- Adds agent to both `~/.openclaw/openclaw.json` and `~/.openclaw/.openclaw/openclaw.json`
 5. **Create persona** -- Generates AGENTS.md, SOUL.md, USER.md, IDENTITY.md, TOOLS.md, HEARTBEAT.md, BOOTSTRAP.md from templates
-6. **Workspace state** -- Creates `.openclaw/workspace-state.json` in workspace root
-7. **Skills directory** -- Creates `skills/` directory for OpenClaw skill discovery
-8. **Skill conversion** -- Converts `.claude/skills/*/SKILL.md` to OpenClaw format with YAML frontmatter
-9. **Workspace `.gitignore` sync** -- Adds `.claude/`, `.codex/`, `.codex-home/`, `.agents/`, `.openclaw/`, `.openclaw/sessions/`, and root `AGENTS.md` shim
-10. **Codex compatibility** -- Creates root `AGENTS.md` shim, `.codex/rules/default.rules`, and links `.agents/skills` to `.openclaw/skills`
-11. **Gateway restart** -- Restarts the gateway to pick up new agent
+6. **Git commit guard** -- Installs repo `commit-msg` hook to block `Co-Authored-By` trailers
+7. **Workspace state** -- Creates `.openclaw/workspace-state.json` in workspace root
+8. **Skills directory** -- Creates `skills/` directory for OpenClaw skill discovery
+9. **Skill conversion** -- Converts `.claude/skills/*/SKILL.md` to OpenClaw format with YAML frontmatter
+10. **Workspace `.gitignore` sync** -- Adds `.claude/`, `.codex/`, `.codex-home/`, `.agents/`, `.openclaw/`, `.openclaw/sessions/`, and root `AGENTS.md` shim
+11. **Codex compatibility** -- Creates root `AGENTS.md` shim, `.codex/rules/default.rules`, and links `.agents/skills` to `.openclaw/skills`
+12. **Gateway restart** -- Restarts the gateway to pick up new agent
 
 ### Persona Templates
 
@@ -463,6 +464,14 @@ To support OpenAI Codex and Claude/OpenClaw with minimal duplication, the bootst
 - Optional project-local Codex runtime state in `.codex-home/` (via `ccx` alias)
 
 This keeps shared instructions and skills modular while preserving OpenClaw-native layout.
+
+### Usage Optimization (Sonnet First)
+
+The default bundle is configured for cost efficiency:
+
+- Claude defaults to **Sonnet** for planning and most implementation work
+- Complex multi-file/architectural tasks escalate to Opus-capable autopilot specialists
+- Browser/HAR/vision work is kept explicit to avoid accidental usage spikes
 
 ### Config Sync (Root Cause Fix)
 

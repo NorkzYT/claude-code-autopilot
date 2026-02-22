@@ -502,6 +502,7 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 This setup also:
 - Adds local agent/runtime directories to `.gitignore` (`.claude/`, `.codex/`, `.codex-home/`, `.agents/`, `.openclaw/`) plus generated root `AGENTS.md` shim
 - Attempts automatic agent registration for the current workspace
+- Sets Claude default model to Sonnet (use Opus via escalation for complex tasks)
 
 ### Claude Max Authentication
 
@@ -544,6 +545,12 @@ This repo can run OpenClaw + Claude workflows and OpenAI Codex with shared behav
 - Optional local Codex home via `ccx` alias (`CODEX_HOME=./.codex-home`)
 
 When bootstrapping agents, this compatibility layer is generated automatically (use `--skip-codex` to disable).
+
+### Usage Optimization Defaults
+
+- Sonnet-first plan/triage and direct execution for most tasks
+- Opus/autopilot escalation only for complex multi-file work
+- Git `commit-msg` hook blocks `Co-Authored-By` trailers
 
 ---
 

@@ -456,7 +456,11 @@ echo "Setting up user-level autopilot default..."
 mkdir -p "$USER_CLAUDE_DIR"
 
 cat > "$USER_CLAUDE_MD" << 'AUTOPILOT_EOF'
-Use the autopilot subagent (Task tool with subagent_type=autopilot) for this task
+Cost-optimized routing policy:
+- Start with a short plan/triage on the current model.
+- Work directly for small tasks (1-3 files, existing patterns).
+- Escalate to the autopilot-opus subagent (Task tool with subagent_type=autopilot-opus) only for complex multi-file or architectural tasks.
+- Run build/test before completion and avoid Co-Authored-By commit trailers.
 AUTOPILOT_EOF
 
 # Fix ownership if running as root

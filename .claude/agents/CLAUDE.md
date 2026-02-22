@@ -15,7 +15,8 @@ Agents follow the **Orchestrator -> Explorer/Coder** pattern:
 
 | Agent | Purpose | Tools |
 |-------|---------|-------|
-| `autopilot` | One-shot delivery: plan -> implement -> verify -> review | Full access |
+| `autopilot` | Cost-optimized one-shot delivery (inherits current model; Sonnet-first) | Full access |
+| `autopilot-opus` | High-confidence one-shot delivery for complex/high-risk tasks | Full access |
 | `parallel-orchestrator` | Orchestrates parallel agent deployment | Read, Glob, Grep, Bash, Task |
 | `orchestrator` | Planning only, forced delegation | Read, Glob, Grep, Task |
 | `autopilot-fixer` | Fix-up pass for incomplete work | Full access |
@@ -42,7 +43,7 @@ Task tool with subagent_type=<agent-name>
 
 Example:
 ```
-Use the autopilot subagent (Task tool with subagent_type=autopilot) for this task
+Use the autopilot-opus subagent (Task tool with subagent_type=autopilot-opus) for this task
 ```
 
 ## Agent Design Patterns

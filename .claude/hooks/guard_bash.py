@@ -151,6 +151,14 @@ blocked_supply_chain = [
 ]
 
 # Check autonomous mode policy violations first (always blocked regardless)
+for pattern, reason in [
+    (r"Co-Authored-By", "Co-Authored-By in commit (policy: commits must appear as user's own)"),
+    (r"git\s+commit\b.*--author", "--author flag (policy: commits must appear as user's own)"),
+]:
+    if re.search(pattern, cmd, re.IGNORECASE):
+        print(f"BLOCKED: {reason}", file=sys.stderr)
+        sys.exit(2)
+
 if AUTONOMOUS_MODE:
     for pattern, reason in AUTONOMOUS_BLOCKED:
         if re.search(pattern, cmd, re.IGNORECASE):

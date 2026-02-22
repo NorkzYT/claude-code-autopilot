@@ -76,9 +76,18 @@ For custom iteration limits or promises:
 
 ## Default Agents
 
-For complex multi-file architectural tasks, use the **autopilot** subagent:
+## Cost-Optimized Model Routing
+
+- **Default model:** Sonnet for planning, discovery, and most implementation tasks.
+- **Plan first:** Start with a short plan and complexity triage before doing work.
+- **Escalate to Opus + autopilot-opus only when complex:** multi-file architectural changes, high regression risk, or specialist review needs.
+- **Keep browser/vision usage explicit:** only use browser verification when UI behavior changed.
+
+This gets most of the quality benefit while protecting weekly usage.
+
+For complex multi-file architectural tasks, use the **autopilot-opus** subagent:
 ```
-Use the autopilot subagent (Task tool with subagent_type=autopilot) for this task
+Use the autopilot-opus subagent (Task tool with subagent_type=autopilot-opus) for this task
 ```
 
 For simpler tasks (1-3 files, following existing patterns), work directly -- no sub-agent needed.

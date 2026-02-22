@@ -23,6 +23,12 @@ For EVERY bug fix or feature:
 
 Do not mark tasks complete after code-only changes.
 
+## Cost-Optimized Routing
+
+- Claude/OpenClaw: use Sonnet first for plan + direct execution.
+- Escalate to Opus/autopilot only for complex multi-file/architectural tasks.
+- Codex: follow the same plan-first/direct-first policy and keep browser verification explicit.
+
 ## Shared Skills and Guardrails
 
 - Skills source: `.claude/skills/` and generated `.openclaw/skills/`
@@ -31,3 +37,4 @@ Do not mark tasks complete after code-only changes.
 - Recommended local Codex state path: `.codex-home/` (via `ccx` alias)
 - Codex compatibility templates: `.claude/templates/codex/`
 - Safety hook references: `.claude/hooks/guard_bash.py`, `.claude/hooks/guard_browser.py`
+- Commit trailer enforcement: generated `.git/hooks/commit-msg` blocks `Co-Authored-By`

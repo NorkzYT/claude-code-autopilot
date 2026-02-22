@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 """
-Auto-inject autopilot subagent instruction on every prompt.
+Inject cost-optimized execution routing guidance on substantive prompts.
 
-This replicates the behavior of ~/.claude/CLAUDE.md but at project level.
-The hook runs on UserPromptSubmit and injects the autopilot instruction.
+This preserves quality while reducing usage:
+- Plan/triage first on the current model (typically Sonnet)
+- Work directly for small tasks
+- Escalate to autopilot-opus only for complex multi-file changes
 """
 import json
 import sys
 
 
-AUTOPILOT_INSTRUCTION = """Use the autopilot subagent (Task tool with subagent_type=autopilot) for this task.
+ROUTING_INSTRUCTION = """Cost-optimized execution policy:
 
-IMPORTANT: Launch the autopilot agent to handle this request. Do not attempt to do the work directly."""
+1. Start with a short plan + complexity triage on the current model.
+2. If the task is small (roughly 1-3 files, existing pattern), do the work directly.
+3. Escalate to the autopilot-opus subagent only for complex multi-file/architectural tasks after the plan is clear.
+4. Run build/test before completion; use browser verification only if UI changed.
+5. Never include Co-Authored-By lines in commit messages."""
 
 
 def main() -> int:
@@ -48,13 +54,12 @@ def main() -> int:
     if any(prompt_lower.startswith(q) for q in question_starters) and "?" in prompt:
         return 0
 
-    # Skip if prompt already mentions autopilot or agents
-    if "autopilot" in prompt_lower or "subagent" in prompt_lower:
+    # Skip if prompt already specifies routing/agents
+    if "autopilot" in prompt_lower or "subagent" in prompt_lower or "plan first" in prompt_lower:
         return 0
 
-    # Inject the autopilot instruction using correct hook schema
-    # Plain text to stdout is the simplest way to add context
-    print(AUTOPILOT_INSTRUCTION)
+    # Inject routing guidance using plain text hook output.
+    print(ROUTING_INSTRUCTION)
     return 0
 
 

@@ -71,12 +71,19 @@ For most tasks, work directly without delegating to sub-agents:
 
 This covers: bug fixes, small features, refactors, config changes, docs, and any task touching 1-3 files.
 
+### Model Routing (Quality + Cost)
+
+- Start with a short plan/triage on the current model (typically Sonnet).
+- Execute small tasks directly on Sonnet.
+- Escalate to Claude autopilot (Opus-capable specialists) only after the plan is clear and the task is truly complex.
+- Use browser/CDP verification only when UI behavior changed.
+
 ### Escalate to Claude: Complex Multi-File Tasks Only
 
 For tasks requiring deep architectural changes or multi-component coordination, escalate to the Claude autopilot pipeline:
 
 ```
-Use the autopilot subagent (Task tool with subagent_type=autopilot) for this task: <description>
+Use the autopilot-opus subagent (Task tool with subagent_type=autopilot-opus) for this task: <description>
 ```
 
 **Escalate when ALL of these are true:**
@@ -108,3 +115,4 @@ For EVERY bug fix or feature:
 7. **Report** — Summary of what changed, what was tested
 
 NEVER mark a task done after only writing code.
+NEVER include `Co-Authored-By` in commit messages (git `commit-msg` hook enforces this in generated workspaces).

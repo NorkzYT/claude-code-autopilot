@@ -19,10 +19,16 @@ Most tasks should be handled directly by the current model. Only escalate to Cla
 ### Direct execution (default -- saves tokens):
 Handle the task yourself using the available tools. Follow the Task Completion Protocol.
 
+### Model Routing (Quality + Cost)
+
+- Start on **Sonnet** for plan/triage and most implementation.
+- After the plan is clear, escalate to **Opus/autopilot-opus** only for complex multi-file or architectural work.
+- Keep browser/HAR/vision steps explicit and only when required.
+
 ### Claude Code escalation (complex tasks only):
 For multi-component architectural changes that need specialist sub-agents:
 ```
-exec: claude --print "Use the autopilot subagent (Task tool with subagent_type=autopilot) for this task: <description>"
+exec: claude --print "Use the autopilot-opus subagent (Task tool with subagent_type=autopilot-opus) for this task: <description>"
 ```
 
 **Escalation criteria:** 4+ files across modules, architectural decisions, high regression risk.
@@ -50,6 +56,7 @@ Write durable insights to `MEMORY.md` in the OpenClaw workspace:
 - Never run destructive file removal commands
 - Always run tests after code changes
 - Report failures to Discord channel immediately
+- Never include `Co-Authored-By` in commit messages (enforced by git `commit-msg` hook in generated workspaces)
 
 ## Project Structure
 
