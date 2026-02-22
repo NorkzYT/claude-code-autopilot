@@ -29,3 +29,8 @@ __pycache__/
 # Users may override with their own settings after installation
 
 tmp
+
+# Local Codex runtime state
+.codex/
+.codex-home/
+.agents/

@@ -13,6 +13,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${1:-$(pwd)}"
 OPENCLAW_HOME="${HOME}/.openclaw"
 CLAUDE_DIR="${PROJECT_DIR}/.claude"
+OPENCLAW_AUTO_REGISTER="${OPENCLAW_AUTO_REGISTER:-0}"
+
+sanitize_agent_name() {
+  local name="$1"
+  name="$(echo "$name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g')"
+  if [[ -z "$name" ]]; then
+    name="agent"
+  fi
+  if [[ ! "$name" =~ ^[a-z] ]]; then
+    name="agent-$name"
+  fi
+  echo "$name"
+}
 
 # ---- 0) Verify prerequisites ----
 if ! has node; then
@@ -146,8 +159,19 @@ for rcfile in "$HOME/.bashrc" "$HOME/.zshrc"; do
   fi
 done
 
-# ---- 9) Interactive agent registration ----
-if [[ -t 0 ]]; then  # Only if running in a terminal (not piped)
+# ---- 9) Agent registration ----
+ADD_AGENT_SCRIPT="$SCRIPT_DIR/add_openclaw_agent.sh"
+
+if [[ "$OPENCLAW_AUTO_REGISTER" == "1" ]]; then
+  if [[ -f "$ADD_AGENT_SCRIPT" ]]; then
+    AUTO_AGENT_NAME="${OPENCLAW_AGENT_NAME:-$(basename "$PROJECT_DIR")}"
+    AUTO_AGENT_NAME="$(sanitize_agent_name "$AUTO_AGENT_NAME")"
+    log "Auto-registering OpenClaw agent '$AUTO_AGENT_NAME' for $PROJECT_DIR ..."
+    bash "$ADD_AGENT_SCRIPT" "$AUTO_AGENT_NAME" "$PROJECT_DIR" || warn "Automatic agent registration failed."
+  else
+    warn "add_openclaw_agent.sh not found at $ADD_AGENT_SCRIPT"
+  fi
+elif [[ -t 0 ]]; then  # Only if running in a terminal (not piped)
   echo ""
   read -p "Would you like to register a project as an OpenClaw agent? (y/N) " -n 1 -r
   echo ""
@@ -155,7 +179,6 @@ if [[ -t 0 ]]; then  # Only if running in a terminal (not piped)
     read -p "Agent name (lowercase, e.g. 'kairo'): " AGENT_REG_NAME
     read -p "Workspace path: " AGENT_REG_PATH
     if [[ -n "$AGENT_REG_NAME" && -n "$AGENT_REG_PATH" && -d "$AGENT_REG_PATH" ]]; then
-      ADD_AGENT_SCRIPT="$SCRIPT_DIR/add_openclaw_agent.sh"
       if [[ -f "$ADD_AGENT_SCRIPT" ]]; then
         bash "$ADD_AGENT_SCRIPT" "$AGENT_REG_NAME" "$AGENT_REG_PATH"
       else
@@ -174,7 +197,8 @@ echo "    1. Run: claude setup-token"
 echo "    2. Run: openclaw models auth paste-token --provider anthropic"
 echo "    3. Verify: openclaw status"
 echo "    4. (Optional) Setup Discord: openclaw channels add discord"
-echo "    5. Add project agents: bash .claude/bootstrap/add_openclaw_agent.sh <name> <path>"
+echo "    5. Register agent manually (if auto-register was skipped/failed):"
+echo "       bash .claude/bootstrap/add_openclaw_agent.sh <name> <path>"
 echo ""
 echo "  Gateway is installed as a systemd service and starts automatically."
 echo "  Dashboard: http://127.0.0.1:18789/"

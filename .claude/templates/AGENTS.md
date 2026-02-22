@@ -14,16 +14,18 @@ Store in `.claude/context/<task-name>/` directory.
 
 ## Dispatching Tasks to Claude Code
 
-Use the `exec` tool to invoke Claude Code for terminal development tasks:
+Most tasks should be handled directly by the current model. Only escalate to Claude Code for complex multi-file architectural changes.
 
-```
-exec: claude --print "<task description>"
-```
+### Direct execution (default -- saves tokens):
+Handle the task yourself using the available tools. Follow the Task Completion Protocol.
 
-For complex tasks:
+### Claude Code escalation (complex tasks only):
+For multi-component architectural changes that need specialist sub-agents:
 ```
 exec: claude --print "Use the autopilot subagent (Task tool with subagent_type=autopilot) for this task: <description>"
 ```
+
+**Escalation criteria:** 4+ files across modules, architectural decisions, high regression risk.
 
 ## Coding Standards
 
@@ -58,6 +60,7 @@ Write durable insights to `MEMORY.md` in the OpenClaw workspace:
 ├── hooks/                 # Safety hooks
 ├── commands/              # Workflows and tools
 ├── skills/                # Reusable knowledge
+├── templates/codex/       # Codex compatibility templates
 ├── context/               # Session state
 ├── docs/                  # Reference docs
 └── logs/                  # Audit trail

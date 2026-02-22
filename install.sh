@@ -216,6 +216,31 @@ DEST_ABS="$(cd "$DEST" && pwd)"
 DEST_CLAUDE="${DEST_ABS}/.claude"
 DEST_LOGS="${DEST_CLAUDE}/logs"
 
+ensure_local_agent_gitignore() {
+  local gitignore_file="$1/.gitignore"
+  local start_marker="# >>> claude-code-autopilot local agent state >>>"
+  local end_marker="# <<< claude-code-autopilot local agent state <<<"
+
+  if [[ -f "$gitignore_file" ]] && grep -qF "$start_marker" "$gitignore_file" 2>/dev/null; then
+    echo "  Local agent state ignore block already present in $gitignore_file"
+    return 0
+  fi
+
+  {
+    echo ""
+    echo "$start_marker"
+    echo ".claude/"
+    echo ".codex/"
+    echo ".codex-home/"
+    echo ".agents/"
+    echo ".openclaw/"
+    echo "AGENTS.md"
+    echo "$end_marker"
+  } >> "$gitignore_file"
+
+  echo "  Added local agent state ignores to $gitignore_file"
+}
+
 # If .claude exists and not forcing, bail
 if [[ -e "$DEST_CLAUDE" && "$FORCE" != "1" ]]; then
   echo "ERROR: Destination already has .claude/: $DEST_CLAUDE" >&2
@@ -252,6 +277,9 @@ else
   cp -a "$CLAUDE_SRC/." "$DEST_CLAUDE/"
   mkdir -p "$DEST_LOGS"
 fi
+
+# Keep local agent state out of project commits by default.
+ensure_local_agent_gitignore "$DEST_ABS"
 
 # --- Fix permissions/ownership so Claude hooks can write logs ---
 TARGET_USER="${SUDO_USER:-$(id -un)}"
@@ -395,13 +423,13 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
 
     if [[ "$(id -u)" -eq 0 ]]; then
       if command -v su >/dev/null 2>&1; then
-        su - "$TARGET_USER" -c "bash \"$OPENCLAW_SCRIPT\" \"$DEST_ABS\""
+        su - "$TARGET_USER" -c "OPENCLAW_AUTO_REGISTER=1 bash \"$OPENCLAW_SCRIPT\" \"$DEST_ABS\""
       else
         echo "WARN: 'su' not found; running OpenClaw setup as root."
-        bash "$OPENCLAW_SCRIPT" "$DEST_ABS"
+        OPENCLAW_AUTO_REGISTER=1 bash "$OPENCLAW_SCRIPT" "$DEST_ABS"
       fi
     else
-      bash "$OPENCLAW_SCRIPT" "$DEST_ABS"
+      OPENCLAW_AUTO_REGISTER=1 bash "$OPENCLAW_SCRIPT" "$DEST_ABS"
     fi
   else
     echo "WARN: OpenClaw setup script not found at $OPENCLAW_SCRIPT"
@@ -443,6 +471,11 @@ echo ""
 # --- Setup cca alias in shell rc files ---
 CCA_ALIAS="alias cca='${DEST_ABS}/.claude/bin/claude-named --dangerously-skip-permissions'"
 CCA_COMMENT="# Claude Code autopilot alias"
+CCX_ALIAS="alias ccx='${DEST_ABS}/.claude/bin/codex-local'"
+CCX_COMMENT="# Codex local-home alias (uses ./.codex-home)"
+
+# Ensure local codex wrapper is executable.
+chmod +x "${DEST_ABS}/.claude/bin/codex-local" 2>/dev/null || true
 
 for rcfile in "$USER_HOME/.bashrc" "$USER_HOME/.zshrc"; do
   if [[ -f "$rcfile" ]] || [[ "$(basename "$rcfile")" == ".bashrc" ]]; then
@@ -452,6 +485,12 @@ for rcfile in "$USER_HOME/.bashrc" "$USER_HOME/.zshrc"; do
       echo "  Added cca alias to $rcfile"
     else
       echo "  cca alias already present in $rcfile"
+    fi
+    if ! grep -qF "alias ccx=" "$rcfile" 2>/dev/null; then
+      printf '%s\n%s\n' "$CCX_COMMENT" "$CCX_ALIAS" >> "$rcfile"
+      echo "  Added ccx alias to $rcfile"
+    else
+      echo "  ccx alias already present in $rcfile"
     fi
   fi
 done
@@ -516,11 +555,12 @@ echo ""
 echo "  This runs: claude --dangerously-skip-permissions"
 echo "  with automatic terminal naming."
 echo ""
-echo "  If 'cca' is not found, open a new shell or run:"
+echo "  If 'cca' or 'ccx' is not found, open a new shell or run:"
 echo "    source ~/.bashrc   # or source ~/.zshrc"
 echo ""
 echo "Available tools:"
 echo "  - cca                               Launch Claude with terminal naming + skip-permissions"
+echo "  - ccx                               Launch Codex with project-local CODEX_HOME (.codex-home)"
 echo "  - .claude/extras/doctor.sh          Validate .claude/ configuration"
 echo "  - .claude/extras/install-extras.sh  Install/update wshobson agents & commands"
 echo ""
@@ -578,8 +618,10 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
   echo "  Status:"
   echo "    openclaw status"
   echo ""
-  echo "  Add a project as an OpenClaw agent:"
-  echo "    bash .claude/bootstrap/add_openclaw_agent.sh <name> /path/to/project"
+  echo "  Agent registration:"
+  echo "    Automatically attempted during install (OPENCLAW_AUTO_REGISTER=1)"
+  echo "    Re-run manually if needed:"
+  echo "      bash .claude/bootstrap/add_openclaw_agent.sh <name> /path/to/project"
   echo ""
   echo "=============================================="
   echo ""

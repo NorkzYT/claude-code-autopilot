@@ -499,6 +499,10 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw
 ```
 
+This setup also:
+- Adds local agent/runtime directories to `.gitignore` (`.claude/`, `.codex/`, `.codex-home/`, `.agents/`, `.openclaw/`) plus generated root `AGENTS.md` shim
+- Attempts automatic agent registration for the current workspace
+
 ### Claude Max Authentication
 
 ```bash
@@ -529,6 +533,17 @@ openclaw models status
 - Setup guide: `.claude/docs/openclaw-integration.md`
 - Command reference: `.claude/docs/openclaw-commands.md`
 - Remote commands: `.claude/docs/openclaw-remote-commands.md`
+
+### OpenAI Codex Compatibility
+
+This repo can run OpenClaw + Claude workflows and OpenAI Codex with shared behavior:
+
+- Root `AGENTS.md` for Codex instruction discovery
+- Shared skills via `.agents/skills -> .openclaw/skills`
+- Shared safety policy in `.codex/rules/default.rules`
+- Optional local Codex home via `ccx` alias (`CODEX_HOME=./.codex-home`)
+
+When bootstrapping agents, this compatibility layer is generated automatically (use `--skip-codex` to disable).
 
 ---
 

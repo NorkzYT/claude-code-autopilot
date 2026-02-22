@@ -12,6 +12,7 @@ set -euo pipefail
 #   --emoji <emoji>           Agent emoji (default: 🔧)
 #   --skip-persona            Don't create persona files
 #   --skip-skills             Don't create skills/ directory
+#   --skip-codex              Don't create Codex compatibility files
 #   --no-restart              Don't restart the gateway
 #
 # Example:
@@ -20,6 +21,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="$(cd "$SCRIPT_DIR/../templates/agent-persona" && pwd 2>/dev/null || echo "")"
+CODEX_TEMPLATE_DIR="$(cd "$SCRIPT_DIR/../templates/codex" && pwd 2>/dev/null || echo "")"
 OPENCLAW_HOME="${OPENCLAW_HOME:-$HOME/.openclaw}"
 
 # ─── Defaults ───────────────────────────────────────────────
@@ -27,6 +29,7 @@ DISPLAY_NAME=""
 EMOJI="🔧"
 SKIP_PERSONA=false
 SKIP_SKILLS=false
+SKIP_CODEX=false
 NO_RESTART=false
 
 # ─── Helpers ────────────────────────────────────────────────
@@ -34,6 +37,16 @@ log()  { echo "  [+] $*"; }
 warn() { echo "  [!] $*" >&2; }
 err()  { echo "  [ERROR] $*" >&2; exit 1; }
 skip() { echo "  [~] $* (already exists, skipping)"; }
+
+ensure_gitignore_entry() {
+  local file="$1"
+  local entry="$2"
+  if grep -qF "$entry" "$file" 2>/dev/null; then
+    return 1
+  fi
+  printf '%s\n' "$entry" >> "$file"
+  return 0
+}
 
 usage() {
   echo "Usage: bash $0 <agent-name> <workspace-path> [options]"
@@ -43,6 +56,7 @@ usage() {
   echo "  --emoji <emoji>           Agent emoji (default: 🔧)"
   echo "  --skip-persona            Don't create persona files"
   echo "  --skip-skills             Don't create skills/ directory"
+  echo "  --skip-codex              Don't create Codex compatibility files"
   echo "  --no-restart              Don't restart the gateway"
   exit 1
 }
@@ -64,6 +78,7 @@ while [[ $# -gt 0 ]]; do
     --emoji)      EMOJI="$2"; shift 2 ;;
     --skip-persona) SKIP_PERSONA=true; shift ;;
     --skip-skills)  SKIP_SKILLS=true; shift ;;
+    --skip-codex)   SKIP_CODEX=true; shift ;;
     --no-restart)   NO_RESTART=true; shift ;;
     -h|--help)    usage ;;
     *)            err "Unknown option: $1" ;;
@@ -241,7 +256,8 @@ if [[ "$SKIP_PERSONA" == "false" ]]; then
   done
 
   # Clean up any persona files that were mistakenly created at repo root
-  PERSONA_FILES="AGENTS.md SOUL.md USER.md IDENTITY.md TOOLS.md HEARTBEAT.md BOOTSTRAP.md MEMORY.md"
+  # Keep repository-root AGENTS.md for Codex compatibility.
+  PERSONA_FILES="SOUL.md USER.md IDENTITY.md TOOLS.md HEARTBEAT.md BOOTSTRAP.md MEMORY.md"
   for pfile in $PERSONA_FILES; do
     root_file="$WORKSPACE_PATH/$pfile"
     openclaw_file="$WORKSPACE_PATH/.openclaw/$pfile"
@@ -274,6 +290,57 @@ if [[ -f "$ANALYZE_SCRIPT" ]]; then
   fi
 else
   warn "analyze_repo.sh not found — skipping project analysis"
+fi
+
+# ─── Section 4e: Link sessions into workspace ─────────────────
+log "Section 4e: Linking sessions into workspace..."
+
+WORKSPACE_SESSIONS="$WORKSPACE_PATH/.openclaw/sessions"
+mkdir -p "$WORKSPACE_SESSIONS"
+
+# Link from both OpenClaw state directories
+for state_dir in "$OPENCLAW_HOME/agents/$AGENT_NAME" "$OPENCLAW_HOME/.openclaw/agents/$AGENT_NAME"; do
+  if [[ -d "$state_dir/sessions" && ! -L "$state_dir/sessions" ]]; then
+    # Copy existing sessions into workspace (no-clobber to avoid overwriting)
+    cp -n "$state_dir/sessions/"* "$WORKSPACE_SESSIONS/" 2>/dev/null || true
+    # Handle sessions.json conflicts: keep larger file, rename smaller to sessions-alt.json
+    if [[ -f "$WORKSPACE_SESSIONS/sessions.json" ]] && [[ -f "$state_dir/sessions/sessions.json" ]]; then
+      ws_size="$(stat -c%s "$WORKSPACE_SESSIONS/sessions.json" 2>/dev/null || echo 0)"
+      src_size="$(stat -c%s "$state_dir/sessions/sessions.json" 2>/dev/null || echo 0)"
+      if [[ "$src_size" -gt "$ws_size" ]]; then
+        # Source is larger — save workspace version as alt, use source version
+        mv "$WORKSPACE_SESSIONS/sessions.json" "$WORKSPACE_SESSIONS/sessions-alt.json" 2>/dev/null || true
+        cp "$state_dir/sessions/sessions.json" "$WORKSPACE_SESSIONS/sessions.json"
+      fi
+    fi
+    # Back up original dir and replace with symlink
+    mv "$state_dir/sessions" "$state_dir/sessions.bak"
+    ln -s "$WORKSPACE_SESSIONS" "$state_dir/sessions"
+    log "Linked $state_dir/sessions -> $WORKSPACE_SESSIONS"
+  elif [[ -L "$state_dir/sessions" ]]; then
+    skip "sessions already symlinked in $(basename "$(dirname "$state_dir")")"
+  fi
+done
+
+# Ensure local agent/runtime state is gitignored in workspace
+GITIGNORE="$WORKSPACE_PATH/.gitignore"
+if [[ ! -f "$GITIGNORE" ]]; then
+  touch "$GITIGNORE"
+  log "Created .gitignore"
+fi
+
+if ensure_gitignore_entry "$GITIGNORE" ""; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" "# Local agent runtime state (OpenClaw + Claude + Codex)"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" ".claude/"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" ".codex/"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" ".codex-home/"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" ".agents/"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" ".openclaw/"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" ".openclaw/sessions/"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" "AGENTS.md"; then :; fi
+
+if grep -qF "# Local agent runtime state (OpenClaw + Claude + Codex)" "$GITIGNORE" 2>/dev/null; then
+  log "Ensured .gitignore entries for .claude/.codex/.codex-home/.agents/.openclaw/AGENTS.md"
 fi
 
 # ─── Section 4b: Create Guard Hooks ─────────────────────────
@@ -519,6 +586,103 @@ else
   log "Section 7: Skipping skill conversion (--skip-skills)"
 fi
 
+# ─── Section 7b: Create Codex Compatibility Layer ───────────
+if [[ "$SKIP_CODEX" == "false" ]]; then
+  log "Section 7b: Creating Codex compatibility layer..."
+
+  CODEX_DIR="$WORKSPACE_PATH/.codex"
+  AGENTS_DIR="$WORKSPACE_PATH/.agents"
+  CODEX_RULES_DIR="$CODEX_DIR/rules"
+  CODEX_SKILLS_LINK="$AGENTS_DIR/skills"
+  ROOT_AGENTS_FILE="$WORKSPACE_PATH/AGENTS.md"
+  CODEX_AGENTS_TEMPLATE="$CODEX_TEMPLATE_DIR/AGENTS.md.tmpl"
+  CODEX_RULES_TEMPLATE="$CODEX_TEMPLATE_DIR/rules/default.rules.tmpl"
+  CODEX_RULES_FILE="$CODEX_RULES_DIR/default.rules"
+
+  mkdir -p "$AGENTS_DIR"
+  mkdir -p "$CODEX_RULES_DIR"
+
+  if [[ -f "$ROOT_AGENTS_FILE" ]]; then
+    if grep -q "AUTO-GENERATED by add_openclaw_agent.sh (codex shim)" "$ROOT_AGENTS_FILE" 2>/dev/null; then
+      skip "AGENTS.md codex shim"
+    else
+      warn "Root AGENTS.md already exists and is not managed by add_openclaw_agent.sh"
+      warn "Ensure it references .openclaw/AGENTS.md for shared behavior"
+    fi
+  else
+    if [[ -f "$CODEX_AGENTS_TEMPLATE" ]]; then
+      sed \
+        -e "s|{{AGENT_NAME}}|$AGENT_NAME|g" \
+        -e "s|{{DISPLAY_NAME}}|$DISPLAY_NAME|g" \
+        -e "s|{{WORKSPACE_PATH}}|$WORKSPACE_PATH|g" \
+        "$CODEX_AGENTS_TEMPLATE" > "$ROOT_AGENTS_FILE"
+      log "Created AGENTS.md codex shim"
+    else
+      cat > "$ROOT_AGENTS_FILE" << EOF
+# AGENTS.md - Codex Compatibility Shim for $DISPLAY_NAME
+
+<!-- AUTO-GENERATED by add_openclaw_agent.sh (codex shim) -->
+
+Read and follow \`.openclaw/AGENTS.md\` for full instructions.
+This root file exists so OpenAI Codex discovers the shared policy.
+EOF
+      log "Created AGENTS.md codex shim (fallback)"
+    fi
+  fi
+
+  # Codex loads project skills from .agents/skills.
+  if [[ -L "$CODEX_SKILLS_LINK" ]]; then
+    target="$(readlink "$CODEX_SKILLS_LINK" 2>/dev/null || echo "")"
+    if [[ "$target" == "../.openclaw/skills" ]]; then
+      skip ".agents/skills symlink"
+    else
+      warn ".agents/skills symlink points to unexpected target: $target"
+    fi
+  elif [[ -d "$CODEX_SKILLS_LINK" ]]; then
+    warn ".agents/skills already exists as a directory; leaving as-is"
+    warn "For full modularity, point it at ../.openclaw/skills"
+  else
+    ln -s "../.openclaw/skills" "$CODEX_SKILLS_LINK"
+    log "Linked .agents/skills -> ../.openclaw/skills"
+  fi
+
+  # Legacy migration: old compatibility path from early draft.
+  if [[ -L "$WORKSPACE_PATH/.codex/skills" ]] && [[ ! -e "$CODEX_SKILLS_LINK" ]]; then
+    legacy_target="$(readlink "$WORKSPACE_PATH/.codex/skills" 2>/dev/null || echo "")"
+    if [[ "$legacy_target" == "../.openclaw/skills" ]]; then
+      ln -s "../.openclaw/skills" "$CODEX_SKILLS_LINK"
+      log "Migrated legacy .codex/skills link to .agents/skills"
+    fi
+  fi
+
+  if [[ -f "$CODEX_RULES_FILE" ]]; then
+    skip ".codex/rules/default.rules"
+  else
+    if [[ -f "$CODEX_RULES_TEMPLATE" ]]; then
+      sed \
+        -e "s|{{AGENT_NAME}}|$AGENT_NAME|g" \
+        -e "s|{{DISPLAY_NAME}}|$DISPLAY_NAME|g" \
+        -e "s|{{WORKSPACE_PATH}}|$WORKSPACE_PATH|g" \
+        "$CODEX_RULES_TEMPLATE" > "$CODEX_RULES_FILE"
+      log "Created .codex/rules/default.rules"
+    else
+      cat > "$CODEX_RULES_FILE" << EOF
+# AUTO-GENERATED fallback rules for $DISPLAY_NAME
+
+prefix_rule(pattern=["rm"], decision="prompt", justification="Destructive command")
+prefix_rule(pattern=["sudo"], decision="prompt", justification="Privilege escalation")
+prefix_rule(pattern=["git", "push", "--force"], decision="forbidden", justification="Force push is blocked")
+prefix_rule(pattern=["git", "push", "-f"], decision="forbidden", justification="Force push is blocked")
+prefix_rule(pattern=["git", "push", "origin", "main"], decision="forbidden", justification="Push to main is blocked")
+prefix_rule(pattern=["git", "push", "origin", "master"], decision="forbidden", justification="Push to master is blocked")
+EOF
+      log "Created .codex/rules/default.rules (fallback)"
+    fi
+  fi
+else
+  log "Section 7b: Skipping Codex compatibility (--skip-codex)"
+fi
+
 # ─── Section 8: Restart Gateway ─────────────────────────────
 if [[ "$NO_RESTART" == "false" ]]; then
   log "Section 8: Restarting gateway..."
@@ -550,6 +714,13 @@ echo ""
 if [[ "$SKIP_PERSONA" == "false" ]]; then
   echo "  Persona files created in .openclaw/:"
   echo "    .openclaw/AGENTS.md, SOUL.md, USER.md, IDENTITY.md, TOOLS.md, HEARTBEAT.md"
+  echo ""
+fi
+if [[ "$SKIP_CODEX" == "false" ]]; then
+  echo "  Codex compatibility files:"
+  echo "    AGENTS.md (root shim for Codex discovery)"
+  echo "    .agents/skills -> ../.openclaw/skills (shared skills)"
+  echo "    .codex/rules/default.rules (Codex command guardrails)"
   echo ""
 fi
 echo "  To add skills, create SKILL.md files in:"

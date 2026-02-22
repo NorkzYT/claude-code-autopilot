@@ -76,10 +76,12 @@ For custom iteration limits or promises:
 
 ## Default Agents
 
-For general tasks, use the **autopilot** subagent:
+For complex multi-file architectural tasks, use the **autopilot** subagent:
 ```
 Use the autopilot subagent (Task tool with subagent_type=autopilot) for this task
 ```
+
+For simpler tasks (1-3 files, following existing patterns), work directly -- no sub-agent needed.
 
 For parallel multi-part tasks, use the **parallel-orchestrator** subagent.
 

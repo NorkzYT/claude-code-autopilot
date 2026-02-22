@@ -37,6 +37,9 @@ bash .claude/bootstrap/openclaw_setup.sh
 - `~/.openclaw/HEARTBEAT.md` (health check template)
 - Recommended ClawHub skills (github, docker, monitoring)
 - `OPENCLAW_HOME` environment variable in shell profiles
+- Project `.gitignore` entries for local agent/runtime state:
+  - `.claude/`, `.codex/`, `.codex-home/`, `.agents/`, `.openclaw/`, root `AGENTS.md` shim
+- Automatic agent registration attempt during install (`OPENCLAW_AUTO_REGISTER=1`)
 
 ## Phase 2: Claude Max Authentication
 
@@ -400,6 +403,7 @@ bash .claude/bootstrap/add_openclaw_agent.sh <agent-name> <workspace-path> [opti
 | `--emoji <emoji>` | Agent emoji | 🔧 |
 | `--skip-persona` | Don't create persona files | - |
 | `--skip-skills` | Don't create skills directory | - |
+| `--skip-codex` | Don't create Codex compatibility files | - |
 | `--no-restart` | Don't restart the gateway | - |
 
 ### Example
@@ -411,7 +415,7 @@ bash .claude/bootstrap/add_openclaw_agent.sh kairo /opt/github/Kairo --name "Kai
 
 ### What It Does
 
-The script performs 9 idempotent steps:
+The script performs 11 idempotent steps:
 
 1. **Validation** -- Checks agent name format, workspace exists, `openclaw` CLI available
 2. **Register agent** -- `openclaw agents add` (skips if already registered)
@@ -421,7 +425,9 @@ The script performs 9 idempotent steps:
 6. **Workspace state** -- Creates `.openclaw/workspace-state.json` in workspace root
 7. **Skills directory** -- Creates `skills/` directory for OpenClaw skill discovery
 8. **Skill conversion** -- Converts `.claude/skills/*/SKILL.md` to OpenClaw format with YAML frontmatter
-9. **Gateway restart** -- Restarts the gateway to pick up new agent
+9. **Workspace `.gitignore` sync** -- Adds `.claude/`, `.codex/`, `.codex-home/`, `.agents/`, `.openclaw/`, `.openclaw/sessions/`, and root `AGENTS.md` shim
+10. **Codex compatibility** -- Creates root `AGENTS.md` shim, `.codex/rules/default.rules`, and links `.agents/skills` to `.openclaw/skills`
+11. **Gateway restart** -- Restarts the gateway to pick up new agent
 
 ### Persona Templates
 
@@ -446,6 +452,17 @@ description: "What this skill does"
 ```
 
 The script automatically converts Claude Code skills (from `.claude/skills/`) to OpenClaw format in `.openclaw/skills/`.
+
+### Codex Compatibility Layer
+
+To support OpenAI Codex and Claude/OpenClaw with minimal duplication, the bootstrap creates:
+
+- `AGENTS.md` at workspace root (thin Codex discovery shim)
+- `.agents/skills` symlink to `.openclaw/skills`
+- `.codex/rules/default.rules` aligned with `.claude/hooks/guard_bash.py`
+- Optional project-local Codex runtime state in `.codex-home/` (via `ccx` alias)
+
+This keeps shared instructions and skills modular while preserving OpenClaw-native layout.
 
 ### Config Sync (Root Cause Fix)
 
