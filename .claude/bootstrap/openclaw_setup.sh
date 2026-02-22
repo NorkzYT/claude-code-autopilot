@@ -9,11 +9,52 @@ warn() { printf "\n[WARN] %s\n" "$*" >&2; }
 skip() { printf "    [SKIP] %s\n" "$*"; }
 has()  { command -v "$1" >/dev/null 2>&1; }
 
+openclaw_skill_exists() {
+  local skill="$1"
+  openclaw skills info "$skill" >/dev/null 2>&1
+}
+
+ensure_openclaw_skill_available() {
+  local skill="$1"
+
+  if openclaw_skill_exists "$skill"; then
+    skip "Skill available: $skill"
+    return 0
+  fi
+
+  openclaw skills install "$skill" 2>/dev/null && {
+    log "Installed skill: $skill"
+    return 0
+  }
+
+  warn "Failed to install optional skill: $skill"
+}
+
+detect_tailscale_ipv4() {
+  if ! has tailscale; then
+    return 1
+  fi
+
+  local ts_ip
+  ts_ip="$(tailscale ip -4 2>/dev/null | awk 'NF{print; exit}')"
+  if [[ -n "$ts_ip" ]]; then
+    printf '%s\n' "$ts_ip"
+    return 0
+  fi
+
+  return 1
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${1:-$(pwd)}"
 OPENCLAW_HOME="${HOME}/.openclaw"
 CLAUDE_DIR="${PROJECT_DIR}/.claude"
 OPENCLAW_AUTO_REGISTER="${OPENCLAW_AUTO_REGISTER:-0}"
+GATEWAY_HOST="127.0.0.1"
+
+if TS_IP="$(detect_tailscale_ipv4)"; then
+  GATEWAY_HOST="$TS_IP"
+fi
 
 sanitize_agent_name() {
   local name="$1"
@@ -58,11 +99,17 @@ if has openclaw; then
   log "Configuring OpenClaw settings..."
   openclaw config set gateway.mode local 2>/dev/null || true
   openclaw config set gateway.port 18789 2>/dev/null || true
+  openclaw config set gateway.bind "$GATEWAY_HOST" 2>/dev/null || true
   openclaw config set browser.enabled true 2>/dev/null || true
   openclaw config set browser.headless true 2>/dev/null || true
   openclaw config set cron.enabled true 2>/dev/null || true
   openclaw config set browser.downloads.directory "$OPENCLAW_HOME/downloads" 2>/dev/null || true
   log "Config updated via openclaw config set"
+  if [[ "$GATEWAY_HOST" == "127.0.0.1" ]]; then
+    skip "Tailscale IPv4 not detected; gateway bind set to loopback (127.0.0.1)"
+  else
+    log "Detected Tailscale IPv4: $GATEWAY_HOST (gateway.bind set)"
+  fi
 
   # Optional: headed mode for extension testing (uncomment if needed)
   # openclaw config set browser.headless false 2>/dev/null || true
@@ -101,22 +148,14 @@ echo "  3. Verify auth is active:"
 echo "     openclaw models status"
 echo ""
 
-# ---- 6) Install recommended ClawHub skills ----
-if has openclaw; then
-  log "Installing recommended ClawHub skills..."
-  for skill in github docker monitoring; do
-    openclaw skills install "$skill" 2>/dev/null || warn "Failed to install skill: $skill"
-  done
-fi
-
-# ---- 7) Configure workspace ----
+# ---- 6) Configure workspace ----
 if has openclaw; then
   log "Configuring workspace..."
   openclaw workspace set "$PROJECT_DIR" 2>/dev/null || warn "Failed to set workspace."
   openclaw setup 2>/dev/null || true
 fi
 
-# ---- 7b) Install gateway daemon and patch OPENCLAW_HOME into service ----
+# ---- 7) Install gateway daemon and patch OPENCLAW_HOME into service ----
 if has openclaw; then
   log "Installing gateway daemon..."
   openclaw gateway install 2>/dev/null || true
@@ -136,8 +175,17 @@ if has openclaw; then
     chmod 700 "$CREDS_DIR" 2>/dev/null || true
   fi
 
-  # Start gateway service
-  systemctl --user start openclaw-gateway.service 2>/dev/null || true
+  # Start/restart via OpenClaw CLI so startup behavior matches manual recovery guidance.
+  log "Starting gateway via OpenClaw CLI..."
+  openclaw gateway start 2>/dev/null || warn "Failed to start gateway via OpenClaw CLI. Try: openclaw gateway start"
+fi
+
+# ---- 7b) Ensure recommended skills are available (after gateway startup) ----
+if has openclaw; then
+  log "Ensuring recommended OpenClaw skills are available..."
+  for skill in github; do
+    ensure_openclaw_skill_available "$skill"
+  done
 fi
 
 # ---- 7c) Browser setup (Docker-based) ----
@@ -195,11 +243,21 @@ echo ""
 echo "  Next steps:"
 echo "    1. Run: claude setup-token"
 echo "    2. Run: openclaw models auth paste-token --provider anthropic"
-echo "    3. Verify: openclaw status"
-echo "    4. (Optional) Setup Discord: openclaw channels add discord"
-echo "    5. Register agent manually (if auto-register was skipped/failed):"
+echo "    3. Start gateway (if needed): openclaw gateway start"
+echo "    4. Verify: openclaw status"
+echo "    5. (Optional) Setup Discord: openclaw channels add discord"
+echo "       (Discord skill becomes ready after channel token is configured)"
+echo "    6. (Optional) Check Discord skill readiness: openclaw skills info discord"
+echo "    7. Register agent manually (if auto-register was skipped/failed):"
 echo "       bash .claude/bootstrap/add_openclaw_agent.sh <name> <path>"
 echo ""
+echo "  Prompt/agent file updates (.claude/*) -- how changes are picked up:"
+echo "    - Re-run the installer (without --with-openclaw) to refresh the repo .claude/ folder."
+echo "    - Start a NEW chat/session (Discord: /new) so old context does not keep stale instructions."
+echo "    - If OpenClaw behaves stale, run: openclaw gateway start"
+echo "    - Template changes (.claude/templates/*) affect future/generated files only;"
+echo "      re-run add_openclaw_agent.sh (or install with --with-openclaw) to regenerate .openclaw/* files."
+echo ""
 echo "  Gateway is installed as a systemd service and starts automatically."
-echo "  Dashboard: http://127.0.0.1:18789/"
+echo "  Dashboard: http://${GATEWAY_HOST}:18789/"
 echo ""

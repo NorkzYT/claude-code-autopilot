@@ -74,8 +74,9 @@ This covers: bug fixes, small features, refactors, config changes, docs, and any
 ### Model Routing (Quality + Cost)
 
 - Start with a short plan/triage on the current model (typically Sonnet).
+- Automatically choose the route; do not ask the user which model/agent to use unless they explicitly requested one.
 - Execute small tasks directly on Sonnet.
-- Escalate to Claude autopilot (Opus-capable specialists) only after the plan is clear and the task is truly complex.
+- Escalate to Claude `autopilot-opus` automatically only after the plan is clear and the task is truly complex.
 - Use browser/CDP verification only when UI behavior changed.
 
 ### Escalate to Claude: Complex Multi-File Tasks Only
@@ -91,6 +92,8 @@ Use the autopilot-opus subagent (Task tool with subagent_type=autopilot-opus) fo
 - Requires architectural decisions (new patterns, service boundaries)
 - Benefits from specialist review (security audit, type system, performance)
 - Risk of regression is high (core business logic, auth, data layer)
+
+You may also escalate when the task has 3+ distinct deliverables even if file count is not yet known.
 
 **Do NOT escalate for:**
 - Single-file bug fixes

@@ -22,7 +22,8 @@ Handle the task yourself using the available tools. Follow the Task Completion P
 ### Model Routing (Quality + Cost)
 
 - Start on **Sonnet** for plan/triage and most implementation.
-- After the plan is clear, escalate to **Opus/autopilot-opus** only for complex multi-file or architectural work.
+- Route automatically by complexity; do not ask the user which model to use unless they explicitly request one.
+- After the plan is clear, escalate to **Opus/autopilot-opus** automatically only for complex multi-file or architectural work.
 - Keep browser/HAR/vision steps explicit and only when required.
 
 ### Claude Code escalation (complex tasks only):
@@ -31,7 +32,7 @@ For multi-component architectural changes that need specialist sub-agents:
 exec: claude --print "Use the autopilot-opus subagent (Task tool with subagent_type=autopilot-opus) for this task: <description>"
 ```
 
-**Escalation criteria:** 4+ files across modules, architectural decisions, high regression risk.
+**Escalation criteria:** 4+ files across modules, architectural decisions, high regression risk, or 3+ distinct deliverables.
 
 ## Coding Standards
 

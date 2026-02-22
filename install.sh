@@ -201,8 +201,8 @@ else
   wget -qO "$archive" "$TARBALL_URL"
 fi
 
-echo "Extracting .claude/ ..."
-tar -xzf "$archive" -C "$extract_dir" --wildcards '*/.claude/*' >/dev/null 2>&1 || true
+echo "Extracting .claude/ and .vscode/settings.json ..."
+tar -xzf "$archive" -C "$extract_dir" --wildcards '*/.claude/*' '*/.vscode/settings.json' >/dev/null 2>&1 || true
 
 # Find .claude directory
 CLAUDE_SRC="$(find "$extract_dir" -type d -name ".claude" -maxdepth 6 | head -n 1 || true)"
@@ -215,6 +215,8 @@ fi
 DEST_ABS="$(cd "$DEST" && pwd)"
 DEST_CLAUDE="${DEST_ABS}/.claude"
 DEST_LOGS="${DEST_CLAUDE}/logs"
+SRC_ROOT="$(cd "$CLAUDE_SRC/.." && pwd)"
+SRC_VSCODE_SETTINGS="${SRC_ROOT}/.vscode/settings.json"
 
 ensure_local_agent_gitignore() {
   local gitignore_file="$1/.gitignore"
@@ -239,6 +241,152 @@ ensure_local_agent_gitignore() {
   } >> "$gitignore_file"
 
   echo "  Added local agent state ignores to $gitignore_file"
+}
+
+merge_vscode_settings() {
+  local src_settings="$1"
+  local dest_repo="$2"
+  local dest_dir="$dest_repo/.vscode"
+  local dest_settings="$dest_dir/settings.json"
+
+  [[ -f "$src_settings" ]] || return 0
+  mkdir -p "$dest_dir"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    if [[ -f "$dest_settings" ]]; then
+      echo "  WARN: python3 not found; skipping VS Code settings merge for existing $dest_settings"
+      return 0
+    fi
+    cp -f "$src_settings" "$dest_settings"
+    echo "  Installed VS Code settings to $dest_settings (no merge; python3 unavailable)"
+    return 0
+  fi
+
+  python3 - "$src_settings" "$dest_settings" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+src_path = Path(sys.argv[1])
+dst_path = Path(sys.argv[2])
+
+def strip_jsonc(text: str) -> str:
+    out = []
+    i = 0
+    n = len(text)
+    in_str = False
+    escape = False
+    in_line = False
+    in_block = False
+    while i < n:
+        ch = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+        if in_line:
+            if ch == "\n":
+                in_line = False
+                out.append(ch)
+            i += 1
+            continue
+        if in_block:
+            if ch == "*" and nxt == "/":
+                in_block = False
+                i += 2
+            else:
+                i += 1
+            continue
+        if in_str:
+            out.append(ch)
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+            i += 1
+            continue
+        if ch == '"':
+            in_str = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == "/" and nxt == "/":
+            in_line = True
+            i += 2
+            continue
+        if ch == "/" and nxt == "*":
+            in_block = True
+            i += 2
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+def strip_trailing_commas(text: str) -> str:
+    out = []
+    i = 0
+    n = len(text)
+    in_str = False
+    escape = False
+    while i < n:
+        ch = text[i]
+        if in_str:
+            out.append(ch)
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+            i += 1
+            continue
+        if ch == '"':
+            in_str = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == ",":
+            j = i + 1
+            while j < n and text[j] in " \t\r\n":
+                j += 1
+            if j < n and text[j] in "}]":
+                i += 1
+                continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+def load_settings(path: Path) -> dict:
+    raw = path.read_text(encoding="utf-8").lstrip("\ufeff")
+    cleaned = strip_trailing_commas(strip_jsonc(raw))
+    data = json.loads(cleaned)
+    if not isinstance(data, dict):
+        raise ValueError("settings root must be a JSON object")
+    return data
+
+def deep_merge(dst: dict, src: dict) -> dict:
+    for k, v in src.items():
+        if isinstance(v, dict) and isinstance(dst.get(k), dict):
+            deep_merge(dst[k], v)
+        else:
+            dst[k] = v
+    return dst
+
+src_data = load_settings(src_path)
+dst_data = {}
+
+if dst_path.exists():
+    try:
+        dst_data = load_settings(dst_path)
+    except Exception as exc:
+        backup = dst_path.with_suffix(dst_path.suffix + ".bak")
+        dst_path.replace(backup)
+        print(f"WARN: Backed up unparsable VS Code settings to {backup}: {exc}", file=sys.stderr)
+        dst_data = {}
+
+merged = deep_merge(dst_data, src_data)
+dst_path.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
+print(f"  Merged VS Code settings into {dst_path}")
+PY
 }
 
 # If .claude exists and not forcing, bail
@@ -281,6 +429,9 @@ fi
 # Keep local agent state out of project commits by default.
 ensure_local_agent_gitignore "$DEST_ABS"
 
+# Merge recommended workspace VS Code settings without clobbering existing settings.
+merge_vscode_settings "$SRC_VSCODE_SETTINGS" "$DEST_ABS"
+
 # --- Fix permissions/ownership so Claude hooks can write logs ---
 TARGET_USER="${SUDO_USER:-$(id -un)}"
 TARGET_GROUP="$(id -gn "$TARGET_USER" 2>/dev/null || true)"
@@ -290,9 +441,11 @@ if [[ "$(id -u)" -eq 0 ]]; then
   if [[ -n "$TARGET_GROUP" ]]; then
     echo "Setting ownership of .claude to ${TARGET_USER}:${TARGET_GROUP} ..."
     chown -R "${TARGET_USER}:${TARGET_GROUP}" "$DEST_CLAUDE" || true
+    [[ -d "${DEST_ABS}/.vscode" ]] && chown -R "${TARGET_USER}:${TARGET_GROUP}" "${DEST_ABS}/.vscode" || true
   else
     echo "Setting ownership of .claude to ${TARGET_USER} ..."
     chown -R "${TARGET_USER}" "$DEST_CLAUDE" || true
+    [[ -d "${DEST_ABS}/.vscode" ]] && chown -R "${TARGET_USER}" "${DEST_ABS}/.vscode" || true
   fi
 fi
 

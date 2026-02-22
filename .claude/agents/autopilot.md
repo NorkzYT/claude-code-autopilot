@@ -63,6 +63,21 @@ Workflow:
    - This ensures the task will iterate until DoD is met
    - Do NOT use bash/scripts/heredocs for this -- use the Write tool directly
 
+0b. **Automatic complexity router (MANDATORY)**:
+   - Before implementation, create a short triage (1-5 bullets) and classify the task as:
+     - `simple`: 1-2 files, clear existing pattern, low regression risk
+     - `medium`: multi-file but bounded, verification needed, no major architecture change
+     - `complex`: cross-module/architectural change, high regression risk, or 3+ distinct deliverables
+   - Route automatically; do NOT ask the user which model/agent to use unless they explicitly requested a specific one.
+   - If classified `simple`: continue directly in this agent.
+   - If classified `medium`: continue in this agent (model inherits from current session, typically Sonnet).
+   - If classified `complex`: immediately spawn `autopilot-opus` via Task tool with:
+     - original task
+     - your triage and complexity reason
+     - a draft DoD/checklist
+     - relevant file paths discovered so far (if any)
+   - After spawning `autopilot-opus`, act as coordinator only (handoff + summarize results); do not duplicate implementation here unless the Opus run fails.
+
 1. Restate goal + assumptions (short).
 
 2. Write TODO + Definition of Done (DoD).

@@ -35,7 +35,7 @@ bash .claude/bootstrap/openclaw_setup.sh
 - OpenClaw configuration (via `openclaw config set` commands)
 - `~/.openclaw/AGENTS.md` (agent operating instructions)
 - `~/.openclaw/HEARTBEAT.md` (health check template)
-- Recommended ClawHub skills (github, docker, monitoring)
+- Recommended OpenClaw skill during base setup (github). Discord skill is bundled and becomes ready after `openclaw channels add discord` configures a token.
 - `OPENCLAW_HOME` environment variable in shell profiles
 - Project `.gitignore` entries for local agent/runtime state:
   - `.claude/`, `.codex/`, `.codex-home/`, `.agents/`, `.openclaw/`, root `AGENTS.md` shim

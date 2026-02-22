@@ -11,11 +11,14 @@ import json
 import sys
 
 
-ROUTING_INSTRUCTION = """Cost-optimized execution policy:
+ROUTING_INSTRUCTION = """Cost-optimized execution policy (automatic routing, no user prompt needed):
 
 1. Start with a short plan + complexity triage on the current model.
-2. If the task is small (roughly 1-3 files, existing pattern), do the work directly.
-3. Escalate to the autopilot-opus subagent only for complex multi-file/architectural tasks after the plan is clear.
+2. Classify automatically:
+   - Simple: 1-2 files, clear existing pattern -> work directly on current model.
+   - Medium: multi-file but bounded/low-risk -> use autopilot (current model / inherit).
+   - Complex: architectural/high-risk/cross-module/3+ deliverables -> delegate to autopilot-opus automatically.
+3. Do NOT ask the user which autopilot/model to use unless they explicitly requested a specific model.
 4. Run build/test before completion; use browser verification only if UI changed.
 5. Never include Co-Authored-By lines in commit messages."""
 
