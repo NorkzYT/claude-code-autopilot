@@ -61,7 +61,8 @@ if echo "$DISCORD_STATUS" | grep -q '"connected":true' 2>/dev/null; then
   printf "  Server: %s\n" "$SERVER"
 else
   warn "DISCONNECTED"
-  printf "  Setup with: openclaw channels add discord\n"
+  printf "  Setup with: bash .claude/bootstrap/openclaw_discord_setup.sh\n"
+  printf "          or: openclaw channels add --channel discord --token <your-bot-token>\n"
 fi
 echo ""
 

@@ -41,7 +41,7 @@ openclaw gateway status
 openclaw gateway logs
 
 # Channel management
-openclaw channels add discord
+openclaw channels add --channel discord --token <your-bot-token>
 openclaw channels status discord
 openclaw channels remove discord
 

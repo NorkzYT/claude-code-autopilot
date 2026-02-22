@@ -45,6 +45,87 @@ detect_tailscale_ipv4() {
   return 1
 }
 
+detect_tailscale_dnsname() {
+  if ! has tailscale || ! has python3; then
+    return 1
+  fi
+
+  tailscale status --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+self_info = data.get("Self") or {}
+dns = self_info.get("DNSName") or ""
+dns = dns.rstrip(".")
+if dns:
+    print(dns)
+else:
+    sys.exit(1)
+' 2>/dev/null || return 1
+}
+
+tailscale_serve_url() {
+  if ! has tailscale; then
+    return 1
+  fi
+  tailscale serve status 2>/dev/null | sed -n 's#^\(https://[^ ]*\).*#\1#p' | head -n1
+}
+
+ensure_tailscale_serve_https() {
+  local target_url="http://127.0.0.1:18789"
+  local out=""
+
+  if [[ "$TAILSCALE_DETECTED" != "1" ]]; then
+    return 0
+  fi
+  if ! has tailscale; then
+    return 0
+  fi
+
+  # If a serve URL already exists, leave it alone.
+  if tailscale_serve_url >/dev/null 2>&1 && [[ -n "$(tailscale_serve_url)" ]]; then
+    log "Tailscale Serve already configured: $(tailscale_serve_url)"
+    return 0
+  fi
+
+  log "Configuring Tailscale Serve HTTPS for OpenClaw dashboard..."
+
+  # Newer Tailscale CLI syntax.
+  out="$(tailscale serve --bg "$target_url" 2>&1)" && {
+    log "Tailscale Serve configured"
+    return 0
+  }
+
+  # Older syntax fallback.
+  if printf '%s' "$out" | grep -qi "CLI for serve and funnel has changed"; then
+    out="$(tailscale serve https / "$target_url" 2>&1)" && {
+      log "Tailscale Serve configured (legacy syntax)"
+      return 0
+    }
+  fi
+
+  # If non-root lacks permission, try passwordless sudo once.
+  if printf '%s' "$out" | grep -qi "Access denied: serve config denied"; then
+    if has sudo && sudo -n true 2>/dev/null; then
+      out="$(sudo -n tailscale serve --bg "$target_url" 2>&1)" && {
+        log "Tailscale Serve configured via sudo"
+        return 0
+      }
+    fi
+    warn "Could not configure Tailscale Serve automatically (permission denied)"
+    warn "Run one of these manually:"
+    warn "  sudo tailscale serve --bg $target_url"
+    warn "  sudo tailscale set --operator=$USER   # one-time, then re-run tailscale serve"
+    return 1
+  fi
+
+  warn "Failed to configure Tailscale Serve automatically"
+  printf '%s\n' "$out" | sed 's/^/[WARN]   /' >&2
+  return 1
+}
+
 gateway_config_paths_match() {
   local status_out cli_path svc_path
   status_out="$(openclaw gateway status 2>&1 || true)"
@@ -64,9 +145,19 @@ export OPENCLAW_HOME OPENCLAW_STATE_DIR
 CLAUDE_DIR="${PROJECT_DIR}/.claude"
 OPENCLAW_AUTO_REGISTER="${OPENCLAW_AUTO_REGISTER:-0}"
 GATEWAY_HOST="127.0.0.1"
+GATEWAY_BIND_MODE="loopback"
+TAILSCALE_MODE="off"
+TAILSCALE_DNS_NAME=""
+TAILSCALE_DETECTED=0
 
 if TS_IP="$(detect_tailscale_ipv4)"; then
   GATEWAY_HOST="$TS_IP"
+  GATEWAY_BIND_MODE="loopback"
+  TAILSCALE_MODE="serve"
+  TAILSCALE_DETECTED=1
+  if TS_DNS="$(detect_tailscale_dnsname)"; then
+    TAILSCALE_DNS_NAME="$TS_DNS"
+  fi
 fi
 
 sanitize_agent_name() {
@@ -112,16 +203,21 @@ if has openclaw; then
   log "Configuring OpenClaw settings..."
   openclaw config set gateway.mode local 2>/dev/null || true
   openclaw config set gateway.port 18789 2>/dev/null || true
-  openclaw config set gateway.bind "$GATEWAY_HOST" 2>/dev/null || true
+  openclaw config set gateway.bind "$GATEWAY_BIND_MODE" 2>/dev/null || true
+  openclaw config set gateway.tailscale.mode "$TAILSCALE_MODE" 2>/dev/null || true
   openclaw config set browser.enabled true 2>/dev/null || true
   openclaw config set browser.headless true 2>/dev/null || true
   openclaw config set cron.enabled true 2>/dev/null || true
   openclaw config set browser.downloads.directory "$OPENCLAW_HOME/downloads" 2>/dev/null || true
   log "Config updated via openclaw config set"
-  if [[ "$GATEWAY_HOST" == "127.0.0.1" ]]; then
-    skip "Tailscale IPv4 not detected; gateway bind set to loopback (127.0.0.1)"
+  if [[ "$TAILSCALE_DETECTED" == "1" ]]; then
+    if [[ -n "$TAILSCALE_DNS_NAME" ]]; then
+      log "Detected Tailscale: ${GATEWAY_HOST} (${TAILSCALE_DNS_NAME}); gateway.bind=$GATEWAY_BIND_MODE + gateway.tailscale.mode=$TAILSCALE_MODE"
+    else
+      log "Detected Tailscale IPv4: $GATEWAY_HOST; gateway.bind=$GATEWAY_BIND_MODE + gateway.tailscale.mode=$TAILSCALE_MODE"
+    fi
   else
-    log "Detected Tailscale IPv4: $GATEWAY_HOST (gateway.bind set)"
+    skip "Tailscale not detected; gateway bind set to loopback (127.0.0.1), tailscale mode off"
   fi
 
   # Optional: headed mode for extension testing (uncomment if needed)
@@ -204,6 +300,10 @@ if has openclaw; then
   log "Starting gateway via OpenClaw CLI..."
   openclaw gateway start 2>/dev/null || warn "Failed to start gateway via OpenClaw CLI. Try: openclaw gateway start"
 
+  if [[ "$TAILSCALE_DETECTED" == "1" && "$TAILSCALE_MODE" == "serve" ]]; then
+    ensure_tailscale_serve_https || true
+  fi
+
   if gateway_config_paths_match; then
     log "Gateway CLI/service config paths are aligned (single config path in use)"
   else
@@ -278,7 +378,8 @@ echo "    1. Run: claude setup-token"
 echo "    2. Run: openclaw models auth paste-token --provider anthropic"
 echo "    3. Start gateway (if needed): openclaw gateway start"
 echo "    4. Verify: openclaw status"
-echo "    5. (Optional) Setup Discord: openclaw channels add discord"
+echo "    5. (Optional) Setup Discord: bash .claude/bootstrap/openclaw_discord_setup.sh"
+echo "       (or: openclaw channels add --channel discord --token <your-bot-token>)"
 echo "       (Discord skill becomes ready after channel token is configured)"
 echo "    6. (Optional) Check Discord skill readiness: openclaw skills info discord"
 echo "    7. Register agent manually (if auto-register was skipped/failed):"
@@ -292,5 +393,18 @@ echo "    - Template changes (.claude/templates/*) affect future/generated files
 echo "      re-run add_openclaw_agent.sh (or install with --with-openclaw) to regenerate .openclaw/* files."
 echo ""
 echo "  Gateway is installed as a systemd service and starts automatically."
-echo "  Dashboard: http://${GATEWAY_HOST}:18789/"
+echo "  Dashboard (local): http://127.0.0.1:18789/"
+if [[ "$TAILSCALE_DETECTED" == "1" ]]; then
+  if [[ -n "$TAILSCALE_DNS_NAME" ]]; then
+    echo "  Dashboard (Tailscale Serve HTTPS): https://${TAILSCALE_DNS_NAME}/"
+  else
+    echo "  Dashboard (Tailscale Serve HTTPS): use openclaw dashboard or tailscale serve status to get the HTTPS URL"
+  fi
+  echo "  If Tailscale Serve requires permission, run once:"
+  echo "    sudo tailscale set --operator=$USER"
+  echo "    tailscale serve --bg http://127.0.0.1:18789"
+  echo "  First secure UI connect may require device pairing approval:"
+  echo "    openclaw devices list"
+  echo "    openclaw devices approve <requestId>"
+fi
 echo ""
