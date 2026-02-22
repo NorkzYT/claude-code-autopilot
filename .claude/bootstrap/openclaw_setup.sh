@@ -45,9 +45,22 @@ detect_tailscale_ipv4() {
   return 1
 }
 
+gateway_config_paths_match() {
+  local status_out cli_path svc_path
+  status_out="$(openclaw gateway status 2>&1 || true)"
+  cli_path="$(printf '%s\n' "$status_out" | sed -n 's/^Config (cli): //p' | head -n1)"
+  svc_path="$(printf '%s\n' "$status_out" | sed -n 's/^Config (service): //p' | head -n1)"
+  cli_path="${cli_path%% *}"
+  svc_path="${svc_path%% *}"
+
+  [[ -n "$cli_path" && -n "$svc_path" && "$cli_path" == "$svc_path" ]]
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${1:-$(pwd)}"
 OPENCLAW_HOME="${HOME}/.openclaw"
+OPENCLAW_STATE_DIR="${OPENCLAW_HOME}"
+export OPENCLAW_HOME OPENCLAW_STATE_DIR
 CLAUDE_DIR="${PROJECT_DIR}/.claude"
 OPENCLAW_AUTO_REGISTER="${OPENCLAW_AUTO_REGISTER:-0}"
 GATEWAY_HOST="127.0.0.1"
@@ -158,14 +171,26 @@ fi
 # ---- 7) Install gateway daemon and patch OPENCLAW_HOME into service ----
 if has openclaw; then
   log "Installing gateway daemon..."
-  openclaw gateway install 2>/dev/null || true
+  openclaw gateway install --force 2>/dev/null || true
 
   SERVICE_FILE="$HOME/.config/systemd/user/openclaw-gateway.service"
   if [[ -f "$SERVICE_FILE" ]]; then
+    PATCHED_SERVICE_ENV=0
     if ! grep -q "OPENCLAW_HOME" "$SERVICE_FILE"; then
       sed -i "/^Environment=HOME=/a Environment=OPENCLAW_HOME=${OPENCLAW_HOME}" "$SERVICE_FILE"
-      systemctl --user daemon-reload 2>/dev/null || true
       log "Patched OPENCLAW_HOME into systemd service"
+      PATCHED_SERVICE_ENV=1
+    fi
+    if ! grep -q "OPENCLAW_STATE_DIR" "$SERVICE_FILE"; then
+      sed -i "/^Environment=OPENCLAW_HOME=/a Environment=OPENCLAW_STATE_DIR=${OPENCLAW_STATE_DIR}" "$SERVICE_FILE"
+      if ! grep -q "OPENCLAW_STATE_DIR" "$SERVICE_FILE"; then
+        sed -i "/^Environment=HOME=/a Environment=OPENCLAW_STATE_DIR=${OPENCLAW_STATE_DIR}" "$SERVICE_FILE"
+      fi
+      log "Patched OPENCLAW_STATE_DIR into systemd service"
+      PATCHED_SERVICE_ENV=1
+    fi
+    if [[ "$PATCHED_SERVICE_ENV" == "1" ]]; then
+      systemctl --user daemon-reload 2>/dev/null || true
     fi
   fi
 
@@ -178,6 +203,14 @@ if has openclaw; then
   # Start/restart via OpenClaw CLI so startup behavior matches manual recovery guidance.
   log "Starting gateway via OpenClaw CLI..."
   openclaw gateway start 2>/dev/null || warn "Failed to start gateway via OpenClaw CLI. Try: openclaw gateway start"
+
+  if gateway_config_paths_match; then
+    log "Gateway CLI/service config paths are aligned (single config path in use)"
+  else
+    warn "Gateway CLI/service config paths appear to differ"
+    warn "Run: export OPENCLAW_HOME=\"$OPENCLAW_HOME\" OPENCLAW_STATE_DIR=\"$OPENCLAW_STATE_DIR\" && openclaw gateway install --force"
+    warn "Then verify: openclaw gateway status"
+  fi
 fi
 
 # ---- 7b) Ensure recommended skills are available (after gateway startup) ----

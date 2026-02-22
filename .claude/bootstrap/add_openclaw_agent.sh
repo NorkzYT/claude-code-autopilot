@@ -236,39 +236,74 @@ CONFIG_PATHS=(
 for config_path in "${CONFIG_PATHS[@]}"; do
   if [[ ! -f "$config_path" ]]; then
     mkdir -p "$(dirname "$config_path")"
-    echo '{"agents":[]}' > "$config_path"
+    echo '{}' > "$config_path"
     log "Created config: $config_path"
   fi
 
-  # Check if agent already in config
-  if python3 -c "
-import json, sys
-with open('$config_path') as f:
-    data = json.load(f)
-agents = data.get('agents', [])
-names = [a.get('name', '') for a in agents]
-sys.exit(0 if '$AGENT_NAME' in names else 1)
-" 2>/dev/null; then
-    skip "Agent already in $(basename "$(dirname "$config_path")")/$(basename "$config_path")"
-  else
-    python3 -c "
+  # Normalize legacy config schema and ensure the agent entry exists.
+  config_result="$(python3 - "$config_path" "$AGENT_NAME" "$DISPLAY_NAME" "$WORKSPACE_PATH" "$EMOJI" <<'PY' 2>/dev/null
 import json
-config_path = '$config_path'
-with open(config_path) as f:
-    data = json.load(f)
-if 'agents' not in data:
-    data['agents'] = []
-data['agents'].append({
-    'name': '$AGENT_NAME',
-    'displayName': '$DISPLAY_NAME',
-    'workspace': '$WORKSPACE_PATH',
-    'emoji': '$EMOJI'
-})
-with open(config_path, 'w') as f:
-    json.dump(data, f, indent=2)
-" 2>/dev/null && log "Added agent to $(basename "$(dirname "$config_path")")/$(basename "$config_path")" \
-              || warn "Failed to update $config_path"
-  fi
+import sys
+from pathlib import Path
+
+config_path, agent_name, display_name, workspace_path, emoji = sys.argv[1:]
+p = Path(config_path)
+
+try:
+    data = json.loads(p.read_text()) if p.exists() else {}
+except Exception:
+    data = {}
+
+if not isinstance(data, dict):
+    data = {}
+
+agents = data.get("agents")
+if isinstance(agents, list):
+    # Legacy schema used an array at agents; convert to current object shape.
+    agents = {"list": agents}
+elif not isinstance(agents, dict):
+    agents = {}
+
+agent_list = agents.get("list")
+if not isinstance(agent_list, list):
+    agent_list = []
+
+exists = False
+for entry in agent_list:
+    if isinstance(entry, dict) and (entry.get("name") == agent_name or entry.get("id") == agent_name):
+        exists = True
+        break
+
+if not exists:
+    config_root = p.parent
+    agent_list.append({
+        "id": agent_name,
+        "name": agent_name,
+        "displayName": display_name,
+        "workspace": workspace_path,
+        "agentDir": str(config_root / "agents" / agent_name / "agent"),
+        "emoji": emoji,
+    })
+
+agents["list"] = agent_list
+data["agents"] = agents
+
+p.write_text(json.dumps(data, indent=2) + "\n")
+print("exists" if exists else "added")
+PY
+)"
+
+  case "$config_result" in
+    exists)
+      skip "Agent already in $(basename "$(dirname "$config_path")")/$(basename "$config_path")"
+      ;;
+    added)
+      log "Added agent to $(basename "$(dirname "$config_path")")/$(basename "$config_path")"
+      ;;
+    *)
+      warn "Failed to update $config_path"
+      ;;
+  esac
 done
 
 # ─── Section 4: Create Persona Files ────────────────────────
