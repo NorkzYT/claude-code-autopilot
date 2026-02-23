@@ -47,7 +47,7 @@ bash .claude/bootstrap/add_openclaw_agent.sh kairo /opt/github/Kairo
 
 What it does:
 - registers the agent in OpenClaw
-- creates/updates `.openclaw/*` persona files
+- creates/updates root OpenClaw core files (`AGENTS.md`, `SOUL.md`, `TOOLS.md`, etc.)
 - runs repo analysis (`TOOLS.md`, `HEARTBEAT.md`, `PROJECT.md`)
 - converts Claude skills into `.openclaw/skills`
 - installs/enables the `local-workflow-wrapper` OpenClaw plugin (`/localflow`, `/workflowcheck`)
@@ -84,7 +84,7 @@ bash .claude/bootstrap/analyze_repo.sh <repo-path> --deep
 
 Notes:
 - `analyze_repo.sh` detects build, test, local run, and confirm/smoke-check commands from common files (Makefile, package.json, pyproject, go.mod, Cargo.toml, docker-compose).
-- `--deep` generates `.openclaw/PROJECT.md` and now uses a timeout if `timeout` is available.
+- `--deep` generates `PROJECT.md` and now uses a timeout if `timeout` is available.
 
 Run the local workflow wrapper (recommended final verification step):
 

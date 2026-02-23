@@ -59,10 +59,10 @@ The OpenClaw setup script tries to enable these hooks (if supported):
 
 It also configures `bootstrap-extra-files` to include generated workspace files like:
 
-- `.openclaw/AGENTS.md`
-- `.openclaw/TOOLS.md`
-- `.openclaw/PROJECT.md`
-- `.openclaw/HEARTBEAT.md`
+- `AGENTS.md`
+- `TOOLS.md`
+- `PROJECT.md`
+- `HEARTBEAT.md`
 
 ## Recommended Automation Pattern (Local Workflow)
 
@@ -87,7 +87,7 @@ A supported repo-local wrapper script is included here:
 
 - `.claude/scripts/openclaw-local-workflow.sh`
 
-It reads commands from `.openclaw/TOOLS.md` and runs a local workflow in a predictable order.
+It reads commands from `TOOLS.md` and runs a local workflow in a predictable order.
 
 This repo also includes a real OpenClaw plugin:
 

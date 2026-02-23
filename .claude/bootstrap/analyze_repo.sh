@@ -8,10 +8,10 @@ set -euo pipefail
 #   bash analyze_repo.sh <workspace-path> [--deep]
 #
 # Phase A (default): Static parsing of config files
-#   Outputs: .openclaw/TOOLS.md, .openclaw/HEARTBEAT.md, llms.txt
+#   Outputs: TOOLS.md, HEARTBEAT.md, llms.txt
 #
 # Phase B (--deep): Claude-powered deep codebase scan
-#   Outputs: .openclaw/PROJECT.md
+#   Outputs: PROJECT.md
 # ─────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -386,7 +386,7 @@ if sections:
   fi
 
   # ─── Generate TOOLS.md ──────────────────────────────────────
-  TOOLS_FILE="$OPENCLAW_DIR/TOOLS.md"
+  TOOLS_FILE="$WORKSPACE/TOOLS.md"
 
   if is_custom "$TOOLS_FILE"; then
     skip "TOOLS.md has custom content, not overwriting"
@@ -476,7 +476,7 @@ if sections:
   fi
 
   # ─── Generate HEARTBEAT.md ──────────────────────────────────
-  HEARTBEAT_FILE="$OPENCLAW_DIR/HEARTBEAT.md"
+  HEARTBEAT_FILE="$WORKSPACE/HEARTBEAT.md"
 
   if is_custom "$HEARTBEAT_FILE"; then
     skip "HEARTBEAT.md has custom content, not overwriting"
@@ -581,7 +581,7 @@ if sections:
 else
   log "Phase B: Deep codebase understanding..."
 
-  PROJECT_FILE="$OPENCLAW_DIR/PROJECT.md"
+  PROJECT_FILE="$WORKSPACE/PROJECT.md"
 
   if is_custom "$PROJECT_FILE"; then
     skip "PROJECT.md has custom content, not overwriting"

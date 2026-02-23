@@ -4,7 +4,7 @@ set -euo pipefail
 # openclaw-local-workflow.sh
 #
 # Local engineer workflow wrapper for repo-specific commands detected into
-# `.openclaw/TOOLS.md`.
+# `TOOLS.md`.
 #
 # Runs, in order:
 #   build -> run local stack -> test -> confirm (smoke check)
@@ -74,7 +74,7 @@ fi
 REPO="$(cd "$REPO" && pwd)"
 
 if [[ -z "$TOOLS_FILE" ]]; then
-  TOOLS_FILE="$REPO/.openclaw/TOOLS.md"
+  TOOLS_FILE="$REPO/TOOLS.md"
 fi
 
 if [[ ! -f "$TOOLS_FILE" ]]; then
@@ -203,4 +203,3 @@ printf '  confirm:   %s\n' "$confirm_status"
 if [[ "$build_status" == "failed" || "$run_local_status" == "failed" || "$test_status" == "failed" || "$confirm_status" == "failed" ]]; then
   exit 1
 fi
-

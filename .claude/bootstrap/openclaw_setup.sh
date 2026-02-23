@@ -50,10 +50,9 @@ configure_openclaw_plugin_hooks() {
 
   log "Configuring OpenClaw plugin hooks..."
 
-  # Use workspace-generated `.openclaw/*` files during agent bootstrap so the
-  # gateway sees the same instructions that bootstrap generated for the repo.
+  # Use root canonical files (OpenClaw-native locations) plus generated project context.
   openclaw config set hooks.internal.bootstrapExtraFiles.paths \
-    '[".openclaw/AGENTS.md",".openclaw/TOOLS.md",".openclaw/PROJECT.md",".openclaw/HEARTBEAT.md"]' \
+    '["AGENTS.md","TOOLS.md","PROJECT.md","HEARTBEAT.md"]' \
     --json >/dev/null 2>&1 || warn "Failed to set bootstrap-extra-files paths"
 
   # Best-effort enable of built-in hooks supported on current OpenClaw versions.

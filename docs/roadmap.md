@@ -21,43 +21,32 @@ This means local developer workflows only. It does not mean staging or productio
 - OpenClaw setup and agent bootstrap scripts
 - OpenClaw Discord setup wizard with secure guild/channel/user allowlists
 - OpenClaw browser Docker setup for CDP and local UI checks
-- Generated `.openclaw/TOOLS.md` with detected build/test/local-run/confirm commands
+- Generated root `TOOLS.md` with detected build/test/local-run/confirm commands
+- Generated root `HEARTBEAT.md` and `PROJECT.md` (via `analyze_repo.sh`, `--deep` for `PROJECT.md`)
 - Sonnet-first routing and explicit Opus escalation path
 - Commit trailer blocking (`Co-Authored-By`)
+- Real local workflow wrapper script (`.claude/scripts/openclaw-local-workflow.sh`)
+- Real OpenClaw plugin commands (`/localflow`, `/workflowcheck`) + `command:new` cleanup hook
 
 ## Gaps (Not Fully Enforced Yet)
 
 - Hard gate that requires build + local-run + test + confirm before "done"
-- One stable remote command that always runs the full local workflow in the same order
 - Structured evidence output (build log summary, test summary, smoke-check result)
 - Policy that blocks PR creation when local verification steps are missing
 
 ## Next Steps (Recommended)
 
-### 1) Add a local workflow wrapper command (highest impact)
-
-Create one wrapper script that runs:
-
-- build
-- local run / restart
-- tests
-- confirm / smoke check
-- summary report
-
-Then route Discord or cron tasks through that wrapper for repeatable behavior.
-
-See `docs/openclaw-plugin-hooks.md` and `docs/examples/openclaw-local-workflow-wrapper.sh`.
-
-### 2) Add OpenClaw plugin hook checks
+### 1) Add strict completion/report gate (highest impact)
 
 Use plugin hooks to:
 
-- log command execution and outcomes
-- inject workspace bootstrap files (`.openclaw/TOOLS.md`, `.openclaw/PROJECT.md`)
-- store session memory for later review
-- reject completion/reporting when required evidence is missing (custom plugin/wrapper)
+- reject completion/reporting when required workflow evidence is missing
+- require a fresh `workflow-report.local.json` (from `/localflow`) before a "done" response pattern is allowed
+- optionally require all four steps to be `passed`
 
-### 3) Add a repo-level completion checklist format
+The wrapper and plugin commands already exist. The missing piece is strict gating.
+
+### 2) Improve workflow evidence output
 
 Require a standard report with fields like:
 
@@ -68,19 +57,19 @@ Require a standard report with fields like:
 - Files changed
 - Next bug
 
-### 4) Add per-repo command overrides
+### 3) Add per-repo command overrides
 
-Keep `analyze_repo.sh` detection as the default and support project overrides in `.openclaw/TOOLS.md` where detection is not enough.
+Keep `analyze_repo.sh` detection as the default and support project overrides in root `TOOLS.md` where detection is not enough.
 
-### 5) Add custom OpenClaw command wrappers (optional)
+### 4) Add higher-level workflow commands (optional)
 
-If you want stable remote commands in Discord (instead of free-form prompts), add custom wrappers like:
+The core wrapper is implemented (`/localflow`). Add task-oriented wrappers only if needed, for example:
 
 - `/localfix`
 - `/verify-local`
 - `/next-bug`
 
-These should call the same local workflow wrapper script.
+These should call the same local workflow runner and produce the same report shape.
 
 ## Design Rules
 
@@ -88,4 +77,5 @@ These should call the same local workflow wrapper script.
 - Keep defaults safe (`commands.bash=false`, allowlists on Discord)
 - Use slash commands first in Discord
 - Keep automation idempotent and version-tolerant
-- Treat `.openclaw/*` as the source of truth for generated workspace files
+- Treat root core files as canonical (`AGENTS.md`, `TOOLS.md`, `PROJECT.md`, etc.)
+- Use `.openclaw/` for runtime state, skills, sessions, memory logs, and local reports
