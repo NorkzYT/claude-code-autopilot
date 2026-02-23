@@ -602,7 +602,15 @@ else
     log "Running Claude deep scan (no timeout command found; may take several minutes)..."
   fi
 
-  CLAUDE_PROMPT="You are analyzing the codebase at $WORKSPACE. Read the directory structure, key source files, and configuration. Write a comprehensive PROJECT.md that covers:
+  CLAUDE_PROMPT="You are analyzing the codebase at $WORKSPACE. Read the directory structure, key source files, and configuration. Return markdown text only.
+
+Important:
+- Do NOT request approval to write files.
+- Do NOT say what you plan to write.
+- Do NOT call tools or ask for confirmation.
+- You are not writing the file directly; another process will write your text output.
+
+Write a comprehensive PROJECT.md that covers:
 1. Project architecture and component map
 2. How components interact (data flow, APIs, message passing)
 3. Key functions and what they do
@@ -627,6 +635,11 @@ Write ONLY the markdown content, no preamble or explanation."
     fi
   else
     CLAUDE_OUTPUT="$(claude --print "$CLAUDE_PROMPT" 2>/dev/null || echo "")"
+  fi
+
+  if [[ "$CLAUDE_OUTPUT" == *"The write requires your approval"* ]] || [[ "$CLAUDE_OUTPUT" == *"Please approve the write to proceed"* ]]; then
+    warn "Claude returned a write-approval prompt instead of PROJECT.md content — treating as failed deep scan"
+    CLAUDE_OUTPUT=""
   fi
 
   if [[ -n "$CLAUDE_OUTPUT" ]]; then

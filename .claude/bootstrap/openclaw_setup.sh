@@ -51,7 +51,7 @@ configure_openclaw_plugin_hooks() {
   log "Configuring OpenClaw plugin hooks..."
 
   # Use root canonical files (OpenClaw-native locations) plus generated project context.
-  openclaw config set hooks.internal.bootstrapExtraFiles.paths \
+  openclaw config set hooks.internal.entries.bootstrap-extra-files.paths \
     '["AGENTS.md","TOOLS.md","PROJECT.md","HEARTBEAT.md"]' \
     --json >/dev/null 2>&1 || warn "Failed to set bootstrap-extra-files paths"
 
@@ -291,7 +291,13 @@ echo ""
 # ---- 6) Configure workspace ----
 if has openclaw; then
   log "Configuring workspace..."
-  openclaw workspace set "$PROJECT_DIR" 2>/dev/null || warn "Failed to set workspace."
+  if openclaw workspace set "$PROJECT_DIR" 2>/dev/null; then
+    :
+  elif openclaw config set agents.defaults.workspace "$PROJECT_DIR" 2>/dev/null; then
+    log "Workspace configured via agents.defaults.workspace"
+  else
+    warn "Failed to set workspace."
+  fi
   openclaw setup 2>/dev/null || true
 fi
 

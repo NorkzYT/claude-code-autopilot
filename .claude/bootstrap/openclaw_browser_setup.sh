@@ -107,7 +107,14 @@ log "Creating docker-compose configuration..."
 
 TEMPLATE_FILE="$TEMPLATE_DIR/docker-compose.openclaw-chrome.yml"
 if [[ -f "$COMPOSE_FILE" ]]; then
-  skip "docker-compose.yml already exists at $COMPOSE_FILE"
+  if grep -q "container_name: ${CONTAINER_NAME}" "$COMPOSE_FILE" 2>/dev/null && \
+     grep -q "selenium/standalone-chromium" "$COMPOSE_FILE" 2>/dev/null && \
+     [[ -f "$TEMPLATE_FILE" ]]; then
+    cp "$TEMPLATE_FILE" "$COMPOSE_FILE"
+    log "Refreshed managed docker-compose.yml: $COMPOSE_FILE"
+  else
+    skip "docker-compose.yml already exists at $COMPOSE_FILE"
+  fi
 else
   if [[ -f "$TEMPLATE_FILE" ]]; then
     cp "$TEMPLATE_FILE" "$COMPOSE_FILE"
@@ -175,7 +182,7 @@ log "Container started"
 # ─── 7) Wait for CDP ────────────────────────────────────────
 log "Waiting for CDP on port ${CDP_PORT}..."
 
-MAX_WAIT=30
+MAX_WAIT=90
 WAITED=0
 while ! python3 -c "
 import socket, sys

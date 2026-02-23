@@ -1,8 +1,13 @@
 {
-  "name": "openclaw-plugin-local-workflow-wrapper",
+  "name": "local-workflow-wrapper",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "./index.js",
-  "description": "OpenClaw local workflow wrapper plugin"
+  "description": "OpenClaw local workflow wrapper plugin",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.plugin.json"
+    ]
+  }
 }
