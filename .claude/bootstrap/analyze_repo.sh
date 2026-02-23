@@ -594,7 +594,8 @@ else
     exit 1
   fi
 
-  CLAUDE_DEEP_TIMEOUT="${CLAUDE_DEEP_TIMEOUT:-180}"
+  CLAUDE_DEEP_TIMEOUT="${CLAUDE_DEEP_TIMEOUT:-420}"
+  CLAUDE_DEEP_RETRY_TIMEOUT="${CLAUDE_DEEP_RETRY_TIMEOUT:-900}"
   if has timeout; then
     log "Running Claude deep scan (timeout: ${CLAUDE_DEEP_TIMEOUT}s)..."
   else
@@ -620,6 +621,10 @@ Write ONLY the markdown content, no preamble or explanation."
 
   if has timeout; then
     CLAUDE_OUTPUT="$(timeout "${CLAUDE_DEEP_TIMEOUT}s" claude --print "$CLAUDE_PROMPT" 2>/dev/null || echo "")"
+    if [[ -z "$CLAUDE_OUTPUT" ]] && [[ "$CLAUDE_DEEP_RETRY_TIMEOUT" -gt "$CLAUDE_DEEP_TIMEOUT" ]]; then
+      log "Claude deep scan returned empty output (or timed out). Retrying once with ${CLAUDE_DEEP_RETRY_TIMEOUT}s..."
+      CLAUDE_OUTPUT="$(timeout "${CLAUDE_DEEP_RETRY_TIMEOUT}s" claude --print "$CLAUDE_PROMPT" 2>/dev/null || echo "")"
+    fi
   else
     CLAUDE_OUTPUT="$(claude --print "$CLAUDE_PROMPT" 2>/dev/null || echo "")"
   fi

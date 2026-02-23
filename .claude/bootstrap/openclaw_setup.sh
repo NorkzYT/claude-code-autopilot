@@ -430,7 +430,7 @@ echo "    - Re-run the installer (without --with-openclaw) to refresh the repo .
 echo "    - Start a NEW chat/session (Discord: /new) so old context does not keep stale instructions."
 echo "    - If OpenClaw behaves stale, run: openclaw gateway start"
 echo "    - Template changes (.claude/templates/*) affect future/generated files only;"
-echo "      re-run add_openclaw_agent.sh (or install with --with-openclaw) to regenerate .openclaw/* files."
+echo "      re-run add_openclaw_agent.sh (or install with --with-openclaw) to regenerate root core files."
 echo ""
 echo "  Gateway is installed as a systemd service and starts automatically."
 echo "  Dashboard (local): http://127.0.0.1:18789/"
