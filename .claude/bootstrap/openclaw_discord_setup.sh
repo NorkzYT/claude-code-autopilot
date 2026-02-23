@@ -7,6 +7,141 @@ set -euo pipefail
 log()  { printf "\n==> %s\n" "$*"; }
 warn() { printf "\n[WARN] %s\n" "$*" >&2; }
 has()  { command -v "$1" >/dev/null 2>&1; }
+cfg_path() {
+  local state_home
+  state_home="${OPENCLAW_STATE_DIR:-${OPENCLAW_HOME:-$HOME/.openclaw}}"
+  printf "%s/openclaw.json" "$state_home"
+}
+
+upsert_discord_secure_guild_config() {
+  local guild_id="$1"
+  local channel_id="$2"
+  local user_id="$3"
+  local require_mention="$4"
+  local config_file
+  config_file="$(cfg_path)"
+
+  if ! has python3; then
+    warn "python3 not found; cannot auto-configure Discord allowlist."
+    return 1
+  fi
+
+  python3 - "$config_file" "$guild_id" "$channel_id" "$user_id" "$require_mention" <<'PY'
+import json, os, sys
+from datetime import datetime, timezone
+
+cfg_path, guild_id, channel_id, user_id, require_mention = sys.argv[1:]
+
+with open(cfg_path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+meta = data.setdefault("meta", {})
+meta["lastTouchedAt"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+channels = data.setdefault("channels", {})
+discord = channels.setdefault("discord", {})
+discord["groupPolicy"] = "allowlist"
+
+guilds = discord.get("guilds")
+if not isinstance(guilds, dict):
+    guilds = {}
+discord["guilds"] = guilds
+
+guild_cfg = guilds.get(guild_id)
+if not isinstance(guild_cfg, dict):
+    guild_cfg = {}
+guilds[guild_id] = guild_cfg
+
+users = guild_cfg.get("users")
+if not isinstance(users, list):
+    users = []
+uid = str(user_id).strip()
+if uid and uid not in users:
+    users.append(uid)
+guild_cfg["users"] = users
+
+guild_channels = guild_cfg.get("channels")
+if not isinstance(guild_channels, dict):
+    guild_channels = {}
+guild_cfg["channels"] = guild_channels
+
+chan_cfg = guild_channels.get(channel_id)
+if not isinstance(chan_cfg, dict):
+    chan_cfg = {}
+chan_cfg["allow"] = True
+if require_mention.lower() in ("true", "false"):
+    chan_cfg["requireMention"] = (require_mention.lower() == "true")
+guild_channels[channel_id] = chan_cfg
+
+tmp = cfg_path + ".tmp"
+with open(tmp, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+os.replace(tmp, cfg_path)
+PY
+}
+
+upsert_discord_channel_binding() {
+  local guild_id="$1"
+  local channel_id="$2"
+  local agent_id="$3"
+  local config_file
+  config_file="$(cfg_path)"
+
+  [[ -z "$agent_id" ]] && return 0
+
+  if ! has python3; then
+    warn "python3 not found; cannot auto-bind Discord channel to agent."
+    return 1
+  fi
+
+  python3 - "$config_file" "$guild_id" "$channel_id" "$agent_id" <<'PY'
+import json, os, sys
+from datetime import datetime, timezone
+
+cfg_path, guild_id, channel_id, agent_id = sys.argv[1:]
+
+with open(cfg_path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+meta = data.setdefault("meta", {})
+meta["lastTouchedAt"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+bindings = data.get("bindings")
+if not isinstance(bindings, list):
+    bindings = []
+
+def is_same_channel_binding(item):
+    if not isinstance(item, dict):
+        return False
+    match = item.get("match")
+    if not isinstance(match, dict):
+        return False
+    if match.get("channel") != "discord":
+        return False
+    peer = match.get("peer")
+    if isinstance(peer, dict) and peer.get("kind") == "channel" and str(peer.get("id")) == str(channel_id):
+        return True
+    return match.get("guildId") == str(guild_id) and match.get("channelId") == str(channel_id)
+
+bindings = [b for b in bindings if not is_same_channel_binding(b)]
+bindings.append({
+    "agentId": str(agent_id),
+    "match": {
+        "channel": "discord",
+        "guildId": str(guild_id),
+        "peer": {"kind": "channel", "id": str(channel_id)}
+    }
+})
+data["bindings"] = bindings
+
+tmp = cfg_path + ".tmp"
+with open(tmp, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+os.replace(tmp, cfg_path)
+PY
+}
 
 if ! has openclaw; then
   warn "OpenClaw is not installed. Run install.sh --with-openclaw first."
@@ -103,6 +238,10 @@ echo ""
 echo "Step 5: Test Connection"
 echo "-----------------------"
 echo ""
+echo "  IMPORTANT: OpenClaw Discord typically requires an initial Discord pairing"
+echo "  approval before command execution, especially for DMs / secure sessions."
+echo "  Also, built-in commands are slash-style (/status, /help), not !status."
+echo ""
 
 read -rp "  Send a test message to Discord? (y/N): " TEST_MSG
 
@@ -115,13 +254,70 @@ if [[ "$TEST_MSG" =~ ^[Yy] ]]; then
 fi
 
 echo ""
+echo "Step 6: Secure Guild/Channel Access (Recommended)"
+echo "--------------------------------------------------"
+echo ""
+echo "  Lock Discord access to one server, one channel, and one Discord user."
+echo "  This also fixes common 'This channel is not allowed' / 'not authorized'"
+echo "  errors by creating the proper OpenClaw allowlist entries."
+echo ""
+read -rp "  Configure secure Discord allowlist now? (Y/n): " CFG_SECURE
+
+if [[ ! "$CFG_SECURE" =~ ^[Nn]$ ]]; then
+  read -rp "  Discord Server ID (guild): " DISCORD_GUILD_ID
+  read -rp "  Discord Channel ID: " DISCORD_CHANNEL_ID
+  read -rp "  Your Discord User ID: " DISCORD_USER_ID
+  read -rp "  Require mention in that channel for plain-text commands? (Y/n): " REQUIRE_MENTION_ANS
+
+  REQUIRE_MENTION="true"
+  if [[ "$REQUIRE_MENTION_ANS" =~ ^[Nn]$ ]]; then
+    REQUIRE_MENTION="false"
+  fi
+
+  if [[ -n "$DISCORD_GUILD_ID" && -n "$DISCORD_CHANNEL_ID" && -n "$DISCORD_USER_ID" ]]; then
+    if upsert_discord_secure_guild_config "$DISCORD_GUILD_ID" "$DISCORD_CHANNEL_ID" "$DISCORD_USER_ID" "$REQUIRE_MENTION"; then
+      log "Configured Discord guild/channel/user allowlist in $(cfg_path)"
+    else
+      warn "Failed to auto-configure Discord allowlist. You can edit $(cfg_path) manually."
+    fi
+
+    echo ""
+    read -rp "  Bind this Discord channel to a specific agent ID (e.g. kairo) [optional]: " DISCORD_AGENT_ID
+    if [[ -n "$DISCORD_AGENT_ID" ]]; then
+      if upsert_discord_channel_binding "$DISCORD_GUILD_ID" "$DISCORD_CHANNEL_ID" "$DISCORD_AGENT_ID"; then
+        log "Bound Discord channel ${DISCORD_CHANNEL_ID} to agent '${DISCORD_AGENT_ID}'"
+      else
+        warn "Failed to auto-bind Discord channel to agent '${DISCORD_AGENT_ID}'."
+      fi
+    fi
+
+    openclaw gateway start 2>/dev/null || systemctl --user restart openclaw-gateway.service 2>/dev/null || true
+    log "Gateway restarted to apply Discord allowlist and optional agent binding."
+  else
+    warn "Skipped secure allowlist setup (missing one or more IDs)."
+  fi
+fi
+
+echo ""
 log "Discord setup complete!"
 echo ""
-echo "  Usage from Discord:"
-echo "    !status      -- Project status"
-echo "    !test        -- Run tests"
-echo "    !ship <task> -- Execute a task"
-echo "    !ask <q>     -- Query codebase"
+echo "  First-time pairing (required before replies work):"
+echo "    1. DM the bot in Discord (send: hello)"
+echo "    2. Run: openclaw pairing list discord"
+echo "    3. Run: openclaw pairing approve discord <code>"
+echo ""
+echo "  Test from Discord (standalone messages):"
+echo "    /help"
+echo "    /status"
+echo "    /new"
+echo "    (If channel is bound to an agent, start a new session after setup: /new)"
+echo ""
+echo "  Notes:"
+echo "    - !status / !ask are not guaranteed built-in commands on newer OpenClaw"
+echo "    - If you run !status and see 'bash is disabled', that is expected on secure"
+echo "      setups. Prefer slash commands, or explicitly enable commands.bash=true."
+echo "    - If using a server channel, ensure bot has 'Use Application Commands'"
+echo "      and that your Discord allowlist/guild policy permits that channel"
 echo ""
 echo "  See: .claude/docs/openclaw-remote-commands.md for full reference"
 echo ""

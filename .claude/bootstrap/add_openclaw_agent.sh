@@ -334,7 +334,7 @@ if [[ "$SKIP_PERSONA" == "false" ]]; then
 
   # Clean up any persona files that were mistakenly created at repo root
   # Keep repository-root AGENTS.md for Codex compatibility.
-  PERSONA_FILES="SOUL.md USER.md IDENTITY.md TOOLS.md HEARTBEAT.md BOOTSTRAP.md MEMORY.md"
+  PERSONA_FILES="SOUL.md USER.md IDENTITY.md TOOLS.md HEARTBEAT.md BOOTSTRAP.md MEMORY.md PROJECT.md"
   for pfile in $PERSONA_FILES; do
     root_file="$WORKSPACE_PATH/$pfile"
     openclaw_file="$WORKSPACE_PATH/.openclaw/$pfile"
@@ -415,9 +415,17 @@ if ensure_gitignore_entry "$GITIGNORE" ".agents/"; then :; fi
 if ensure_gitignore_entry "$GITIGNORE" ".openclaw/"; then :; fi
 if ensure_gitignore_entry "$GITIGNORE" ".openclaw/sessions/"; then :; fi
 if ensure_gitignore_entry "$GITIGNORE" "AGENTS.md"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" "SOUL.md"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" "USER.md"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" "IDENTITY.md"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" "TOOLS.md"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" "HEARTBEAT.md"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" "BOOTSTRAP.md"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" "MEMORY.md"; then :; fi
+if ensure_gitignore_entry "$GITIGNORE" "PROJECT.md"; then :; fi
 
 if grep -qF "# Local agent runtime state (OpenClaw + Claude + Codex)" "$GITIGNORE" 2>/dev/null; then
-  log "Ensured .gitignore entries for .claude/.codex/.codex-home/.agents/.openclaw/AGENTS.md"
+  log "Ensured .gitignore entries for .claude/.codex/.codex-home/.agents/.openclaw and root OpenClaw core files"
 fi
 
 # ─── Section 4b: Create Guard Hooks ─────────────────────────
