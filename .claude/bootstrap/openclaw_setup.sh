@@ -170,9 +170,12 @@ gateway_config_paths_match() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${1:-$(pwd)}"
+# Internal state path used by this installer. Do not export OPENCLAW_HOME here:
+# OpenClaw treats OPENCLAW_HOME as the parent home path, and exporting it as
+# ~/.openclaw causes the CLI to look under ~/.openclaw/.openclaw/openclaw.json.
 OPENCLAW_HOME="${HOME}/.openclaw"
 OPENCLAW_STATE_DIR="${OPENCLAW_HOME}"
-export OPENCLAW_HOME OPENCLAW_STATE_DIR
+export OPENCLAW_STATE_DIR
 CLAUDE_DIR="${PROJECT_DIR}/.claude"
 OPENCLAW_AUTO_REGISTER="${OPENCLAW_AUTO_REGISTER:-0}"
 GATEWAY_HOST="127.0.0.1"
@@ -301,7 +304,7 @@ if has openclaw; then
   openclaw setup 2>/dev/null || true
 fi
 
-# ---- 7) Install gateway daemon and patch OPENCLAW_HOME into service ----
+# ---- 7) Install gateway daemon and patch OPENCLAW_STATE_DIR into service ----
 if has openclaw; then
   log "Installing gateway daemon..."
   openclaw gateway install --force 2>/dev/null || true
@@ -309,16 +312,33 @@ if has openclaw; then
   SERVICE_FILE="$HOME/.config/systemd/user/openclaw-gateway.service"
   if [[ -f "$SERVICE_FILE" ]]; then
     PATCHED_SERVICE_ENV=0
-    if ! grep -q "OPENCLAW_HOME" "$SERVICE_FILE"; then
-      sed -i "/^Environment=HOME=/a Environment=OPENCLAW_HOME=${OPENCLAW_HOME}" "$SERVICE_FILE"
-      log "Patched OPENCLAW_HOME into systemd service"
+    if grep -q "^Environment=OPENCLAW_STATE_DIR=" "$SERVICE_FILE"; then
+      sed -i "s#^Environment=OPENCLAW_STATE_DIR=.*#Environment=OPENCLAW_STATE_DIR=${OPENCLAW_STATE_DIR}#" "$SERVICE_FILE"
+      PATCHED_SERVICE_ENV=1
+    else
+      # Insert under [Service] for compatibility with different unit layouts.
+      python3 - "$SERVICE_FILE" "$OPENCLAW_STATE_DIR" <<'PY' 2>/dev/null || true
+from pathlib import Path
+import sys
+
+p = Path(sys.argv[1])
+state_dir = sys.argv[2]
+lines = p.read_text().splitlines()
+out = []
+inserted = False
+for i, line in enumerate(lines):
+    out.append(line)
+    if not inserted and line.strip() == "[Service]":
+        out.append(f"Environment=OPENCLAW_STATE_DIR={state_dir}")
+        inserted = True
+if not inserted:
+    out.append("[Service]")
+    out.append(f"Environment=OPENCLAW_STATE_DIR={state_dir}")
+p.write_text("\n".join(out) + "\n")
+PY
       PATCHED_SERVICE_ENV=1
     fi
-    if ! grep -q "OPENCLAW_STATE_DIR" "$SERVICE_FILE"; then
-      sed -i "/^Environment=OPENCLAW_HOME=/a Environment=OPENCLAW_STATE_DIR=${OPENCLAW_STATE_DIR}" "$SERVICE_FILE"
-      if ! grep -q "OPENCLAW_STATE_DIR" "$SERVICE_FILE"; then
-        sed -i "/^Environment=HOME=/a Environment=OPENCLAW_STATE_DIR=${OPENCLAW_STATE_DIR}" "$SERVICE_FILE"
-      fi
+    if [[ "$PATCHED_SERVICE_ENV" == "1" ]]; then
       log "Patched OPENCLAW_STATE_DIR into systemd service"
       PATCHED_SERVICE_ENV=1
     fi
@@ -345,7 +365,7 @@ if has openclaw; then
     log "Gateway CLI/service config paths are aligned (single config path in use)"
   else
     warn "Gateway CLI/service config paths appear to differ"
-    warn "Run: export OPENCLAW_HOME=\"$OPENCLAW_HOME\" OPENCLAW_STATE_DIR=\"$OPENCLAW_STATE_DIR\" && openclaw gateway install --force"
+    warn "Run: unset OPENCLAW_HOME; export OPENCLAW_STATE_DIR=\"$OPENCLAW_STATE_DIR\"; openclaw gateway install --force"
     warn "Then verify: openclaw gateway status"
   fi
 fi
@@ -371,13 +391,13 @@ if [[ -f "$BROWSER_SCRIPT" ]]; then
   bash "$BROWSER_SCRIPT"
 fi
 
-# ---- 8) Add OPENCLAW_HOME to shell profiles ----
-EXPORT_LINE="export OPENCLAW_HOME=\"${OPENCLAW_HOME}\""
+# ---- 8) Add OPENCLAW_STATE_DIR to shell profiles ----
+STATE_EXPORT_LINE="export OPENCLAW_STATE_DIR=\"${OPENCLAW_STATE_DIR}\""
 for rcfile in "$HOME/.bashrc" "$HOME/.zshrc"; do
   if [[ -f "$rcfile" ]] || [[ "$(basename "$rcfile")" == ".bashrc" ]]; then
     touch "$rcfile" 2>/dev/null || true
-    if ! grep -qF "OPENCLAW_HOME" "$rcfile" 2>/dev/null; then
-      printf '\n# OpenClaw home directory\n%s\n' "$EXPORT_LINE" >> "$rcfile"
+    if ! grep -qF "OPENCLAW_STATE_DIR" "$rcfile" 2>/dev/null; then
+      printf '\n# OpenClaw state directory\n%s\n' "$STATE_EXPORT_LINE" >> "$rcfile"
     fi
   fi
 done

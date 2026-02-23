@@ -185,7 +185,7 @@ except:
   AGENT_EXISTS=true
   skip "Agent '$AGENT_NAME' already registered"
 else
-  if openclaw agents add "$AGENT_NAME" --workspace "$WORKSPACE_PATH" 2>/dev/null; then
+  if openclaw agents add "$AGENT_NAME" --workspace "$WORKSPACE_PATH" --non-interactive 2>/dev/null; then
     log "Agent '$AGENT_NAME' registered successfully"
   else
     warn "openclaw agents add failed — will configure manually"
@@ -227,10 +227,9 @@ fi
 # ─── Section 3: Config Sync ─────────────────────────────────
 log "Section 3: Syncing configuration..."
 
-# Both config paths need the agent entry
+# Use a single canonical config path.
 CONFIG_PATHS=(
   "$OPENCLAW_HOME/openclaw.json"
-  "$OPENCLAW_HOME/.openclaw/openclaw.json"
 )
 
 for config_path in "${CONFIG_PATHS[@]}"; do
@@ -267,19 +266,20 @@ if not isinstance(agent_list, list):
 
 exists = False
 for entry in agent_list:
-    if isinstance(entry, dict) and (entry.get("name") == agent_name or entry.get("id") == agent_name):
+    if not isinstance(entry, dict):
+        continue
+    entry.pop("displayName", None)
+    entry.pop("emoji", None)
+    if entry.get("name") == agent_name or entry.get("id") == agent_name:
         exists = True
-        break
 
 if not exists:
     config_root = p.parent
     agent_list.append({
         "id": agent_name,
         "name": agent_name,
-        "displayName": display_name,
         "workspace": workspace_path,
-        "agentDir": str(config_root / "agents" / agent_name / "agent"),
-        "emoji": emoji,
+        "agentDir": str(config_root / "agents" / agent_name / "agent")
     })
 
 agents["list"] = agent_list
