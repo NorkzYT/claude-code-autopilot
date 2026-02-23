@@ -180,8 +180,28 @@ fi
 docker compose -f "$COMPOSE_FILE" up -d
 log "Container started"
 
-# ─── 7) Wait for CDP ────────────────────────────────────────
-log "Waiting for CDP on port ${CDP_PORT}..."
+# ─── 7) Wait for container / check CDP (informational) ──────
+log "Checking browser container readiness..."
+
+# Wait briefly for the Selenium container process to settle.
+READY_WAIT=0
+READY_MAX=20
+while [[ $READY_WAIT -lt $READY_MAX ]]; do
+  state="$(docker inspect -f '{{.State.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo '')"
+  if [[ "$state" == "running" ]]; then
+    break
+  fi
+  sleep 1
+  READY_WAIT=$((READY_WAIT + 1))
+done
+
+if [[ "${state:-}" == "running" ]]; then
+  log "Container is running"
+else
+  warn "Container did not reach running state quickly"
+fi
+
+log "Checking CDP port ${CDP_PORT} (informational)..."
 
 MAX_WAIT=90
 WAITED=0
@@ -199,7 +219,9 @@ except:
   sleep 1
   WAITED=$((WAITED + 1))
   if [[ $WAITED -ge $MAX_WAIT ]]; then
-    warn "Timed out waiting for CDP on port ${CDP_PORT} after ${MAX_WAIT}s"
+    warn "CDP port ${CDP_PORT} did not open within ${MAX_WAIT}s"
+    warn "This is often expected with selenium/standalone-chromium: the noVNC view can show the Selenium Grid splash until a browser session starts."
+    warn "A browser session usually opens later when OpenClaw (or another client) requests browser automation."
     warn "Check container logs: docker logs ${CONTAINER_NAME}"
     break
   fi
@@ -372,6 +394,7 @@ echo "  Container:  ${CONTAINER_NAME}"
 echo "  CDP URL:    http://localhost:${CDP_PORT}"
 echo "  Data dir:   ${DATA_DIR}"
 echo "  Host app URL from browser container: http://host.docker.internal:<port>"
+echo "  Note: noVNC may show the Selenium Grid splash until a browser session starts."
 echo ""
 echo "  VNC Access:"
 echo "    VNC client:   vnc://localhost:${VNC_PORT}"
