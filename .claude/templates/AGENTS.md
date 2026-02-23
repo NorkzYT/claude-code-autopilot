@@ -79,20 +79,23 @@ Write durable insights to `MEMORY.md` in the OpenClaw workspace:
 ### Prerequisites
 
 - `OPENCLAW_AUTONOMOUS=1` environment variable must be set
-- Only cron jobs or Discord `!autonomous` command set this variable
+- Only cron jobs or explicit automation wrappers should set this variable
 - Interactive sessions always run in supervised mode
 
 ### Long-Running Task Pattern
 
 1. **Accept task** — Receive task from Discord, cron, or CLI
-2. **Create branch** — `git checkout -b openclaw/<task-name>`
+2. **Create branch** — Use a professional feature branch (for example `fix/<task-name>` or `feat/<task-name>`)
 3. **Create session state** — Write plan.md, context.md, tasks.md
 4. **Execute in Ralph loop** — Use autopilot pipeline with completion promise
-5. **Run tests** — Verify all changes pass
-6. **Commit changes** — Conventional commit messages only (commits must appear as the user's own)
-7. **Push branch** — `git push -u origin openclaw/<task-name>`
-8. **Report via Discord** — Summary, changes, test results, remaining work
-9. **Persist state** — Save session state for future reference
+5. **Build** — Run the project build command from TOOLS.md
+6. **Run local stack** — Start or reload the app/services locally (for example `yarn dev`, `make up`, `docker compose up`)
+7. **Run tests** — Verify all changes pass
+8. **Confirm locally** — Smoke-check the changed flow (browser/CDP for UI changes)
+9. **Commit changes** — Conventional commit messages only (commits must appear as the user's own)
+10. **Push branch** — Push the feature branch to origin before creating a PR
+11. **Report via Discord** — Summary, changes, test results, remaining work
+12. **Persist state** — Save session state for future reference
 
 ### Error Recovery
 
@@ -103,21 +106,21 @@ Write durable insights to `MEMORY.md` in the OpenClaw workspace:
 
 ### Git Commit Policy (Autonomous Mode)
 
-- **Branch naming:** `openclaw/<short-description>` or `fix/<short-description>`
+- **Branch naming:** Use professional names like `fix/<short-description>`, `feat/<short-description>`, or `chore/<short-description>`
 - **NEVER** commit directly to main or master
 - **NEVER** include `Co-Authored-By` lines in commit messages -- commits must appear as the user's own
 - **NEVER** use `--author` flag to override commit author
 - **NEVER** use `--amend` in autonomous mode
 - **NEVER** force push (`--force` or `-f`)
 - **Commit format:** Conventional commits (`feat:`, `fix:`, `chore:`, `docs:`)
-- After all work is complete, create a PR for user review
+- After all work is complete, push the branch to `origin` and create a PR for user review
 
 ### Reporting Template
 
 ```
 ## Autonomous Task Report
 - **Task:** <description>
-- **Branch:** openclaw/<name>
+- **Branch:** feat/<name> (or fix/<name>, chore/<name>)
 - **Status:** Complete / Partial / Failed
 - **Changes:** <file count> files modified
 - **Tests:** <pass>/<total> passing

@@ -30,6 +30,38 @@ ensure_openclaw_skill_available() {
   warn "Failed to install optional skill: $skill"
 }
 
+enable_openclaw_plugin_hook() {
+  local hook_name="$1"
+  if ! has openclaw; then
+    return 1
+  fi
+  if openclaw hooks enable "$hook_name" >/dev/null 2>&1; then
+    log "Enabled OpenClaw hook: $hook_name"
+    return 0
+  fi
+  warn "Could not enable OpenClaw hook: $hook_name"
+  return 1
+}
+
+configure_openclaw_plugin_hooks() {
+  if ! has openclaw; then
+    return 0
+  fi
+
+  log "Configuring OpenClaw plugin hooks..."
+
+  # Use workspace-generated `.openclaw/*` files during agent bootstrap so the
+  # gateway sees the same instructions that bootstrap generated for the repo.
+  openclaw config set hooks.internal.bootstrapExtraFiles.paths \
+    '[".openclaw/AGENTS.md",".openclaw/TOOLS.md",".openclaw/PROJECT.md",".openclaw/HEARTBEAT.md"]' \
+    --json >/dev/null 2>&1 || warn "Failed to set bootstrap-extra-files paths"
+
+  # Best-effort enable of built-in hooks supported on current OpenClaw versions.
+  enable_openclaw_plugin_hook "bootstrap-extra-files" || true
+  enable_openclaw_plugin_hook "session-memory" || true
+  enable_openclaw_plugin_hook "command-logger" || true
+}
+
 detect_tailscale_ipv4() {
   if ! has tailscale; then
     return 1
@@ -313,6 +345,11 @@ if has openclaw; then
   fi
 fi
 
+# ---- 7a) Configure built-in OpenClaw hooks (workflow support) ----
+if has openclaw; then
+  configure_openclaw_plugin_hooks || true
+fi
+
 # ---- 7b) Ensure recommended skills are available (after gateway startup) ----
 if has openclaw; then
   log "Ensuring recommended OpenClaw skills are available..."
@@ -386,6 +423,8 @@ echo "    7. Register agent manually (if auto-register was skipped/failed):"
 echo "       bash .claude/bootstrap/add_openclaw_agent.sh <name> <path>"
 echo "    8. Quick reference (bootstrap scripts + commands):"
 echo "       .claude/README-openclaw.md"
+echo "  OpenClaw plugin hooks (enabled if supported): bootstrap-extra-files, session-memory, command-logger"
+echo "    - These are separate from Claude hooks in .claude/hooks/"
 echo ""
 echo "  Prompt/agent file updates (.claude/*) -- how changes are picked up:"
 echo "    - Re-run the installer (without --with-openclaw) to refresh the repo .claude/ folder."

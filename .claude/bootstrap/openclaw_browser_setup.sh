@@ -130,6 +130,8 @@ services:
       - openclaw-chrome-profile:/home/seluser/.config/chromium
       - ./data/cookies:/cookies:ro
       - ./data/extensions:/extensions:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - SE_SCREEN_WIDTH=1920
       - SE_SCREEN_HEIGHT=1080
@@ -361,6 +363,7 @@ echo ""
 echo "  Container:  ${CONTAINER_NAME}"
 echo "  CDP URL:    http://localhost:${CDP_PORT}"
 echo "  Data dir:   ${DATA_DIR}"
+echo "  Host app URL from browser container: http://host.docker.internal:<port>"
 echo ""
 echo "  VNC Access:"
 echo "    VNC client:   vnc://localhost:${VNC_PORT}"

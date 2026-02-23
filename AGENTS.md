@@ -16,10 +16,11 @@ For EVERY bug fix or feature:
 1. **Understand** — Read PROJECT.md, relevant source files
 2. **Fix** — Make the code change
 3. **Build** — Run build command from TOOLS.md
-4. **Test** — Run test command from TOOLS.md
-5. **Verify** — Browser-check if UI change (via CDP)
-6. **Commit** — On feature branch, not main
-7. **Report** — Summary of what changed, what was tested
+4. **Run Local** — Start or reload the local stack only (e.g. `yarn dev`, `make up`, `docker compose up`)
+5. **Test** — Run test command from TOOLS.md
+6. **Confirm** — Verify the changed flow works locally (browser-check if UI change via CDP)
+7. **Commit** — On feature branch, not main
+8. **Report** — Summary of what changed, what was tested
 
 Do not mark tasks complete after code-only changes.
 

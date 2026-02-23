@@ -18,18 +18,21 @@
 |---------|-------------|
 | `/workflows:openclaw-channels` | Set up Discord and other channels |
 
-## Discord Commands
+## Discord Commands (Version-Safe)
 
-| Command | Description | Timeout |
-|---------|-------------|---------|
-| `!ship <task>` | Execute autopilot pipeline | 5 min |
-| `!test` | Run test suite | 2 min |
-| `!review <PR#>` | Review pull request | 3 min |
-| `!status` | Project status | 30 sec |
-| `!deploy` | Deployment readiness check | 2 min |
-| `!ask <question>` | Query codebase | 1 min |
-| `!cron list` | Show cron jobs | 10 sec |
-| `!memory <query>` | Search session memory | 15 sec |
+Use slash commands first on OpenClaw 2026.2.x:
+
+| Command | Description |
+|---------|-------------|
+| `/status` | Session, model, context, and runtime status |
+| `/help` | Available commands |
+| `/new` | Start a new session in the current channel/thread |
+| `/reset` | Reset current session |
+
+Notes:
+- `!status`, `!ship`, and other `!` commands may be custom workflows and are not guaranteed to exist.
+- If `!status` returns `bash is disabled`, that means the bot treated it as shell passthrough. Use `/status` instead.
+- Enable `commands.bash=true` only if you want direct shell passthrough from Discord.
 
 ## CLI Commands (Direct)
 
@@ -42,7 +45,7 @@ openclaw gateway logs
 
 # Channel management
 openclaw channels add --channel discord --token <your-bot-token>
-openclaw channels status discord
+openclaw channels status
 openclaw channels remove discord
 
 # Auth management
@@ -83,7 +86,17 @@ openclaw workspace set <path>
 # Skills
 openclaw skills install <name>
 openclaw skills list
+
+# Hooks (OpenClaw plugin hooks, separate from .claude/hooks)
+openclaw hooks list
+openclaw hooks enable bootstrap-extra-files
+openclaw hooks enable session-memory
+openclaw hooks enable command-logger
 ```
+
+Notes:
+- Hooks listed as `plugin:<id>` are plugin-managed hooks.
+- Enable or disable the plugin that owns them. Do not try to enable the plugin-managed hook directly.
 
 ## Environment Variables
 

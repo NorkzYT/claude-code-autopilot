@@ -1,0 +1,12 @@
+{
+  "id": "local-workflow-wrapper",
+  "name": "local-workflow-wrapper",
+  "version": "0.1.0",
+  "description": "Runs and checks the repo-local engineering workflow wrapper",
+  "main": "./index.js",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

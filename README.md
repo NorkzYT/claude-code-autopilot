@@ -1,8 +1,21 @@
-# Claude Code Autopilot Kit
+# Claude Code Autopilot Kit (Claude + OpenClaw Engineer Workflow Kit)
 
-A portable `.claude/` bundle that supercharges Claude Code with **automatic task execution**, **safety guardrails**, and **session persistence**.
+A portable `.claude/` bundle for Claude Code with a staged agent workflow, safety hooks, logging, and a strict verification loop.
 
-Once installed, Claude automatically launches the **autopilot agent** for substantive tasks — no manual invocation needed.
+It also includes OpenClaw setup and bootstrap scripts for remote control, browser automation, multi-agent routing, and cross-session memory.
+
+This repo is built to support a full local engineer workflow:
+
+- fix
+- build
+- run local stack (`yarn dev`, `make up`, `docker compose up`)
+- test
+- confirm
+- commit and report
+
+The goal is not code-only output. The goal is a repeatable engineering loop.
+
+Once installed, Claude can auto-route substantive tasks into the autopilot pipeline and use OpenClaw when you enable it.
 
 ## Quick Install
 
@@ -16,6 +29,34 @@ After install, you'll see your **ntfy.sh subscription URL** — subscribe to get
 Then restart Claude Code to load the new configuration.
 
 > **Note:** Run Claude Code as a **non-root user**. The kit's hooks, logs, and VS Code integration are designed for regular user accounts. If using VS Code Remote (SSH/Tailscale), ensure you attach as the same user that runs Claude.
+
+### Install With OpenClaw (Recommended if you want Discord/browser/multi-agent)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
+  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw
+```
+
+## Start Here
+
+Pick one path:
+
+1. Claude Code only (local terminal workflow): use the Quick Install command above
+2. Claude Code + OpenClaw (Discord, browser, remote control): add `--with-openclaw`
+3. Refresh an existing repo: re-run the install command with `--force`
+
+What this kit covers:
+
+- Claude Code hooks and guardrails (`.claude/hooks/*`)
+- staged agent workflow (autopilot, triage, fixer, closer)
+- OpenClaw gateway, Discord, browser, and agent bootstrap scripts
+- Codex compatibility layer (`AGENTS.md`, `.agents/skills`, `.codex/rules`)
+
+Then read:
+
+- `.claude/README-openclaw.md` for OpenClaw scripts and common commands
+- `.claude/docs/openclaw-integration.md` for full setup and troubleshooting
+- `.claude/docs/openclaw-remote-commands.md` for Discord use (slash commands, pairing, allowlists, bindings)
 
 ---
 
@@ -52,6 +93,12 @@ After installation, the kit automatically:
 3. **Protects sensitive files** — Blocks edits to `.env`, secrets, certs, prod configs
 4. **Auto-formats code** — Runs Prettier/Black on edited files when configured
 5. **Logs everything** — Prompts, commands, and responses go to `.claude/logs/`
+
+If you install with OpenClaw, it also:
+
+6. **Adds gateway tooling** — Remote access, channel routing, and session management
+7. **Adds browser tooling** — Docker Chromium for local UI verification and CDP flows
+8. **Bootstraps repo agents** — Generates `.openclaw/*`, skills, and compatibility files for multi-repo work
 
 ---
 
@@ -147,410 +194,33 @@ Acceptance Criteria:
 
 ---
 
-## Session Persistence (Three-File Pattern)
+## Documentation
 
-For complex tasks spanning multiple sessions, the kit provides templates to externalize state:
+The README is the fast path. Detailed guides live in `docs/*.md` and `.claude/docs/*`.
 
-### Setup
+### Core docs (`docs/*.md`)
 
-```bash
-# Create a task directory
-mkdir -p .claude/context/my-feature
+- `docs/README.md` — documentation index
+- `docs/install.md` — install modes, updates, flags, `llms.txt`, git hygiene
+- `docs/workflow.md` — session persistence, notifications, guardrails, customization, plan mode
+- `docs/editor.md` — external editor (`Ctrl+G`) and VS Code remote setup
+- `docs/troubleshooting.md` — common issues and validation commands
+- `docs/openclaw.md` — OpenClaw quick guide and hook model overview
+- `docs/openclaw-plugin-hooks.md` — plugin hooks and wrapper design for local workflow automation
+- `docs/roadmap.md` — roadmap for full engineer workflow enforcement
 
-# Copy templates
-cp .claude/context/templates/*.md .claude/context/my-feature/
-```
+### OpenClaw docs (repo-local references)
 
-### The Three Files
+- `.claude/README-openclaw.md` — operator quick reference
+- `.claude/docs/openclaw-integration.md` — full setup and operations guide
+- `.claude/docs/openclaw-commands.md` — CLI and slash command reference
+- `.claude/docs/openclaw-remote-commands.md` — Discord pairing, allowlists, bindings, and channel routing
 
-| File | Purpose | Update Frequency |
-|------|---------|------------------|
-| `plan.md` | High-level strategy, architecture decisions | Rarely (only when approach changes) |
-| `context.md` | Key discoveries, file locations, gotchas | Each session |
-| `tasks.md` | Granular checklist of work items | Frequently |
+### Quick reminders
 
-### Resuming Work
-
-When you return to a task, say:
-
-```
-Continue working on my-feature. Resume from where we left off.
-```
-
-The kit detects "continue" or "resume" and points Claude to your saved state.
-
----
-
-## Notifications (ntfy.sh)
-
-Get notified on your phone/browser when Claude needs your attention (permission prompts, waiting for input).
-
-After installation, you'll see your subscription URL:
-
-```
-Your default ntfy.sh topic: claude-code-yourhostname
-
-Subscribe: https://ntfy.sh/claude-code-yourhostname
-```
-
-### Subscribe Options
-
-| Platform | How to Subscribe |
-|----------|------------------|
-| Browser | Open `https://ntfy.sh/your-topic` and click "Subscribe" |
-| Android | Install [ntfy app](https://play.google.com/store/apps/details?id=io.heckel.ntfy) → Add topic |
-| iOS | Install [ntfy app](https://apps.apple.com/app/ntfy/id1625396347) → Add topic |
-| CLI | `ntfy subscribe your-topic` |
-
-### Custom Topic
-
-```bash
-# Environment variable
-export CLAUDE_NTFY_TOPIC="my-secret-topic"
-
-# Or config file
-mkdir -p ~/.config/claude-code
-echo "my-secret-topic" > ~/.config/claude-code/ntfy_topic
-```
-
-### Alternative Backends
-
-```bash
-# Discord
-export CLAUDE_DISCORD_WEBHOOK="https://discord.com/api/webhooks/..."
-
-# Slack
-export CLAUDE_SLACK_WEBHOOK="https://hooks.slack.com/services/..."
-
-# Pushover (paid)
-export CLAUDE_PUSHOVER_USER="your-user-key"
-export CLAUDE_PUSHOVER_TOKEN="your-app-token"
-```
-
----
-
-## Safety Guardrails
-
-### Blocked by Default
-
-| Category | Examples |
-|----------|----------|
-| Destructive | `rm -rf`, `sudo`, `mkfs`, `dd` |
-| Git operations | `git commit`, `git add`, `git push --force` |
-| Remote execution | `curl \| bash`, `wget \| sh`, base64 decode to shell |
-| Supply chain | `npx [unknown]`, `pip install` from URLs |
-
-### Protected Files (Sentinel Zones)
-
-These require explicit approval:
-- `.env` files (except `.env.example`)
-- `**/secrets/**`, `**/*credentials*`
-- `**/*.pem`, `**/*.key`
-- Code with `LEGACY_PROTECTED`, `DO_NOT_MODIFY`, or `SECURITY_CRITICAL` comments
-
-### Override Protection (Use Carefully)
-
-```bash
-export CLAUDE_ALLOW_PROTECTED_EDITS=1
-claude
-```
-
----
-
-## Directory Structure
-
-```
-.claude/
-├── CLAUDE.md                 # Constitution (universal rules)
-├── settings.local.json       # Permissions + hook config
-├── agents/
-│   ├── CLAUDE.md             # Agent documentation
-│   ├── autopilot.md          # Main task executor
-│   ├── autopilot-fixer.md    # Fix-up pass
-│   └── ...                   # Other agents
-├── hooks/
-│   ├── CLAUDE.md             # Hook documentation
-│   ├── autopilot_inject.py   # Auto-triggers autopilot
-│   ├── guard_bash.py         # Blocks dangerous commands
-│   ├── protect_files.py      # Blocks sensitive file edits
-│   └── ...                   # Other hooks
-├── context/
-│   ├── templates/            # Three-file pattern templates
-│   └── <task>/               # Your session state (gitignored)
-├── docs/                     # Reference documentation
-├── logs/                     # Session logs (gitignored)
-└── extras/
-    ├── doctor.sh             # Validate configuration
-    └── install-extras.sh     # Install wshobson agents/commands
-```
-
----
-
-## External Editor (Ctrl+G)
-
-Press `Ctrl+G` in Claude Code to open an external editor for composing prompts.
-
-The kit includes a dynamic `claude-editor` wrapper that automatically detects:
-1. VS Code local install (`code` on PATH)
-2. VS Code integrated terminal (`VSCODE_IPC_HOOK_CLI` env var)
-3. VS Code Remote-SSH server (`~/.vscode-server/`)
-4. Cursor (VS Code fork)
-5. Falls back to nano/vim if no GUI editor found
-
-### Requirements for VS Code on Remote Machines
-
-For VS Code to work as the external editor on a **remote machine**, you must:
-
-1. **Connect via VS Code Remote-SSH** (or Tailscale SSH extension) - This installs `~/.vscode-server/` on the remote machine
-2. **Run Claude inside VS Code's integrated terminal** - This sets the required environment variables
-3. **Run as a non-root user** - The VS Code server and IPC socket are installed per-user in `~/.vscode-server/`
-
-If you run Claude in a regular SSH terminal (not VS Code's terminal), the editor falls back to nano because there's no way to communicate with VS Code.
-
-> **Important for Tailscale SSH users:** When attaching to a remote machine via VS Code with the Tailscale extension, ensure you connect as the **same non-root user** that runs Claude Code. The VS Code IPC socket (`VSCODE_IPC_HOOK_CLI`) and server files are user-specific. If you attach as root but run Claude as another user, the editor integration won't work.
-
-**Debug:** Run `CLAUDE_EDITOR_DEBUG=1 claude-editor test.txt` to see which editor is detected.
-
-### VS Code Keybinding Conflict
-
-If `Ctrl+G` opens VS Code's "Go to Recent Directory" picker instead of the editor, add this to your VS Code `keybindings.json`:
-
-```json
-[
-  {
-    "key": "ctrl+g",
-    "command": "-workbench.action.terminal.goToRecentDirectory",
-    "when": "terminalFocus"
-  },
-  {
-    "key": "ctrl+shift+alt+p",
-    "command": "workbench.action.terminal.goToRecentDirectory",
-    "when": "terminalFocus"
-  }
-]
-```
-
-This unbinds Ctrl+G and rebinds "Go to Recent Directory" to Ctrl+Shift+Alt+P. Alternatively, use `"key": "escape"` to disable the feature completely.
-
-### Manual Editor Override
-
-To use a specific editor, set in `~/.claude/settings.json`:
-
-```json
-{
-  "env": {
-    "EDITOR": "/path/to/your/editor --wait",
-    "VISUAL": "/path/to/your/editor --wait"
-  }
-}
-```
-
----
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| Autopilot not launching | Restart Claude Code after install. Check `.claude/settings.local.json` exists |
-| Command blocked | Check `.claude/hooks/guard_bash.py` — add to allowlist if safe |
-| File edit blocked | Check for sentinel markers in code. Use `CLAUDE_ALLOW_PROTECTED_EDITS=1` to override |
-| Formatting not working | Requires `.prettierrc*` (JS/TS) or `pyproject.toml` (Python) in repo |
-| Hooks not running | Copy settings: `cp .claude/settings.local.json .claude/settings.json` |
-| Ctrl+G opens nano instead of VS Code | Run: `sudo cp .claude/scripts/claude-editor.sh /usr/local/bin/claude-editor && sudo chmod +x /usr/local/bin/claude-editor` |
-| VS Code exited with code 127 | The `code` command is not found. Install `claude-editor` wrapper (see above) |
-
-### Validate Configuration
-
-```bash
-./.claude/extras/doctor.sh
-```
-
----
-
-## Installation Options
-
-### Full Bootstrap (Recommended for Linux)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
-  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux
-```
-
-Installs: kit + devtools (git, python3, notify-send) + wshobson agents/commands
-
-### Kit Only (No Extras)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
-  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force
-```
-
-### Update Existing Install
-
-Run the same install command with `--force` to update while preserving logs.
-
-### Installer Options
-
-| Option | Description |
-|--------|-------------|
-| `--repo <owner/repo>` | Source repo (required) |
-| `--ref <branch\|tag\|sha>` | Git ref (default: main) |
-| `--dest <path>` | Destination (default: current directory) |
-| `--force` | Overwrite existing `.claude/` (preserves logs) |
-| `--bootstrap-linux` | Full bootstrap (devtools + extras) |
-| `--no-extras` | Skip wshobson agents/commands |
-
----
-
-## Project Documentation (llms.txt)
-
-The `llms.txt` standard is a "sitemap for AI" that helps Claude navigate your project. Create one at your project root:
-
-```bash
-# Copy the template
-cp .claude/docs/llms-txt-template.md ./llms.txt
-
-# Edit to describe YOUR project
-```
-
-See `.claude/docs/llms-txt-template.md` for a full template with examples.
-
----
-
-## Git Hygiene
-
-Add to your `.gitignore`:
-
-```gitignore
-.claude/logs/
-.claude/context/*
-!.claude/context/templates/
-.claude/vendor/
-```
-
----
-
-## Customization
-
-| Want to... | Do this... |
-|------------|------------|
-| Tighten permissions | Edit `permissions.allow` in `.claude/settings.local.json` |
-| Allow a blocked command | Add pattern to allowlist in `.claude/hooks/guard_bash.py` |
-| Disable auto-formatting | Remove `format_if_configured.py` from PostToolUse hooks |
-| Add protected paths | Edit `PROTECTED_GLOBS` in `.claude/hooks/protect_files.py` |
-| Disable autopilot auto-launch | Remove `autopilot_inject.py` from UserPromptSubmit hooks |
-
----
-
-## Optional: wshobson Integration
-
-When installed with `--bootstrap-linux`, you get curated agents from:
-- [wshobson/commands](https://github.com/wshobson/commands)
-- [wshobson/agents](https://github.com/wshobson/agents)
-
-Usage:
-```
-/workflows:full-stack-feature build user dashboard
-/tools:security-scan src/
-```
-
-Manage extras:
-```bash
-./.claude/extras/install-extras.sh           # Install/update
-./.claude/extras/install-extras.sh --update  # Update only
-```
-
----
-
-## Productivity Tip: Plan Mode for Context Rotation
-
-Instead of using `/clear` when context gets large, use **Plan mode** to preserve knowledge across context resets:
-
-1. When context usage nears **~50%**, switch to **Plan mode** and send your next prompt
-2. Claude drafts a plan using all the context it already has
-3. If you're satisfied, select **"Yes, clear context and bypass permissions"** (the first option)
-
-This is highly effective because the plan is crafted with the full accumulated context from your session. The result is a well-curated plan that you can agree to immediately, and Claude starts fresh with a clear directive. You rarely need to modify it.
-
-> **Why this works:** A `/clear` discards everything. Plan mode distills your session into an actionable plan *before* clearing, so nothing meaningful is lost.
-
----
-
-## OpenClaw Integration (Optional)
-
-[OpenClaw](https://openclaw.dev) extends Claude Code Autopilot with remote access, automation, and cross-session intelligence. Combined with **Claude Max subscription** ($200/month flat rate), this creates a 24/7 autonomous development system.
-
-### What OpenClaw Adds
-
-| Feature | Description |
-|---------|-------------|
-| Discord Remote | Trigger tasks from any device via `!ship`, `!test`, `!status` |
-| Cron Scheduling | Nightly tests, weekly dep audits, daily cost summaries |
-| Cost Tracking | Token usage visibility (informational on Max flat rate) |
-| Browser Automation | Visual regression testing, E2E automation via CDP |
-| Cross-Session Memory | RAG-powered search across all past sessions |
-| Gateway | WebSocket gateway for multi-agent coordination |
-
-### Quick Setup
-
-```bash
-# Install with OpenClaw support
-curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
-  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw
-```
-
-This setup also:
-- Adds local agent/runtime directories to `.gitignore` (`.claude/`, `.codex/`, `.codex-home/`, `.agents/`, `.openclaw/`) plus generated root `AGENTS.md` shim
-- Attempts automatic agent registration for the current workspace
-- Sets Claude default model to Sonnet (use Opus via escalation for complex tasks)
-
-### Claude Max Authentication
-
-```bash
-# Generate setup token
-claude setup-token
-
-# Paste into OpenClaw
-openclaw models auth paste-token --provider anthropic
-
-# Verify
-openclaw models status
-```
-
-### Discord Commands
-
-| Command | Description |
-|---------|-------------|
-| `!ship <task>` | Execute full autopilot pipeline |
-| `!test` | Run project test suite |
-| `!review <PR#>` | Review a pull request |
-| `!status` | Project status overview |
-| `!ask <question>` | Query the codebase |
-| `!cron list` | Show scheduled jobs |
-| `!memory <query>` | Search past sessions |
-
-### Learn More
-
-- Setup guide: `.claude/docs/openclaw-integration.md`
-- Command reference: `.claude/docs/openclaw-commands.md`
-- Remote commands: `.claude/docs/openclaw-remote-commands.md`
-
-### OpenAI Codex Compatibility
-
-This repo can run OpenClaw + Claude workflows and OpenAI Codex with shared behavior:
-
-- Root `AGENTS.md` for Codex instruction discovery
-- Shared skills via `.agents/skills -> .openclaw/skills`
-- Shared safety policy in `.codex/rules/default.rules`
-- Optional local Codex home via `ccx` alias (`CODEX_HOME=./.codex-home`)
-
-When bootstrapping agents, this compatibility layer is generated automatically (use `--skip-codex` to disable).
-
-### Usage Optimization Defaults
-
-- Sonnet-first plan/triage and direct execution for most tasks
-- Opus/autopilot escalation only for complex multi-file work
-- Git `commit-msg` hook blocks `Co-Authored-By` trailers
+- Use slash commands in Discord first: `/status`, `/help`, `/new`
+- `commands.bash=true` is only needed for shell passthrough (`!<cmd>` / `/bash`)
+- OpenClaw plugin hooks and `.claude/hooks/*` are separate systems
 
 ---
 

@@ -14,6 +14,12 @@
 ## Dev Server
 <!-- Run: bash analyze_repo.sh {{WORKSPACE_PATH}} to auto-populate -->
 
+## Run Local Stack (Use this for local "deploy")
+<!-- Run: bash analyze_repo.sh {{WORKSPACE_PATH}} to auto-populate -->
+
+## Confirm (Smoke Check)
+<!-- Run: bash analyze_repo.sh {{WORKSPACE_PATH}} to auto-populate -->
+
 ## Service Ports
 
 | Service | Port | Description |
@@ -22,7 +28,8 @@
 
 ## Git Policy
 
-- Feature branches: openclaw/{{AGENT_NAME}}/<description>
+- Feature branches: use professional names (e.g., feat/<description>, fix/<description>, chore/<description>)
 - Commit format: conventional commits (feat:, fix:, chore:)
 - NEVER include Co-Authored-By lines -- commits must appear as the user's own
-- Create PR when work is complete
+- Push the branch to origin before creating a PR
+- Create PR only after build/local-run/test/confirm is complete

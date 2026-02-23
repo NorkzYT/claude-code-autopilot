@@ -775,6 +775,41 @@ else
   log "Section 7b: Skipping Codex compatibility (--skip-codex)"
 fi
 
+# ─── Section 7c: Install OpenClaw Workflow Plugin ──────────
+log "Section 7c: Installing OpenClaw local workflow plugin..."
+
+LOCAL_WORKFLOW_PLUGIN_ID="local-workflow-wrapper"
+LOCAL_WORKFLOW_PLUGIN_SRC="$WORKSPACE_PATH/.claude/openclaw-plugins/$LOCAL_WORKFLOW_PLUGIN_ID"
+
+if [[ -d "$LOCAL_WORKFLOW_PLUGIN_SRC" ]]; then
+  plugin_install_out=""
+  if plugin_install_out="$(openclaw plugins install -l "$LOCAL_WORKFLOW_PLUGIN_SRC" 2>&1)"; then
+    log "Installed plugin: $LOCAL_WORKFLOW_PLUGIN_ID"
+  else
+    if echo "$plugin_install_out" | grep -Eqi 'already (installed|exists)|is already'; then
+      skip "Plugin $LOCAL_WORKFLOW_PLUGIN_ID"
+    else
+      warn "Failed to install plugin $LOCAL_WORKFLOW_PLUGIN_ID"
+      warn "$plugin_install_out"
+    fi
+  fi
+
+  plugin_enable_out=""
+  if plugin_enable_out="$(openclaw plugins enable "$LOCAL_WORKFLOW_PLUGIN_ID" 2>&1)"; then
+    log "Enabled plugin: $LOCAL_WORKFLOW_PLUGIN_ID"
+  else
+    if echo "$plugin_enable_out" | grep -Eqi 'already enabled|is enabled'; then
+      skip "Plugin $LOCAL_WORKFLOW_PLUGIN_ID enabled"
+    else
+      warn "Failed to enable plugin $LOCAL_WORKFLOW_PLUGIN_ID"
+      warn "$plugin_enable_out"
+    fi
+  fi
+else
+  warn "Plugin source not found: $LOCAL_WORKFLOW_PLUGIN_SRC"
+  warn "Expected .claude/openclaw-plugins/$LOCAL_WORKFLOW_PLUGIN_ID/ in the workspace"
+fi
+
 # ─── Section 8: Restart Gateway ─────────────────────────────
 if [[ "$NO_RESTART" == "false" ]]; then
   log "Section 8: Restarting gateway..."
@@ -818,4 +853,8 @@ fi
 echo "  To add skills, create SKILL.md files in:"
 echo "    $WORKSPACE_PATH/.openclaw/skills/<skill-name>/SKILL.md"
 echo "  (Include YAML frontmatter with 'name' and 'description')"
+echo ""
+echo "  Local workflow commands (via OpenClaw plugin):"
+echo "    /localflow       # run build -> run-local -> test -> confirm"
+echo "    /workflowcheck   # show latest local workflow report"
 echo ""

@@ -36,10 +36,20 @@ bash .claude/bootstrap/openclaw_setup.sh
 - `~/.openclaw/AGENTS.md` (agent operating instructions)
 - `~/.openclaw/HEARTBEAT.md` (health check template)
 - Recommended OpenClaw skill during base setup (github). Discord skill is bundled and becomes ready after `openclaw channels add --channel discord --token <your-bot-token>` (or the Discord setup script) configures a token.
+- Recommended OpenClaw plugin hooks (if supported): `bootstrap-extra-files`, `session-memory`, `command-logger`
 - `OPENCLAW_HOME` environment variable in shell profiles
 - Project `.gitignore` entries for local agent/runtime state:
   - `.claude/`, `.codex/`, `.codex-home/`, `.agents/`, `.openclaw/`, root `AGENTS.md` shim
 - Automatic agent registration attempt during install (`OPENCLAW_AUTO_REGISTER=1`)
+
+### Hook Systems (Important)
+
+This project uses two hook systems:
+
+- `.claude/hooks/*` for Claude Code prompt/tool guardrails and logging
+- `openclaw hooks ...` for gateway runtime hooks (memory sync, bootstrap extra files, command logging)
+
+They are separate and can be used together.
 
 ## Phase 2: Claude Max Authentication
 
@@ -99,14 +109,17 @@ openclaw notify "Hello from Claude Code Autopilot!"
 
 ### Discord Commands Reference
 
-See `.claude/docs/openclaw-remote-commands.md` for the full command reference.
+See `.claude/docs/openclaw-remote-commands.md` for the full guide.
 
-Quick reference:
-- `!ship <task>` — Execute autopilot pipeline
-- `!test` — Run tests
-- `!review <PR#>` — Review PR
-- `!status` — Status overview
-- `!ask <question>` — Query codebase
+Quick reference (OpenClaw 2026.2.x):
+- `/status` — Status overview
+- `/help` — Available commands
+- `/new` — Start a fresh session in the current channel/thread
+
+Notes:
+- Prefer slash commands.
+- `!status`, `!ship`, and other `!` commands are not guaranteed built-ins.
+- If `!status` returns `bash is disabled`, use `/status` or enable `commands.bash=true` only if you want shell passthrough.
 
 ## Phase 4: Cron Scheduling
 
@@ -163,8 +176,8 @@ The heartbeat monitors git status, tests, dependencies, and system health every 
 # From Claude Code
 /tools:memory-search "how did we fix the auth bug"
 
-# From Discord
-!memory "database migration approach"
+# From Discord (if your server has a custom memory command)
+# example: !memory "database migration approach"
 
 # From CLI
 openclaw memory search "session state pattern"
@@ -197,7 +210,8 @@ openclaw memory prune --older-than 30d
 /tools:browser-test http://localhost:3000
 
 # From Discord
-!ship "Take a screenshot of the login page and check for visual issues"
+/new
+# Ask the agent to use browser tooling to capture a screenshot of the login page
 ```
 
 ### Viewport Testing
@@ -277,25 +291,26 @@ openclaw workspace set "$(pwd)"
 ```
 Claude Code Autopilot          OpenClaw Platform
 ┌─────────────────────┐       ┌──────────────────────┐
-│ .claude/hooks/      │──────▶│ Gateway (port 18789) │
-│   cost_tracker.py   │       │                      │
-│   memory_sync.py    │       │ Discord Bot          │
-│                     │       │ Cron Scheduler       │
+│ .claude/hooks/      │       │ Gateway (port 18789) │
+│   (Claude Code)     │       │                      │
+│                     │       │ Discord Bot          │
 │ .claude/context/    │──────▶│ Memory/RAG (SQLite)  │
 │   plan.md           │       │ Browser (CDP)        │
 │   context.md        │       │                      │
 │   tasks.md          │       │ Cost Tracking        │
-└─────────────────────┘       └──────────────────────┘
+└─────────────────────┘       │ Plugin Hooks         │
+        │                     │ (OpenClaw gateway)   │
+        └────────────────────▶└──────────────────────┘
          │                              │
          └──────── Discord ◀────────────┘
-                   !ship, !test, !status
+                   /status, /help, /new
 ```
 
 ## Phase 8: Autonomous Engineering Mode
 
 ### Overview
 
-Autonomous mode allows Claude Code to work unattended — fixing code, verifying data, and committing changes on feature branches. It's activated by the `OPENCLAW_AUTONOMOUS=1` environment variable, which is set by cron jobs or the `!autonomous` Discord command.
+Autonomous mode allows Claude Code to work unattended for local engineering tasks — fixing code, running local build/test steps, and committing changes on feature branches. It is activated by the `OPENCLAW_AUTONOMOUS=1` environment variable.
 
 ### Enabling Autonomous Mode
 
@@ -304,7 +319,7 @@ Autonomous mode allows Claude Code to work unattended — fixing code, verifying
 OPENCLAW_AUTONOMOUS=1 claude --print "task description"
 
 # Via Discord
-!autonomous "Fix the failing test in auth module"
+# Start a session, then give the task in chat. Slash commands manage the session.
 
 # Via cron (see .claude/templates/cron-jobs.json)
 # data-verification and api-discovery jobs are pre-configured
@@ -346,7 +361,7 @@ See `.claude/skills/openclaw-browser/EXTENSION_TESTING.md` for full guide.
 
 ### Git Commit Policy
 
-- All autonomous commits go on feature branches (`openclaw/<name>`)
+- All autonomous commits go on professional feature branches (`fix/<name>`, `feat/<name>`, `chore/<name>`)
 - NEVER include `Co-Authored-By` lines in commit messages -- commits must appear as the user's own
 - Conventional commit format (`feat:`, `fix:`, `chore:`)
 - After work is complete, a PR is created for user review
@@ -363,11 +378,8 @@ Enable: `openclaw cron enable data-verification`
 
 ### Discord Commands (Autonomous)
 
-- `!autonomous <task>` — Execute with full autonomous permissions
-- `!browse <url>` — Navigate and screenshot
-- `!verify <task>` — Run data verification pattern
-- `!har <url>` — Capture HAR and analyze endpoints
-- `!workspace list/switch` — Multi-workspace management
+Use slash commands for session control (`/new`, `/status`) and then send the task prompt in chat.
+Custom `!` workflows can be added, and they are not required for autonomous mode.
 
 ### Multi-Workspace Setup
 
@@ -377,7 +389,7 @@ openclaw workspace add <name> <path>
 
 # Switch between workspaces
 openclaw workspace set <name>
-# or from Discord: !workspace switch <name>
+# or use channel bindings so each Discord channel routes to the right agent/workspace
 
 # List all workspaces
 openclaw workspace list
@@ -426,7 +438,7 @@ The script performs 12 idempotent steps:
 7. **Workspace state** -- Creates `.openclaw/workspace-state.json` in workspace root
 8. **Skills directory** -- Creates `skills/` directory for OpenClaw skill discovery
 9. **Skill conversion** -- Converts `.claude/skills/*/SKILL.md` to OpenClaw format with YAML frontmatter
-10. **Workspace `.gitignore` sync** -- Adds `.claude/`, `.codex/`, `.codex-home/`, `.agents/`, `.openclaw/`, `.openclaw/sessions/`, and root `AGENTS.md` shim
+10. **Workspace `.gitignore` sync** -- Adds local agent/runtime paths and generated root OpenClaw files so they stay local
 11. **Codex compatibility** -- Creates root `AGENTS.md` shim, `.codex/rules/default.rules`, and links `.agents/skills` to `.openclaw/skills`
 12. **Gateway restart** -- Restarts the gateway to pick up new agent
 
