@@ -52,6 +52,47 @@ is_custom() {
   return 1
 }
 
+# Claude sometimes returns explanatory preambles even when asked for markdown-only
+# output. Keep only the actual PROJECT.md body before writing the file.
+sanitize_project_output() {
+  python3 - "$AUTO_GEN_MARKER" <<'PY'
+import sys
+
+marker = sys.argv[1]
+text = sys.stdin.read()
+if not text:
+    sys.exit(0)
+
+text = text.replace("\r\n", "\n")
+
+def trim_to_anchor(s: str) -> str:
+    for anchor in (marker, "# PROJECT.md -", "# PROJECT.md"):
+        idx = s.find(anchor)
+        if idx >= 0:
+            return s[idx:]
+    return s
+
+def strip_code_fence_wrapper(s: str) -> str:
+    lines = s.strip().splitlines()
+    if not lines:
+        return s.strip()
+    # Remove a leading markdown/code fence line if present.
+    if lines[0].strip().startswith("```"):
+        lines = lines[1:]
+    # Remove trailing code fence if present.
+    while lines and lines[-1].strip() == "":
+        lines.pop()
+    if lines and lines[-1].strip().startswith("```"):
+        lines.pop()
+    return "\n".join(lines).strip()
+
+clean = trim_to_anchor(text)
+clean = strip_code_fence_wrapper(clean)
+
+sys.stdout.write(clean)
+PY
+}
+
 # ─── Parse Arguments ────────────────────────────────────────
 WORKSPACE="${1:-}"
 DEEP=false
@@ -640,6 +681,10 @@ Write ONLY the markdown content, no preamble or explanation."
   if [[ "$CLAUDE_OUTPUT" == *"The write requires your approval"* ]] || [[ "$CLAUDE_OUTPUT" == *"Please approve the write to proceed"* ]]; then
     warn "Claude returned a write-approval prompt instead of PROJECT.md content — treating as failed deep scan"
     CLAUDE_OUTPUT=""
+  fi
+
+  if [[ -n "$CLAUDE_OUTPUT" ]]; then
+    CLAUDE_OUTPUT="$(printf '%s' "$CLAUDE_OUTPUT" | sanitize_project_output)"
   fi
 
   if [[ -n "$CLAUDE_OUTPUT" ]]; then
