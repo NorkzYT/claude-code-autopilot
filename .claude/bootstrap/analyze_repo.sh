@@ -94,7 +94,47 @@ PY
 }
 
 estimate_repo_deep_scan_size() {
-  python3 - "$1" <<'PY'
+  local workspace="$1"
+
+  # Prefer git-aware sizing so .gitignore and exclude-standard rules are honored.
+  if has git && git -C "$workspace" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    python3 - "$workspace" <<'PY'
+from pathlib import Path
+import subprocess
+import sys
+
+root = Path(sys.argv[1])
+file_count = 0
+total_bytes = 0
+
+cmd = ["git", "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard"]
+try:
+    out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
+except Exception:
+    print("0|0|git-failed")
+    raise SystemExit(0)
+
+for rel in out.split(b"\0"):
+    if not rel:
+        continue
+    try:
+        path = root / rel.decode("utf-8", "replace")
+    except Exception:
+        continue
+    if not path.is_file():
+        continue
+    file_count += 1
+    try:
+        total_bytes += path.stat().st_size
+    except OSError:
+        pass
+
+print(f"{file_count}|{total_bytes}|git")
+PY
+    return 0
+  fi
+
+  python3 - "$workspace" <<'PY'
 from pathlib import Path
 import sys
 
@@ -126,25 +166,55 @@ def walk(p: Path):
         pass
 
 walk(root)
-print(f"{file_count}|{total_bytes}")
+print(f"{file_count}|{total_bytes}|walk")
+PY
+}
+
+gitignore_prompt_context() {
+  local workspace="$1"
+  local gitignore_file="$workspace/.gitignore"
+  [[ -f "$gitignore_file" ]] || return 0
+
+  python3 - "$gitignore_file" <<'PY'
+from pathlib import Path
+import sys
+
+p = Path(sys.argv[1])
+try:
+    text = p.read_text(errors="replace")
+except Exception:
+    sys.exit(0)
+
+# Keep this bounded so it doesn't blow up prompt size.
+max_chars = 6000
+text = text[:max_chars]
+text = text.strip()
+if not text:
+    sys.exit(0)
+
+print("Git ignore rules (read first and honor these; do not inspect ignored paths/files):")
+print("```gitignore")
+print(text)
+print("```")
 PY
 }
 
 pick_deep_scan_timeouts() {
   local workspace="$1"
-  local file_count total_bytes size_mb tier timeout_s retry_s
+  local file_count total_bytes size_mb tier timeout_s retry_s source
 
   # Respect explicit overrides.
   if [[ -n "${CLAUDE_DEEP_TIMEOUT:-}" || -n "${CLAUDE_DEEP_RETRY_TIMEOUT:-}" ]]; then
     timeout_s="${CLAUDE_DEEP_TIMEOUT:-420}"
     retry_s="${CLAUDE_DEEP_RETRY_TIMEOUT:-900}"
-    echo "override|unknown|unknown|${timeout_s}|${retry_s}"
+    echo "override|unknown|unknown|${timeout_s}|${retry_s}|override"
     return 0
   fi
 
-  IFS='|' read -r file_count total_bytes <<<"$(estimate_repo_deep_scan_size "$workspace" 2>/dev/null || echo '0|0')"
+  IFS='|' read -r file_count total_bytes source <<<"$(estimate_repo_deep_scan_size "$workspace" 2>/dev/null || echo '0|0|unknown')"
   file_count="${file_count:-0}"
   total_bytes="${total_bytes:-0}"
+  source="${source:-unknown}"
   size_mb=$(( total_bytes / 1024 / 1024 ))
 
   if (( file_count <= 800 && size_mb <= 10 )); then
@@ -157,7 +227,7 @@ pick_deep_scan_timeouts() {
     tier="xlarge"; timeout_s=1800; retry_s=3600
   fi
 
-  echo "${tier}|${file_count}|${size_mb}|${timeout_s}|${retry_s}"
+  echo "${tier}|${file_count}|${size_mb}|${timeout_s}|${retry_s}|${source}"
 }
 
 # ─── Parse Arguments ────────────────────────────────────────
@@ -702,18 +772,20 @@ else
     exit 1
   fi
 
-  IFS='|' read -r DEEP_TIER DEEP_FILE_COUNT DEEP_SIZE_MB CLAUDE_DEEP_TIMEOUT CLAUDE_DEEP_RETRY_TIMEOUT \
+  IFS='|' read -r DEEP_TIER DEEP_FILE_COUNT DEEP_SIZE_MB CLAUDE_DEEP_TIMEOUT CLAUDE_DEEP_RETRY_TIMEOUT DEEP_SIZE_SOURCE \
     <<<"$(pick_deep_scan_timeouts "$WORKSPACE")"
   if has timeout; then
     if [[ "$DEEP_TIER" == "override" ]]; then
       log "Running Claude deep scan (timeout: ${CLAUDE_DEEP_TIMEOUT}s, retry: ${CLAUDE_DEEP_RETRY_TIMEOUT}s; env override)..."
     else
-      log "Deep scan size estimate: tier=${DEEP_TIER}, files=${DEEP_FILE_COUNT}, size≈${DEEP_SIZE_MB}MB"
+      log "Deep scan size estimate: tier=${DEEP_TIER}, files=${DEEP_FILE_COUNT}, size≈${DEEP_SIZE_MB}MB (source=${DEEP_SIZE_SOURCE})"
       log "Running Claude deep scan (timeout: ${CLAUDE_DEEP_TIMEOUT}s, retry: ${CLAUDE_DEEP_RETRY_TIMEOUT}s)..."
     fi
   else
     log "Running Claude deep scan (no timeout command found; may take several minutes)..."
   fi
+
+  GITIGNORE_CONTEXT="$(gitignore_prompt_context "$WORKSPACE" || true)"
 
   CLAUDE_PROMPT="You are analyzing the codebase at $WORKSPACE. Read the directory structure, key source files, and configuration. Return markdown text only.
 
@@ -722,6 +794,9 @@ Important:
 - Do NOT say what you plan to write.
 - Do NOT call tools or ask for confirmation.
 - You are not writing the file directly; another process will write your text output.
+- Read and honor .gitignore rules before inspecting files. Do not read or summarize ignored paths/files.
+
+${GITIGNORE_CONTEXT}
 
 Write a comprehensive PROJECT.md that covers:
 1. Project architecture and component map
