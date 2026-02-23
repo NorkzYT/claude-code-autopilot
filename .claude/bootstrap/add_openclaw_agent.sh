@@ -23,7 +23,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="$(cd "$SCRIPT_DIR/../templates/agent-persona" && pwd 2>/dev/null || echo "")"
 CODEX_TEMPLATE_DIR="$(cd "$SCRIPT_DIR/../templates/codex" && pwd 2>/dev/null || echo "")"
 GIT_HOOK_TEMPLATE_DIR="$(cd "$SCRIPT_DIR/../templates/git-hooks" && pwd 2>/dev/null || echo "")"
-OPENCLAW_HOME="${OPENCLAW_HOME:-$HOME/.openclaw}"
+# OpenClaw uses OPENCLAW_STATE_DIR for the state root. Prefer it and avoid
+# relying on OPENCLAW_HOME here because some setups export it with a different
+# meaning, which can cause nested ~/.openclaw/.openclaw paths.
+OPENCLAW_HOME="${OPENCLAW_STATE_DIR:-${OPENCLAW_HOME:-$HOME/.openclaw}}"
 
 # ─── Defaults ───────────────────────────────────────────────
 DISPLAY_NAME=""
@@ -38,6 +41,25 @@ log()  { echo "  [+] $*"; }
 warn() { echo "  [!] $*" >&2; }
 err()  { echo "  [ERROR] $*" >&2; exit 1; }
 skip() { echo "  [~] $* (already exists, skipping)"; }
+
+gateway_status_ready() {
+  local out
+  out="$(openclaw gateway status 2>&1 || true)"
+  echo "$out" | grep -q "RPC probe: ok" && echo "$out" | grep -q "^Listening:"
+}
+
+wait_for_gateway_ready() {
+  local timeout_secs="${1:-20}"
+  local elapsed=0
+  while (( elapsed < timeout_secs )); do
+    if gateway_status_ready; then
+      return 0
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+  return 1
+}
 
 ensure_gitignore_entry() {
   local file="$1"
@@ -313,6 +335,13 @@ if [[ "$SKIP_PERSONA" == "false" ]]; then
   for tmpl in "$TEMPLATE_DIR"/*.tmpl; do
     [[ ! -f "$tmpl" ]] && continue
     filename="$(basename "$tmpl" .tmpl)"
+    # Analyzer owns these files so they always reflect the actual repo, not
+    # generic template content.
+    case "$filename" in
+      TOOLS.md|HEARTBEAT.md|PROJECT.md)
+        continue
+        ;;
+    esac
     target="$WORKSPACE_PATH/$filename"
 
     if [[ -f "$target" ]]; then
@@ -795,10 +824,21 @@ fi
 # ─── Section 8: Restart Gateway ─────────────────────────────
 if [[ "$NO_RESTART" == "false" ]]; then
   log "Section 8: Restarting gateway..."
-  if openclaw gateway restart 2>/dev/null; then
-    log "Gateway restarted"
+  restart_out=""
+  if restart_out="$(openclaw gateway restart 2>&1)"; then
+    if wait_for_gateway_ready 20; then
+      log "Gateway restarted"
+    else
+      warn "Gateway restart completed, but gateway is still warming up"
+      warn "Check status in a few seconds: openclaw gateway status"
+    fi
   else
-    warn "Gateway restart failed (may not be running). Start with: openclaw gateway start"
+    if wait_for_gateway_ready 20; then
+      warn "Gateway restart reported unhealthy during warm-up, but became healthy after retry window"
+    else
+      printf '%s\n' "$restart_out" >&2
+      warn "Gateway restart failed (may not be running). Start with: openclaw gateway start"
+    fi
   fi
 else
   log "Section 8: Skipping gateway restart (--no-restart)"

@@ -12,7 +12,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="$(cd "$SCRIPT_DIR/../templates" && pwd 2>/dev/null || echo "")"
-OPENCLAW_HOME="${OPENCLAW_HOME:-$HOME/.openclaw}"
+OPENCLAW_HOME="${OPENCLAW_STATE_DIR:-${OPENCLAW_HOME:-$HOME/.openclaw}}"
 
 # ─── Helpers ────────────────────────────────────────────────
 log()  { printf "\n==> %s\n" "$*"; }
@@ -256,7 +256,7 @@ set -euo pipefail
 #   bash sync-extension.sh /opt/github/MyExt/dist my-ext
 #   bash sync-extension.sh ~/projects/my-ext/build my-ext
 
-OPENCLAW_HOME="${OPENCLAW_HOME:-$HOME/.openclaw}"
+OPENCLAW_HOME="${OPENCLAW_STATE_DIR:-${OPENCLAW_HOME:-$HOME/.openclaw}}"
 DATA_DIR="$OPENCLAW_HOME/data"
 EXTENSIONS_DIR="$DATA_DIR/extensions"
 ENV_FILE="$OPENCLAW_HOME/data/.env"

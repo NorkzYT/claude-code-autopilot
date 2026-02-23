@@ -211,7 +211,7 @@ function runShell(workspace, scriptPath) {
   });
 }
 
-export default async function register(api) {
+export async function register(api) {
   const log = api?.logger ?? console;
 
   api.registerCommand(
@@ -286,3 +286,5 @@ export default async function register(api) {
     },
   );
 }
+
+export default register;

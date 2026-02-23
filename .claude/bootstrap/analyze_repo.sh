@@ -583,8 +583,8 @@ else
 
   PROJECT_FILE="$WORKSPACE/PROJECT.md"
 
-  if is_custom "$PROJECT_FILE"; then
-    skip "PROJECT.md has custom content, not overwriting"
+  if [[ -s "$PROJECT_FILE" ]]; then
+    skip "PROJECT.md already exists with content, not overwriting"
     exit 0
   fi
 
