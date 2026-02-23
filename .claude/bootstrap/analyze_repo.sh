@@ -93,6 +93,73 @@ sys.stdout.write(clean)
 PY
 }
 
+estimate_repo_deep_scan_size() {
+  python3 - "$1" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+exclude = {
+    ".git", "node_modules", ".next", ".cache", ".turbo", "dist", "build",
+    "__pycache__", ".venv", "venv", "target", "vendor", ".idea", ".vscode"
+}
+
+file_count = 0
+total_bytes = 0
+
+def walk(p: Path):
+    global file_count, total_bytes
+    try:
+        for child in p.iterdir():
+            name = child.name
+            if child.is_dir():
+                if name in exclude:
+                    continue
+                walk(child)
+            elif child.is_file():
+                file_count += 1
+                try:
+                    total_bytes += child.stat().st_size
+                except OSError:
+                    pass
+    except OSError:
+        pass
+
+walk(root)
+print(f"{file_count}|{total_bytes}")
+PY
+}
+
+pick_deep_scan_timeouts() {
+  local workspace="$1"
+  local file_count total_bytes size_mb tier timeout_s retry_s
+
+  # Respect explicit overrides.
+  if [[ -n "${CLAUDE_DEEP_TIMEOUT:-}" || -n "${CLAUDE_DEEP_RETRY_TIMEOUT:-}" ]]; then
+    timeout_s="${CLAUDE_DEEP_TIMEOUT:-420}"
+    retry_s="${CLAUDE_DEEP_RETRY_TIMEOUT:-900}"
+    echo "override|unknown|unknown|${timeout_s}|${retry_s}"
+    return 0
+  fi
+
+  IFS='|' read -r file_count total_bytes <<<"$(estimate_repo_deep_scan_size "$workspace" 2>/dev/null || echo '0|0')"
+  file_count="${file_count:-0}"
+  total_bytes="${total_bytes:-0}"
+  size_mb=$(( total_bytes / 1024 / 1024 ))
+
+  if (( file_count <= 800 && size_mb <= 10 )); then
+    tier="small"; timeout_s=300; retry_s=600
+  elif (( file_count <= 4000 && size_mb <= 60 )); then
+    tier="medium"; timeout_s=600; retry_s=1200
+  elif (( file_count <= 15000 && size_mb <= 250 )); then
+    tier="large"; timeout_s=1200; retry_s=2400
+  else
+    tier="xlarge"; timeout_s=1800; retry_s=3600
+  fi
+
+  echo "${tier}|${file_count}|${size_mb}|${timeout_s}|${retry_s}"
+}
+
 # ─── Parse Arguments ────────────────────────────────────────
 WORKSPACE="${1:-}"
 DEEP=false
@@ -635,10 +702,15 @@ else
     exit 1
   fi
 
-  CLAUDE_DEEP_TIMEOUT="${CLAUDE_DEEP_TIMEOUT:-420}"
-  CLAUDE_DEEP_RETRY_TIMEOUT="${CLAUDE_DEEP_RETRY_TIMEOUT:-900}"
+  IFS='|' read -r DEEP_TIER DEEP_FILE_COUNT DEEP_SIZE_MB CLAUDE_DEEP_TIMEOUT CLAUDE_DEEP_RETRY_TIMEOUT \
+    <<<"$(pick_deep_scan_timeouts "$WORKSPACE")"
   if has timeout; then
-    log "Running Claude deep scan (timeout: ${CLAUDE_DEEP_TIMEOUT}s)..."
+    if [[ "$DEEP_TIER" == "override" ]]; then
+      log "Running Claude deep scan (timeout: ${CLAUDE_DEEP_TIMEOUT}s, retry: ${CLAUDE_DEEP_RETRY_TIMEOUT}s; env override)..."
+    else
+      log "Deep scan size estimate: tier=${DEEP_TIER}, files=${DEEP_FILE_COUNT}, size≈${DEEP_SIZE_MB}MB"
+      log "Running Claude deep scan (timeout: ${CLAUDE_DEEP_TIMEOUT}s, retry: ${CLAUDE_DEEP_RETRY_TIMEOUT}s)..."
+    fi
   else
     log "Running Claude deep scan (no timeout command found; may take several minutes)..."
   fi
