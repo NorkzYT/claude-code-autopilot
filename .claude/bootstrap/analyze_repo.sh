@@ -55,7 +55,9 @@ is_custom() {
 # Claude sometimes returns explanatory preambles even when asked for markdown-only
 # output. Keep only the actual PROJECT.md body before writing the file.
 sanitize_project_output() {
-  python3 - "$AUTO_GEN_MARKER" <<'PY'
+  # Use process substitution for the script so stdin remains available for pipe data.
+  # A heredoc (<<'PY') would steal stdin from the pipe, making sys.stdin.read() empty.
+  python3 <(cat <<'PY'
 import sys
 
 marker = sys.argv[1]
@@ -91,6 +93,7 @@ clean = strip_code_fence_wrapper(clean)
 
 sys.stdout.write(clean)
 PY
+) "$AUTO_GEN_MARKER"
 }
 
 estimate_repo_deep_scan_size() {
