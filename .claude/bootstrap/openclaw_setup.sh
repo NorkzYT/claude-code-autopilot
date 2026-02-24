@@ -239,8 +239,30 @@ if has openclaw; then
   openclaw config set gateway.port 18789 2>/dev/null || true
   openclaw config set gateway.bind "$GATEWAY_BIND_MODE" 2>/dev/null || true
   openclaw config set gateway.tailscale.mode "$TAILSCALE_MODE" 2>/dev/null || true
+  # Detect the best Chromium executable.
+  # On Snap systems, /usr/bin/chromium-browser is a wrapper that can hang on
+  # headless servers (calls desktop-environment helpers).  Use /snap/bin/chromium
+  # directly when available.
+  CHROME_BIN=""
+  if [[ -x /snap/bin/chromium ]]; then
+    CHROME_BIN="/snap/bin/chromium"
+  elif [[ -x /usr/bin/chromium-browser ]]; then
+    CHROME_BIN="/usr/bin/chromium-browser"
+  elif [[ -x /usr/bin/chromium ]]; then
+    CHROME_BIN="/usr/bin/chromium"
+  elif [[ -x /usr/bin/google-chrome ]]; then
+    CHROME_BIN="/usr/bin/google-chrome"
+  elif [[ -x /usr/bin/google-chrome-stable ]]; then
+    CHROME_BIN="/usr/bin/google-chrome-stable"
+  fi
+
   openclaw config set browser.enabled true 2>/dev/null || true
   openclaw config set browser.headless true 2>/dev/null || true
+  openclaw config set browser.noSandbox true 2>/dev/null || true
+  if [[ -n "$CHROME_BIN" ]]; then
+    openclaw config set browser.executablePath "$CHROME_BIN" 2>/dev/null || true
+    log "Browser executable: $CHROME_BIN"
+  fi
   openclaw config set cron.enabled true 2>/dev/null || true
   openclaw config set browser.downloads.directory "$OPENCLAW_HOME/downloads" 2>/dev/null || true
   log "Config updated via openclaw config set"
@@ -383,9 +405,40 @@ if has openclaw; then
   done
 fi
 
-# ---- 7c) Browser ----
+# ---- 7c) Browser (Snap profile path fix) ----
 # OpenClaw uses its built-in managed browser ("openclaw" profile).
 # See https://docs.openclaw.ai/tools/browser
+#
+# Snap Chromium cannot access hidden directories (~/.anything/) due to
+# AppArmor's home interface restriction.  OpenClaw stores its browser
+# profile at ~/.openclaw/browser/openclaw/user-data which is invisible
+# to Snap Chromium.  Fix: symlink the profile to a Snap-accessible path.
+BROWSER_PROFILE_DIR="$OPENCLAW_HOME/browser/openclaw"
+SNAP_BROWSER_DIR="$HOME/snap/chromium/common/openclaw-browser"
+
+if [[ -x /snap/bin/chromium ]]; then
+  mkdir -p "$BROWSER_PROFILE_DIR"
+  mkdir -p "$SNAP_BROWSER_DIR"
+  if [[ -d "$BROWSER_PROFILE_DIR/user-data" && ! -L "$BROWSER_PROFILE_DIR/user-data" ]]; then
+    # Real directory exists — migrate contents then replace with symlink
+    cp -a "$BROWSER_PROFILE_DIR/user-data/." "$SNAP_BROWSER_DIR/" 2>/dev/null || true
+    mv "$BROWSER_PROFILE_DIR/user-data" "$BROWSER_PROFILE_DIR/user-data.bak"
+    log "Migrated existing browser profile to Snap-accessible path"
+  fi
+  if [[ ! -L "$BROWSER_PROFILE_DIR/user-data" ]]; then
+    ln -sfn "$SNAP_BROWSER_DIR" "$BROWSER_PROFILE_DIR/user-data"
+    log "Symlinked browser profile: $BROWSER_PROFILE_DIR/user-data -> $SNAP_BROWSER_DIR"
+  else
+    skip "Browser profile symlink already exists"
+  fi
+  # Remove stale SingletonLock if no Chromium is running
+  if [[ -e "$SNAP_BROWSER_DIR/SingletonLock" ]]; then
+    if ! pgrep -f "chromium" >/dev/null 2>&1; then
+      unlink "$SNAP_BROWSER_DIR/SingletonLock" 2>/dev/null || true
+      log "Removed stale SingletonLock"
+    fi
+  fi
+fi
 log "Browser: using OpenClaw-managed browser (openclaw profile)"
 
 # ---- 8) Add OPENCLAW_STATE_DIR to shell profiles ----
