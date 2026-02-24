@@ -831,16 +831,24 @@ Write ONLY the markdown content, no preamble or explanation."
     local out_log="$DEEP_SCAN_LOG_DIR/claude-deep-scan.attempt${attempt}.stdout.log"
     local err_log="$DEEP_SCAN_LOG_DIR/claude-deep-scan.attempt${attempt}.stderr.log"
     local meta_log="$DEEP_SCAN_LOG_DIR/claude-deep-scan.attempt${attempt}.meta.log"
-    local rc elapsed
+    local rc elapsed start_ts
 
     : > "$out_log"
     : > "$err_log"
-    : > "$meta_log"
+    start_ts="$(date -Is 2>/dev/null || date)"
+    {
+      echo "attempt=$attempt"
+      echo "status=running"
+      echo "started_at=$start_ts"
+      echo "timeout_s=${timeout_s:-none}"
+      echo "stdout_log=$out_log"
+      echo "stderr_log=$err_log"
+    } > "$meta_log"
 
     SECONDS=0
     set +e
     if has timeout && [[ -n "$timeout_s" ]]; then
-      timeout "${timeout_s}s" claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
+      timeout -k 20s "${timeout_s}s" claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
       rc=$?
     else
       claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
@@ -857,6 +865,8 @@ Write ONLY the markdown content, no preamble or explanation."
 
     {
       echo "attempt=$attempt"
+      echo "status=finished"
+      echo "started_at=$start_ts"
       echo "timeout_s=${timeout_s:-none}"
       echo "rc=$rc"
       echo "elapsed_s=$elapsed"
