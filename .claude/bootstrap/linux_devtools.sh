@@ -49,6 +49,12 @@ else
 fi
 
 # ---- 2) Node/npm via fnm ----
+node_major_or_zero() {
+  local v
+  v="$(node -v 2>/dev/null || true)"
+  printf '%s\n' "${v}" | sed -E 's/^v([0-9]+)\..*/\1/; t; s/.*/0/'
+}
+
 setup_node_fnm() {
   if ! has fnm; then
     log "Installing fnm..."
@@ -65,8 +71,15 @@ setup_node_fnm() {
     return 1
   fi
 
-  if ! has node; then
-    log "Installing Node.js LTS..."
+  local current_node_major=0
+  current_node_major="$(node_major_or_zero)"
+
+  if ! has node || [[ "$current_node_major" -lt 22 ]]; then
+    if has node; then
+      log "System Node $(node -v) is below Node 22+. Installing/activating fnm LTS..."
+    else
+      log "Installing Node.js LTS..."
+    fi
     INSTALL_OUT="$(fnm install lts-latest 2>&1 || true)"
     LTS_VER="$(printf '%s\n' "$INSTALL_OUT" | sed -nE 's/.*Installing Node (v[0-9]+\.[0-9]+\.[0-9]+).*/\1/p' | head -n1)"
     if [[ -n "${LTS_VER}" ]]; then
@@ -74,6 +87,7 @@ setup_node_fnm() {
       fnm default "${LTS_VER}" || true
     else
       fnm use lts-latest || true
+      fnm default lts-latest || true
     fi
   else
     skip "Node.js already installed: $(node -v)"
@@ -85,9 +99,14 @@ setup_node_fnm() {
   fi
 }
 
+NODE_MAJOR_NOW="$(node_major_or_zero)"
 if ! has npm; then
   warn "npm not found. Installing Node/npm via fnm now..."
   setup_node_fnm || warn "Node/npm install failed. JS/Python LSP binaries will be skipped."
+elif [[ "$NODE_MAJOR_NOW" -lt 22 ]]; then
+  warn "Detected Node $(node -v 2>/dev/null || echo 'unknown') (below 22). Activating fnm LTS for OpenClaw compatibility..."
+  setup_node_fnm || warn "fnm Node activation failed; continuing with system Node."
+  skip "npm already installed: $(npm -v)"
 else
   skip "npm already installed: $(npm -v)"
 fi

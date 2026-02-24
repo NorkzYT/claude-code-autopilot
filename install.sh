@@ -244,6 +244,7 @@ ensure_local_agent_gitignore() {
     echo "HEARTBEAT.md"
     echo "BOOTSTRAP.md"
     echo "MEMORY.md"
+    echo "memory/"
     echo "PROJECT.md"
     echo "$end_marker"
   } >> "$gitignore_file"
