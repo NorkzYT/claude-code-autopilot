@@ -204,8 +204,47 @@ build_deep_scan_prompt() {
   local project_name="$2"
   local deep_tier="$3"
   local gitignore_context="$4"
+  local snapshot="${5:-}"
 
-  if [[ "$deep_tier" == "large" || "$deep_tier" == "xlarge" ]]; then
+  if [[ "$deep_tier" == "large" || "$deep_tier" == "xlarge" ]] && [[ -n "$snapshot" ]]; then
+    # Tool-less mode: snapshot is embedded, Claude does not need to read files
+    cat <<EOF
+You are analyzing a codebase. A curated snapshot of the repository is provided below. Return markdown text only.
+
+Important:
+- Do NOT request approval to write files.
+- Do NOT say what you plan to write.
+- Do NOT call tools or ask for confirmation.
+- You are not writing the file directly; another process will write your text output.
+- All the information you need is in the snapshot below. Analyze it thoroughly.
+
+Write a PROJECT.md focused on:
+1. High-level architecture and component map
+2. Main services/apps and what each does
+3. Data flow and integration flow between services
+4. Monorepo/workspace layout
+5. Tech stack by major component
+6. How to build/test/run locally (high-level)
+7. Key conventions and gotchas
+
+Constraints:
+- 120 to 220 lines total
+- Prefer concise tables and bullets
+- Do NOT include exhaustive per-file function listings
+
+Start the file with:
+$AUTO_GEN_MARKER
+# PROJECT.md - $project_name Architecture
+
+Write ONLY the markdown content, no preamble or explanation.
+
+---
+REPOSITORY SNAPSHOT:
+
+$snapshot
+EOF
+  elif [[ "$deep_tier" == "large" || "$deep_tier" == "xlarge" ]]; then
+    # Large repo but no snapshot (fallback) — tool-enabled with fast profile
     cat <<EOF
 You are analyzing the codebase at $workspace. Return markdown text only.
 
@@ -272,6 +311,120 @@ $AUTO_GEN_MARKER
 Write ONLY the markdown content, no preamble or explanation.
 EOF
   fi
+}
+
+build_repo_snapshot() {
+  local workspace="$1"
+  python3 - "$workspace" <<'PY'
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+sections = []
+
+# ── 1. Directory tree (500 lines) ──
+try:
+    tree_out = subprocess.check_output(
+        ["tree", "-L", "3", "--dirsfirst", "-I",
+         "node_modules|.git|.next|.cache|.turbo|dist|build|__pycache__|.venv|venv|target|vendor|.idea|.vscode|coverage"],
+        cwd=str(root), stderr=subprocess.DEVNULL, text=True, timeout=15
+    )
+except Exception:
+    # Fallback: find-based listing
+    try:
+        tree_out = subprocess.check_output(
+            ["find", ".", "-maxdepth", "3", "-not", "-path", "*/.git/*",
+             "-not", "-path", "*/node_modules/*", "-not", "-path", "*/__pycache__/*",
+             "-not", "-path", "*/.next/*", "-not", "-path", "*/.cache/*"],
+            cwd=str(root), stderr=subprocess.DEVNULL, text=True, timeout=15
+        )
+    except Exception:
+        tree_out = "(tree unavailable)"
+
+tree_lines = tree_out.strip().splitlines()[:500]
+sections.append("## Directory Structure\n```\n" + "\n".join(tree_lines) + "\n```")
+
+# ── 2. Root config files (first 100 lines each, max 10) ──
+config_patterns = [
+    "package.json", "tsconfig.json", "pyproject.toml", "go.mod", "Cargo.toml",
+    "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml",
+    "turbo.json", "nx.json", "lerna.json", "pnpm-workspace.yaml",
+    "Makefile", "Dockerfile", "requirements.txt", "setup.py", "setup.cfg",
+    ".eslintrc.json", ".eslintrc.js", "biome.json", "deno.json"
+]
+config_found = 0
+config_parts = []
+for name in config_patterns:
+    if config_found >= 10:
+        break
+    p = root / name
+    if p.is_file():
+        try:
+            lines = p.read_text(errors="replace").splitlines()[:100]
+            config_parts.append(f"### {name}\n```\n" + "\n".join(lines) + "\n```")
+            config_found += 1
+        except Exception:
+            pass
+if config_parts:
+    sections.append("## Root Config Files\n" + "\n\n".join(config_parts))
+
+# ── 3. CI workflows (first 60 lines each, max 5) ──
+ci_dir = root / ".github" / "workflows"
+ci_parts = []
+if ci_dir.is_dir():
+    ci_files = sorted(ci_dir.glob("*.yml")) + sorted(ci_dir.glob("*.yaml"))
+    for cf in ci_files[:5]:
+        try:
+            lines = cf.read_text(errors="replace").splitlines()[:60]
+            ci_parts.append(f"### {cf.name}\n```yaml\n" + "\n".join(lines) + "\n```")
+        except Exception:
+            pass
+if ci_parts:
+    sections.append("## CI Workflows\n" + "\n\n".join(ci_parts))
+
+# ── 4. README.md (first 200 lines) ──
+readme = root / "README.md"
+if readme.is_file():
+    try:
+        lines = readme.read_text(errors="replace").splitlines()[:200]
+        sections.append("## README.md\n" + "\n".join(lines))
+    except Exception:
+        pass
+
+# ── 5. Top-level entrypoints (first 80 lines each, max 8) ──
+entry_globs = [
+    "src/index.*", "src/main.*", "src/app.*",
+    "app/main.*", "app/index.*", "app.py", "main.py", "server.py",
+    "cmd/main.go", "cmd/*/main.go",
+    "lib/index.*", "lib/main.*",
+    "index.ts", "index.js", "main.ts", "main.js",
+    "src/lib.rs", "src/main.rs",
+]
+entry_found = 0
+entry_parts = []
+for pat in entry_globs:
+    if entry_found >= 8:
+        break
+    for match in sorted(root.glob(pat)):
+        if entry_found >= 8:
+            break
+        if not match.is_file():
+            continue
+        try:
+            lines = match.read_text(errors="replace").splitlines()[:80]
+            relpath = match.relative_to(root)
+            entry_parts.append(f"### {relpath}\n```\n" + "\n".join(lines) + "\n```")
+            entry_found += 1
+        except Exception:
+            pass
+if entry_parts:
+    sections.append("## Top-Level Entrypoints\n" + "\n\n".join(entry_parts))
+
+snapshot = "\n\n".join(sections)
+print(snapshot)
+PY
 }
 
 pick_deep_scan_timeouts() {
@@ -863,9 +1016,33 @@ else
   fi
 
   GITIGNORE_CONTEXT="$(gitignore_prompt_context "$WORKSPACE" || true)"
-  CLAUDE_PROMPT="$(build_deep_scan_prompt "$WORKSPACE" "$PROJECT_NAME" "$DEEP_TIER" "$GITIGNORE_CONTEXT")"
+  TOOLLESS_MODE=false
+  REPO_SNAPSHOT=""
   if [[ "$DEEP_TIER" == "large" || "$DEEP_TIER" == "xlarge" ]]; then
-    log "Using fast architecture-first deep scan profile for ${DEEP_TIER} repo"
+    log "Building pre-computed repo snapshot for tool-less mode (${DEEP_TIER} repo)..."
+    REPO_SNAPSHOT="$(build_repo_snapshot "$WORKSPACE" 2>/dev/null || true)"
+    if [[ -n "$REPO_SNAPSHOT" ]]; then
+      TOOLLESS_MODE=true
+      SNAPSHOT_SIZE="${#REPO_SNAPSHOT}"
+      if [[ "$DEBUG" == "true" ]]; then
+        echo "    [DEBUG] Snapshot size: ${SNAPSHOT_SIZE} chars"
+      fi
+      log "Using tool-less mode with pre-computed snapshot (${SNAPSHOT_SIZE} chars)"
+      # Reduce timeouts — no exploration phase needed
+      if [[ "$DEEP_TIER" == "large" ]]; then
+        CLAUDE_DEEP_TIMEOUT=300
+        CLAUDE_DEEP_RETRY_TIMEOUT=0
+      else
+        CLAUDE_DEEP_TIMEOUT=420
+        CLAUDE_DEEP_RETRY_TIMEOUT=0
+      fi
+    else
+      warn "Snapshot generation failed; falling back to tool-enabled mode"
+    fi
+  fi
+  CLAUDE_PROMPT="$(build_deep_scan_prompt "$WORKSPACE" "$PROJECT_NAME" "$DEEP_TIER" "$GITIGNORE_CONTEXT" "$REPO_SNAPSHOT")"
+  if [[ "$DEEP_TIER" == "large" || "$DEEP_TIER" == "xlarge" ]] && [[ "$TOOLLESS_MODE" == "false" ]]; then
+    log "Using fast architecture-first deep scan profile for ${DEEP_TIER} repo (tool-enabled fallback)"
   fi
 
   DEEP_SCAN_LOG_DIR="$OPENCLAW_DIR/logs"
@@ -892,18 +1069,30 @@ else
       echo "status=running"
       echo "started_at=$start_ts"
       echo "timeout_s=${timeout_s:-none}"
+      echo "toolless_mode=$TOOLLESS_MODE"
       echo "stdout_log=$out_log"
       echo "stderr_log=$err_log"
     } > "$meta_log"
 
     SECONDS=0
     set +e
-    if has timeout && [[ -n "$timeout_s" ]]; then
-      timeout -k 20s "${timeout_s}s" claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
-      rc=$?
+    if [[ "$TOOLLESS_MODE" == "true" ]]; then
+      # Tool-less mode: pipe prompt via stdin to handle large snapshots safely
+      if has timeout && [[ -n "$timeout_s" ]]; then
+        printf '%s' "$CLAUDE_PROMPT" | timeout -k 20s "${timeout_s}s" claude --print --tools "" >"$out_log" 2>"$err_log"
+        rc=$?
+      else
+        printf '%s' "$CLAUDE_PROMPT" | claude --print --tools "" >"$out_log" 2>"$err_log"
+        rc=$?
+      fi
     else
-      claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
-      rc=$?
+      if has timeout && [[ -n "$timeout_s" ]]; then
+        timeout -k 20s "${timeout_s}s" claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
+        rc=$?
+      else
+        claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
+        rc=$?
+      fi
     fi
     set -e
     elapsed=$SECONDS
@@ -921,6 +1110,7 @@ else
       echo "timeout_s=${timeout_s:-none}"
       echo "rc=$rc"
       echo "elapsed_s=$elapsed"
+      echo "toolless_mode=$TOOLLESS_MODE"
       echo "stdout_log=$out_log"
       echo "stderr_log=$err_log"
     } > "$meta_log"
@@ -951,13 +1141,22 @@ else
     fi
   }
 
+  # Run Claude from the target workspace directory
+  cd "$WORKSPACE"
+
   if has timeout; then
     run_claude_deep_scan_attempt 1 "$CLAUDE_DEEP_TIMEOUT"
-    if [[ -z "$CLAUDE_OUTPUT" ]] && [[ "$CLAUDE_DEEP_RETRY_TIMEOUT" -gt "$CLAUDE_DEEP_TIMEOUT" ]]; then
-      warn "Claude deep scan attempt 1 $(describe_deep_scan_failure "$CLAUDE_LAST_RC" "$CLAUDE_LAST_ELAPSED")"
-      warn "Attempt 1 logs: $CLAUDE_LAST_OUT_LOG ; $CLAUDE_LAST_ERR_LOG"
-      log "Retrying Claude deep scan once with ${CLAUDE_DEEP_RETRY_TIMEOUT}s..."
-      run_claude_deep_scan_attempt 2 "$CLAUDE_DEEP_RETRY_TIMEOUT"
+    if [[ -z "$CLAUDE_OUTPUT" ]] && [[ "$CLAUDE_DEEP_RETRY_TIMEOUT" -gt 0 ]] && [[ "$CLAUDE_DEEP_RETRY_TIMEOUT" -gt "$CLAUDE_DEEP_TIMEOUT" ]]; then
+      # Don't retry if attempt 1 was a silent timeout — retrying won't help
+      if [[ ("$CLAUDE_LAST_RC" == "137" || "$CLAUDE_LAST_RC" == "124") ]] && [[ -z "$CLAUDE_OUTPUT" ]]; then
+        warn "Skipping retry: attempt 1 was a silent timeout (rc=$CLAUDE_LAST_RC, elapsed=${CLAUDE_LAST_ELAPSED}s, empty output)"
+        warn "Attempt 1 logs: $CLAUDE_LAST_OUT_LOG ; $CLAUDE_LAST_ERR_LOG"
+      else
+        warn "Claude deep scan attempt 1 $(describe_deep_scan_failure "$CLAUDE_LAST_RC" "$CLAUDE_LAST_ELAPSED")"
+        warn "Attempt 1 logs: $CLAUDE_LAST_OUT_LOG ; $CLAUDE_LAST_ERR_LOG"
+        log "Retrying Claude deep scan once with ${CLAUDE_DEEP_RETRY_TIMEOUT}s..."
+        run_claude_deep_scan_attempt 2 "$CLAUDE_DEEP_RETRY_TIMEOUT"
+      fi
     fi
   else
     run_claude_deep_scan_attempt 1 ""
