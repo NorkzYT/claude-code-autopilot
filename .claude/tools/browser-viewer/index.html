@@ -16,18 +16,59 @@
     #dot.live { background: #22c55e; animation: pulse 2s infinite; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
     #status-text { flex: 1; }
+    #controls { display: flex; gap: 8px; align-items: center; }
+    #controls button {
+      background: #334155; color: #e2e8f0; border: 1px solid #475569;
+      padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    }
+    #controls button:hover { background: #475569; }
+    #controls button.active { background: #2563eb; border-color: #3b82f6; }
+    #url-bar {
+      background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+      padding: 6px 12px; font-size: 13px; border-bottom: 1px solid #334155;
+      display: flex; gap: 8px;
+    }
+    #url-input {
+      flex: 1; background: #0f172a; color: #e2e8f0; border: 1px solid #334155;
+      padding: 4px 8px; border-radius: 4px; font-size: 13px; outline: none;
+    }
+    #url-input:focus { border-color: #3b82f6; }
+    #url-go {
+      background: #334155; color: #e2e8f0; border: 1px solid #475569;
+      padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    }
     #fps { color: #94a3b8; font-size: 12px; }
-    #viewer { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
-    #screen { max-width: 100%; max-height: 100%; object-fit: contain; display: none; }
+    #viewer {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      overflow: hidden; position: relative; cursor: default;
+    }
+    #viewer.interactive { cursor: crosshair; }
+    #screen {
+      max-width: 100%; max-height: 100%; object-fit: contain; display: none;
+      user-select: none; -webkit-user-drag: none;
+    }
     #placeholder { color: #475569; font-size: 16px; text-align: center; line-height: 1.6; }
     #placeholder code { background: #1e293b; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+    #mode-hint {
+      position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(30,41,59,.9); color: #94a3b8; padding: 4px 12px;
+      border-radius: 4px; font-size: 12px; pointer-events: none;
+      transition: opacity .3s;
+    }
   </style>
 </head>
 <body>
   <div id="header">
     <div id="dot"></div>
     <span id="status-text">Connecting...</span>
-    <span id="fps"></span>
+    <div id="controls">
+      <button id="btn-interact" title="Toggle interactive mode (click/type in browser)">Interactive: OFF</button>
+      <span id="fps"></span>
+    </div>
+  </div>
+  <div id="url-bar" style="display:none">
+    <input id="url-input" type="text" placeholder="Enter URL and press Enter..." />
+    <button id="url-go">Go</button>
   </div>
   <div id="viewer">
     <img id="screen" alt="Live browser view" />
@@ -35,6 +76,7 @@
       Waiting for OpenClaw browser...<br />
       Start a session with <code>openclaw browser start</code>
     </div>
+    <div id="mode-hint" style="opacity:0"></div>
   </div>
   <script>
     const screen = document.getElementById('screen');
@@ -42,9 +84,143 @@
     const dot = document.getElementById('dot');
     const statusText = document.getElementById('status-text');
     const fpsEl = document.getElementById('fps');
+    const btnInteract = document.getElementById('btn-interact');
+    const urlBar = document.getElementById('url-bar');
+    const urlInput = document.getElementById('url-input');
+    const urlGo = document.getElementById('url-go');
+    const viewer = document.getElementById('viewer');
+    const modeHint = document.getElementById('mode-hint');
 
     let ws, frames = 0, fpsInterval;
+    let interactive = false;
+    let meta = {};
 
+    // ── Coordinate translation ─────────────────────────────
+    function imgToChrome(clientX, clientY) {
+      const rect = screen.getBoundingClientRect();
+      // Position within the displayed image (0..1)
+      const ratioX = (clientX - rect.left) / rect.width;
+      const ratioY = (clientY - rect.top) / rect.height;
+      // Scale to Chrome's device dimensions
+      const dw = meta.deviceWidth || 1920;
+      const dh = meta.deviceHeight || 1080;
+      return { x: Math.round(ratioX * dw), y: Math.round(ratioY * dh) };
+    }
+
+    function getModifiers(e) {
+      let m = 0;
+      if (e.altKey) m |= 1;
+      if (e.ctrlKey) m |= 2;
+      if (e.metaKey) m |= 4;
+      if (e.shiftKey) m |= 8;
+      return m;
+    }
+
+    function buttonName(b) {
+      return ['left', 'middle', 'right'][b] || 'left';
+    }
+
+    function sendInput(input) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ input }));
+      }
+    }
+
+    // ── Interactive mode toggle ────────────────────────────
+    btnInteract.addEventListener('click', () => {
+      interactive = !interactive;
+      btnInteract.textContent = 'Interactive: ' + (interactive ? 'ON' : 'OFF');
+      btnInteract.classList.toggle('active', interactive);
+      viewer.classList.toggle('interactive', interactive);
+      urlBar.style.display = interactive ? 'flex' : 'none';
+      showHint(interactive ? 'Click & type in the browser. Press Esc to exit.' : '');
+    });
+
+    function showHint(text) {
+      modeHint.textContent = text;
+      modeHint.style.opacity = text ? '1' : '0';
+      if (text) setTimeout(() => { modeHint.style.opacity = '0'; }, 3000);
+    }
+
+    // ── Mouse events ───────────────────────────────────────
+    screen.addEventListener('mousedown', (e) => {
+      if (!interactive) return;
+      e.preventDefault();
+      const pos = imgToChrome(e.clientX, e.clientY);
+      sendInput({ type: 'mousePressed', ...pos, button: buttonName(e.button), clickCount: e.detail, modifiers: getModifiers(e) });
+    });
+
+    screen.addEventListener('mouseup', (e) => {
+      if (!interactive) return;
+      e.preventDefault();
+      const pos = imgToChrome(e.clientX, e.clientY);
+      sendInput({ type: 'mouseReleased', ...pos, button: buttonName(e.button), modifiers: getModifiers(e) });
+    });
+
+    screen.addEventListener('mousemove', (e) => {
+      if (!interactive) return;
+      // Throttle: only send every ~50ms
+      if (screen._lastMove && Date.now() - screen._lastMove < 50) return;
+      screen._lastMove = Date.now();
+      const pos = imgToChrome(e.clientX, e.clientY);
+      sendInput({ type: 'mouseMoved', ...pos, modifiers: getModifiers(e) });
+    });
+
+    screen.addEventListener('wheel', (e) => {
+      if (!interactive) return;
+      e.preventDefault();
+      const pos = imgToChrome(e.clientX, e.clientY);
+      sendInput({ type: 'mouseWheel', ...pos, deltaX: e.deltaX, deltaY: e.deltaY, modifiers: getModifiers(e) });
+    }, { passive: false });
+
+    screen.addEventListener('contextmenu', (e) => { if (interactive) e.preventDefault(); });
+
+    // ── Keyboard events ────────────────────────────────────
+    document.addEventListener('keydown', (e) => {
+      if (!interactive) return;
+      // Esc exits interactive mode
+      if (e.key === 'Escape') { btnInteract.click(); return; }
+      // Don't capture if typing in URL bar
+      if (e.target === urlInput) return;
+      e.preventDefault();
+      sendInput({
+        type: 'keyDown',
+        key: e.key,
+        code: e.code,
+        text: e.key.length === 1 ? e.key : '',
+        windowsVirtualKeyCode: e.keyCode,
+        modifiers: getModifiers(e),
+      });
+      // Also send char event for printable characters
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        sendInput({ type: 'char', text: e.key, modifiers: getModifiers(e) });
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (!interactive || e.target === urlInput) return;
+      e.preventDefault();
+      sendInput({
+        type: 'keyUp',
+        key: e.key,
+        code: e.code,
+        windowsVirtualKeyCode: e.keyCode,
+        modifiers: getModifiers(e),
+      });
+    });
+
+    // ── URL bar ────────────────────────────────────────────
+    function navigateTo() {
+      let url = urlInput.value.trim();
+      if (!url) return;
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      sendInput({ type: 'navigate', url });
+      urlInput.blur();
+    }
+    urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') navigateTo(); });
+    urlGo.addEventListener('click', navigateTo);
+
+    // ── WebSocket connection ───────────────────────────────
     function connect() {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
       ws = new WebSocket(proto + '//' + location.host + '/ws');
@@ -62,9 +238,10 @@
           screen.src = 'data:image/jpeg;base64,' + data.frame;
           screen.style.display = 'block';
           placeholder.style.display = 'none';
-          statusText.textContent = 'Live';
+          statusText.textContent = interactive ? 'Live (Interactive)' : 'Live';
           frames++;
         }
+        if (data.meta) meta = data.meta;
       };
 
       ws.onclose = () => {
