@@ -28,11 +28,13 @@ Use slash commands first on OpenClaw 2026.2.x:
 | `/help` | Available commands |
 | `/new` | Start a new session in the current channel/thread |
 | `/reset` | Reset current session |
+| `/recheckin 5m <task>` | Create a real timed follow-up via OpenClaw cron (plugin command) |
 
 Notes:
 - `!status`, `!ship`, and other `!` commands may be custom workflows and are not guaranteed to exist.
 - If `!status` returns `bash is disabled`, that means the bot treated it as shell passthrough. Use `/status` instead.
 - Enable `commands.bash=true` only if you want direct shell passthrough from Discord.
+- Do not promise "I'll check back in X minutes" unless you create a real cron job (use `/recheckin`).
 
 ## CLI Commands (Direct)
 

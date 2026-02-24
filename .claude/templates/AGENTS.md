@@ -97,6 +97,15 @@ Write durable insights to `MEMORY.md` in the OpenClaw workspace:
 11. **Report via Discord** — Summary, changes, test results, remaining work
 12. **Persist state** — Save session state for future reference
 
+### Timed Follow-Up Promise Rule
+
+- Never promise a timed follow-up ("I'll check back in 5 minutes") unless a real OpenClaw cron job is created first.
+- In Discord/OpenClaw channels, create the follow-up with `/recheckin <delay> <task>`.
+- Return the cron job ID (or clearly state if the CLI did not return one) so the promise is auditable.
+- If scheduling fails, do not make the timed promise. Ask the user to ping again or keep monitoring now.
+- Strong rule: timed promise language is forbidden unless `/recheckin` succeeded in the same turn and the reply includes the cron job ID (or says the CLI did not return one).
+- Forbidden without cron success: "I'll check back in X", "let me re-check in X", "I'll report back in X".
+
 ### Error Recovery
 
 - **Session expiry** → Re-authenticate via cookie import

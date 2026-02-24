@@ -24,6 +24,15 @@ For EVERY bug fix or feature:
 
 Do not mark tasks complete after code-only changes.
 
+## Timed Follow-Ups (OpenClaw)
+
+- Never say "I will check back in X minutes/hours" unless you create a real OpenClaw cron job first.
+- Use `/recheckin <delay> <task>` in Discord/OpenClaw channels to make timed follow-ups real.
+- When a timed follow-up is scheduled, include the cron `jobId` (or say the CLI did not return one) in the reply.
+- If scheduling fails, do not promise a timed callback. Ask the user to ping you later or keep monitoring synchronously.
+- Strong rule: timed promise language is forbidden unless `/recheckin` succeeded in the same turn.
+- Forbidden without cron success: "I'll check back in X", "give me X minutes and I'll re-check", "I'll report back in X".
+
 ## Cost-Optimized Routing
 
 - Claude/OpenClaw: use Sonnet first for plan + direct execution.

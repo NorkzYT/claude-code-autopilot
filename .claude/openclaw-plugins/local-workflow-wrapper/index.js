@@ -23,12 +23,63 @@ function trimOut(s, max = 3000) {
   return s.length > max ? `${s.slice(0, max - 80)}\n...[truncated]` : s;
 }
 
+function shellQuote(value) {
+  const s = String(value ?? "");
+  return `'${s.replace(/'/g, `'\"'\"'`)}'`;
+}
+
 function parseArgs(ctx) {
   if (Array.isArray(ctx?.args)) return ctx.args.map(String).filter(Boolean);
   if (typeof ctx?.commandBody === "string" && ctx.commandBody.trim()) {
     return ctx.commandBody.trim().split(/\s+/);
   }
   return [];
+}
+
+function parseDurationSpec(value) {
+  if (!value || typeof value !== "string") return null;
+  const v = value.trim().toLowerCase();
+  if (!v) return null;
+  if (/^\d+\s*(s|m|h|d|w)$/.test(v)) return v.replace(/\s+/g, "");
+  if (/^\d+[smhdw]$/.test(v)) return v;
+  return null;
+}
+
+function channelRouting(ctx) {
+  const channel = typeof ctx?.channel === "string" ? ctx.channel : null;
+  const channelId = uniq([
+    get(ctx, "channelId"),
+    get(ctx, "peerId"),
+    get(ctx, "discord.channelId"),
+    get(ctx, "message.channelId"),
+    get(ctx, "event.channelId"),
+    get(ctx, "raw.channelId"),
+  ])[0];
+  const userId = uniq([
+    get(ctx, "userId"),
+    get(ctx, "authorId"),
+    get(ctx, "discord.userId"),
+    get(ctx, "message.authorId"),
+    get(ctx, "event.userId"),
+    get(ctx, "raw.userId"),
+  ])[0];
+  const guildId = uniq([
+    get(ctx, "guildId"),
+    get(ctx, "discord.guildId"),
+    get(ctx, "message.guildId"),
+    get(ctx, "event.guildId"),
+    get(ctx, "raw.guildId"),
+  ])[0];
+
+  if (channel === "discord") {
+    if (channelId) {
+      return { channel, to: `channel:${channelId}`, guildId, channelId, userId };
+    }
+    if (userId) {
+      return { channel, to: `user:${userId}`, guildId, channelId: null, userId };
+    }
+  }
+  return { channel, to: null, guildId, channelId, userId };
 }
 
 function configuredAgents(config) {
@@ -211,6 +262,102 @@ function runShell(workspace, scriptPath) {
   });
 }
 
+function runCommand(cmd, args, cwd = process.cwd()) {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, {
+      cwd,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d) => {
+      stdout += String(d);
+    });
+    child.stderr.on("data", (d) => {
+      stderr += String(d);
+    });
+    child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
+    child.on("error", (e) => resolve({ code: 1, stdout, stderr: `${stderr}\n${String(e)}` }));
+  });
+}
+
+function parseCronAddJson(s) {
+  if (!s || typeof s !== "string") return null;
+  try {
+    const parsed = JSON.parse(s);
+    const obj = asRecord(parsed);
+    return {
+      id: typeof obj.id === "string" ? obj.id : typeof obj.jobId === "string" ? obj.jobId : null,
+      nextRunAt:
+        typeof obj.nextRunAt === "string"
+          ? obj.nextRunAt
+          : typeof obj.next_run_at === "string"
+            ? obj.next_run_at
+            : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseCronAddText(s) {
+  if (!s || typeof s !== "string") return { id: null, nextRunAt: null };
+  const idMatch =
+    s.match(/\bjob(?:Id)?\s*[:=]\s*([A-Za-z0-9_-]+)/i) ||
+    s.match(/\bcreated\b[^\n]*\b([A-Za-z0-9_-]{8,})\b/i);
+  const nextMatch = s.match(/\bnext(?:\s+run(?:\s+at)?)?\s*[:=]\s*([^\n]+)/i);
+  return {
+    id: idMatch ? idMatch[1] : null,
+    nextRunAt: nextMatch ? nextMatch[1].trim() : null,
+  };
+}
+
+async function addCronJobFromCommand(ctx, resolved, delaySpec, promptText) {
+  const route = channelRouting(ctx);
+  const jobName = `recheck-${Date.now()}`;
+  const message = promptText.trim();
+  const argsBase = [
+    "cron",
+    "add",
+    "--name",
+    jobName,
+    "--at",
+    delaySpec,
+    "--session",
+    "isolated",
+    "--message",
+    message,
+    "--delete-after-run",
+  ];
+
+  if (resolved?.agentId) {
+    argsBase.push("--agent", resolved.agentId);
+  }
+
+  if (route.channel && route.to) {
+    argsBase.push("--announce", "--channel", route.channel, "--to", route.to);
+  } else {
+    argsBase.push("--announce");
+  }
+
+  let result = await runCommand("openclaw", [...argsBase, "--json"], resolved.workspace);
+  let parsed = parseCronAddJson(result.stdout);
+  if (result.code !== 0 && /unknown option|unknown argument|unknown flag/i.test(result.stderr)) {
+    result = await runCommand("openclaw", argsBase, resolved.workspace);
+    parsed = parseCronAddJson(result.stdout) || parseCronAddText(result.stdout);
+  } else if (!parsed) {
+    parsed = parseCronAddText(result.stdout);
+  }
+
+  return {
+    result,
+    parsed,
+    jobName,
+    route,
+  };
+}
+
 export async function register(api) {
   const log = api?.logger ?? console;
 
@@ -258,6 +405,87 @@ export async function register(api) {
     {
       description: "Run the repo-local engineering workflow wrapper",
       argsHint: "[--agent <id> | --repo <path>]",
+    },
+  );
+
+  api.registerCommand(
+    "/recheckin",
+    async (ctx) => {
+      const args = parseArgs(ctx);
+      const config = ctx?.config || {};
+      const resolved = resolveWorkspaceAndAgent(config, ctx, args);
+      if ("error" in resolved) return `⚠️ ${resolved.error}`;
+
+      const positional = [];
+      for (let i = 0; i < args.length; i += 1) {
+        const a = args[i];
+        if ((a === "--repo" || a === "-r" || a === "--agent" || a === "-a") && args[i + 1]) {
+          i += 1;
+          continue;
+        }
+        positional.push(a);
+      }
+
+      const delaySpec = parseDurationSpec(positional[0] || "");
+      if (!delaySpec) {
+        return [
+          "⚠️ Usage: `/recheckin <delay> <what to re-check> [--agent <id> | --repo <path>]`",
+          "Examples:",
+          "- `/recheckin 5m Re-check logs and confirm the local stack is still healthy.`",
+          "- `/recheckin 15m Verify the scraper job completed and report the counts.`",
+        ].join("\n");
+      }
+
+      const messageBody = positional.slice(1).join(" ").trim();
+      if (!messageBody) {
+        return "⚠️ Provide what to re-check. Example: `/recheckin 5m Re-check the local stack and report status.`";
+      }
+
+      const promptText = [
+        "Scheduled follow-up check.",
+        `Workspace: ${resolved.workspace}`,
+        resolved.agentId ? `Agent: ${resolved.agentId}` : "",
+        `Task: ${messageBody}`,
+        "Report the result clearly and include pass/fail and next action.",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const { result, parsed, jobName, route } = await addCronJobFromCommand(ctx, resolved, delaySpec, promptText);
+      if (result.code !== 0) {
+        return [
+          "⚠️ Failed to create cron checkback job.",
+          `Exit code: ${result.code}`,
+          result.stderr ? `stderr:\n${trimOut(result.stderr, 1500)}` : "",
+          result.stdout ? `stdout:\n${trimOut(result.stdout, 1500)}` : "",
+          "",
+          "Do not promise a timed follow-up unless the cron job is created.",
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+      }
+
+      const jobId = parsed?.id || "(id not returned by CLI)";
+      const nextRun = parsed?.nextRunAt || `in ${delaySpec}`;
+      const delivery = route.channel && route.to ? `${route.channel}:${route.to}` : "announce (default route)";
+      const commandPreview = `openclaw cron add --name ${shellQuote(jobName)} --at ${shellQuote(delaySpec)} ...`;
+
+      return [
+        "✅ Scheduled real follow-up.",
+        `- jobId: ${jobId}`,
+        `- runs: ${nextRun}`,
+        `- agent: ${resolved.agentId || "auto"}`,
+        `- repo: \`${resolved.workspace}\``,
+        `- delivery: ${delivery}`,
+        `- task: ${messageBody}`,
+        "",
+        "This makes the timed promise real (Gateway cron job created).",
+        `CLI: \`${commandPreview}\``,
+      ].join("\n");
+    },
+    {
+      description: "Create a real timed follow-up using OpenClaw cron and announce back to this channel",
+      argsHint: "<5m|10m|1h|1d> <task> [--agent <id> | --repo <path>]",
     },
   );
 

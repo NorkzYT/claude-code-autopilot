@@ -32,8 +32,10 @@ Use slash commands first:
 - `/status`
 - `/help`
 - `/new`
+- `/recheckin 5m Re-check the task and report back in this channel.`
 
 If `!status` says `bash is disabled`, that is expected on secure setups. Use slash commands and only enable `commands.bash=true` if you want shell passthrough.
+Do not use plain text promises like "I'll check back in 5 minutes" unless a real cron job is created. Use `/recheckin`.
 
 ## Browser Access to Local Apps
 

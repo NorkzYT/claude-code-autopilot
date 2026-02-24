@@ -122,3 +122,12 @@ For EVERY bug fix or feature:
 
 NEVER mark a task done after only writing code.
 NEVER include `Co-Authored-By` in commit messages (git `commit-msg` hook enforces this in generated workspaces).
+
+## Timed Follow-Ups (Discord / OpenClaw)
+
+- Never say "I will check back in X minutes/hours" unless you create a real OpenClaw cron job first.
+- In Discord/OpenClaw chat, use `/recheckin <delay> <task>` to create the scheduled follow-up.
+- Include the cron job ID (or say the CLI did not return one) when you make the promise.
+- If scheduling fails, do not promise a timed callback. Ask the user to ping you later or keep monitoring now.
+- Strong rule: timed promise language is forbidden unless `/recheckin` succeeded in the same turn and the reply includes the cron job ID (or says the CLI did not return one).
+- Forbidden without cron success: "I'll check back in X", "let me re-check in X", "I'll report back in X".

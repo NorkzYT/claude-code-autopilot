@@ -126,6 +126,13 @@ For code handling input/auth/data:
 - Spawn `threat-modeling-expert` for architecture-level concerns
 - Check `.claude/hooks/guard_bash.py` for blocked patterns
 
+## Timed Follow-Up Promises (OpenClaw / Discord)
+
+- Do not promise delayed follow-ups in natural language unless a real scheduler job is created.
+- In OpenClaw Discord/chat flows, use `/recheckin <delay> <task>` before saying "I'll check back in X".
+- The same reply must include the cron job ID (or explicitly state the CLI did not return one).
+- If scheduling fails, do not promise a delayed callback. Ask the user to ping again or continue monitoring now.
+
 ## Subdirectory Context Loading
 
 Claude Code automatically loads CLAUDE.md from subdirectories when working in those areas:

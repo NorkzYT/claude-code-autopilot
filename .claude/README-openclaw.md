@@ -50,7 +50,7 @@ What it does:
 - creates/updates root OpenClaw core files (`AGENTS.md`, `SOUL.md`, `TOOLS.md`, etc.)
 - runs repo analysis (`TOOLS.md`, `HEARTBEAT.md`, `PROJECT.md`)
 - converts Claude skills into `.openclaw/skills`
-- installs/enables the `local-workflow-wrapper` OpenClaw plugin (`/localflow`, `/workflowcheck`)
+- installs/enables the `local-workflow-wrapper` OpenClaw plugin (`/localflow`, `/workflowcheck`, `/recheckin`)
 - creates Codex compatibility files (`AGENTS.md`, `.agents/skills`, `.codex/rules`)
 - updates `.gitignore` for local agent/runtime files
 
@@ -97,6 +97,7 @@ Or from Discord / OpenClaw chat (after agent bootstrap installed the plugin):
 ```text
 /localflow
 /workflowcheck
+/recheckin 5m Re-check the logs and report back in this channel.
 ```
 
 ## Discord Notes (OpenClaw 2026.2.x)
