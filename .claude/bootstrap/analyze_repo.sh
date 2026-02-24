@@ -199,6 +199,81 @@ print("```")
 PY
 }
 
+build_deep_scan_prompt() {
+  local workspace="$1"
+  local project_name="$2"
+  local deep_tier="$3"
+  local gitignore_context="$4"
+
+  if [[ "$deep_tier" == "large" || "$deep_tier" == "xlarge" ]]; then
+    cat <<EOF
+You are analyzing the codebase at $workspace. Return markdown text only.
+
+Important:
+- Do NOT request approval to write files.
+- Do NOT say what you plan to write.
+- Do NOT call tools or ask for confirmation.
+- You are not writing the file directly; another process will write your text output.
+- Read and honor .gitignore rules before inspecting files. Do not read or summarize ignored paths/files.
+- This is a large repository. Do NOT try to inspect every file.
+- Prioritize high-value files only: root package/build files, top-level app/service directories, primary entrypoints, key configs, CI workflows, and README/docs.
+- Produce a useful architecture map quickly instead of exhaustive detail.
+
+${gitignore_context}
+
+Write a PROJECT.md focused on:
+1. High-level architecture and component map
+2. Main services/apps and what each does
+3. Data flow and integration flow between services
+4. Monorepo/workspace layout
+5. Tech stack by major component
+6. How to build/test/run locally (high-level)
+7. Key conventions and gotchas
+
+Constraints:
+- 120 to 220 lines total
+- Prefer concise tables and bullets
+- Do NOT include exhaustive per-file function listings
+
+Start the file with:
+$AUTO_GEN_MARKER
+# PROJECT.md - $project_name Architecture
+
+Write ONLY the markdown content, no preamble or explanation.
+EOF
+  else
+    cat <<EOF
+You are analyzing the codebase at $workspace. Read the directory structure, key source files, and configuration. Return markdown text only.
+
+Important:
+- Do NOT request approval to write files.
+- Do NOT say what you plan to write.
+- Do NOT call tools or ask for confirmation.
+- You are not writing the file directly; another process will write your text output.
+- Read and honor .gitignore rules before inspecting files. Do not read or summarize ignored paths/files.
+
+${gitignore_context}
+
+Write a comprehensive PROJECT.md that covers:
+1. Project architecture and component map
+2. How components interact (data flow, APIs, message passing)
+3. Key functions and what they do
+4. Directory structure with purpose annotations
+5. Tech stack with specific framework patterns
+6. Monorepo workspace layout (if applicable)
+7. Testing patterns and how to run them
+8. Deployment/build pipeline
+9. Known gotchas and conventions
+
+Start the file with:
+$AUTO_GEN_MARKER
+# PROJECT.md - $project_name Architecture
+
+Write ONLY the markdown content, no preamble or explanation.
+EOF
+  fi
+}
+
 pick_deep_scan_timeouts() {
   local workspace="$1"
   local file_count total_bytes size_mb tier timeout_s retry_s source
@@ -788,34 +863,10 @@ else
   fi
 
   GITIGNORE_CONTEXT="$(gitignore_prompt_context "$WORKSPACE" || true)"
-
-  CLAUDE_PROMPT="You are analyzing the codebase at $WORKSPACE. Read the directory structure, key source files, and configuration. Return markdown text only.
-
-Important:
-- Do NOT request approval to write files.
-- Do NOT say what you plan to write.
-- Do NOT call tools or ask for confirmation.
-- You are not writing the file directly; another process will write your text output.
-- Read and honor .gitignore rules before inspecting files. Do not read or summarize ignored paths/files.
-
-${GITIGNORE_CONTEXT}
-
-Write a comprehensive PROJECT.md that covers:
-1. Project architecture and component map
-2. How components interact (data flow, APIs, message passing)
-3. Key functions and what they do
-4. Directory structure with purpose annotations
-5. Tech stack with specific framework patterns
-6. Monorepo workspace layout (if applicable)
-7. Testing patterns and how to run them
-8. Deployment/build pipeline
-9. Known gotchas and conventions
-
-Start the file with:
-$AUTO_GEN_MARKER
-# PROJECT.md - $PROJECT_NAME Architecture
-
-Write ONLY the markdown content, no preamble or explanation."
+  CLAUDE_PROMPT="$(build_deep_scan_prompt "$WORKSPACE" "$PROJECT_NAME" "$DEEP_TIER" "$GITIGNORE_CONTEXT")"
+  if [[ "$DEEP_TIER" == "large" || "$DEEP_TIER" == "xlarge" ]]; then
+    log "Using fast architecture-first deep scan profile for ${DEEP_TIER} repo"
+  fi
 
   DEEP_SCAN_LOG_DIR="$OPENCLAW_DIR/logs"
   mkdir -p "$DEEP_SCAN_LOG_DIR"
