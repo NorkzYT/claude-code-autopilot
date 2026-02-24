@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenClaw Browser Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f172a; display: flex; flex-direction: column; height: 100vh; font-family: system-ui, -apple-system, sans-serif; }
+    #header {
+      background: #1e293b; color: #e2e8f0; padding: 8px 16px;
+      display: flex; align-items: center; gap: 12px; font-size: 14px;
+      border-bottom: 1px solid #334155;
+    }
+    #dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; flex-shrink: 0; }
+    #dot.live { background: #22c55e; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
+    #status-text { flex: 1; }
+    #fps { color: #94a3b8; font-size: 12px; }
+    #viewer { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+    #screen { max-width: 100%; max-height: 100%; object-fit: contain; display: none; }
+    #placeholder { color: #475569; font-size: 16px; text-align: center; line-height: 1.6; }
+    #placeholder code { background: #1e293b; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <div id="dot"></div>
+    <span id="status-text">Connecting...</span>
+    <span id="fps"></span>
+  </div>
+  <div id="viewer">
+    <img id="screen" alt="Live browser view" />
+    <div id="placeholder">
+      Waiting for OpenClaw browser...<br />
+      Start a session with <code>openclaw browser start</code>
+    </div>
+  </div>
+  <script>
+    const screen = document.getElementById('screen');
+    const placeholder = document.getElementById('placeholder');
+    const dot = document.getElementById('dot');
+    const statusText = document.getElementById('status-text');
+    const fpsEl = document.getElementById('fps');
+
+    let ws, frames = 0, fpsInterval;
+
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(proto + '//' + location.host + '/ws');
+
+      ws.onopen = () => {
+        dot.classList.add('live');
+        statusText.textContent = 'Connected — waiting for frames...';
+        frames = 0;
+        fpsInterval = setInterval(() => { fpsEl.textContent = frames + ' fps'; frames = 0; }, 1000);
+      };
+
+      ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.frame) {
+          screen.src = 'data:image/jpeg;base64,' + data.frame;
+          screen.style.display = 'block';
+          placeholder.style.display = 'none';
+          statusText.textContent = 'Live';
+          frames++;
+        }
+      };
+
+      ws.onclose = () => {
+        dot.classList.remove('live');
+        statusText.textContent = 'Disconnected — reconnecting...';
+        fpsEl.textContent = '';
+        clearInterval(fpsInterval);
+        setTimeout(connect, 2000);
+      };
+
+      ws.onerror = () => ws.close();
+    }
+
+    connect();
+  </script>
+</body>
+</html>

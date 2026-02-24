@@ -97,7 +97,7 @@ After installation, the kit automatically:
 If you install with OpenClaw, it also:
 
 6. **Adds gateway tooling** — Remote access, channel routing, and session management
-7. **Adds browser tooling** — Docker Chromium for local UI verification and CDP flows
+7. **Adds browser tooling** — OpenClaw-managed browser for local UI verification and CDP flows
 8. **Bootstraps repo agents** — Generates root OpenClaw core files, `.openclaw/` runtime state, skills, and compatibility files for multi-repo work
 
 ---

@@ -8,14 +8,16 @@ The safest and most reliable authentication method.
 
 ### Initial Setup (Manual, One-Time)
 
-1. Open the VNC viewer in your browser: `http://<tailscale-ip>:6090/vnc.html`
-2. OpenClaw's Chrome is already running (managed by systemd)
-3. Navigate to the target site:
+1. Start the OpenClaw-managed browser:
+   ```bash
+   openclaw browser --browser-profile openclaw start
+   ```
+2. Navigate to the target site:
    ```bash
    openclaw browser navigate "https://keepa.com"
    ```
-4. Log in manually through the VNC viewer
-5. Export cookies to a file:
+3. Log in manually (use `openclaw browser snapshot` to see the page)
+4. Export cookies to a file:
    ```bash
    mkdir -p ~/.openclaw/cookies
    openclaw browser cookies > ~/.openclaw/cookies/keepa.json
@@ -54,7 +56,7 @@ openclaw browser snapshot  # Check if logged in (no login form visible)
 # Check if session is still valid
 openclaw browser navigate "https://keepa.com/#!finder"
 openclaw browser snapshot
-# If login page detected → re-import cookies or re-authenticate via VNC
+# If login page detected → re-import cookies or re-authenticate manually
 # If finder page loads with data → session is valid, proceed
 ```
 
@@ -115,18 +117,14 @@ For sites that require fresh login (e.g., session cookies expire quickly).
    openclaw browser cookies > ~/.openclaw/cookies/keepa.json
    ```
 
-## Remote Browser Access
+## Browser Access
 
-The browser runs on a virtual display (Xvfb) with VNC access:
+OpenClaw uses its built-in managed browser (`openclaw` profile). For Chrome extension testing, use the relay (`chrome` profile).
 
-- **VNC viewer:** `http://<tailscale-ip>:6090/vnc.html` (via noVNC)
-- **Direct VNC:** `<tailscale-ip>:5900` (any VNC client)
-
-All three services are managed by systemd:
 ```bash
-systemctl --user status openclaw-xvfb    # Virtual display
-systemctl --user status openclaw-chrome   # Chrome browser (CDP port 18800)
-systemctl --user status openclaw-vnc      # VNC server
+openclaw browser --browser-profile openclaw status   # Check managed browser
+openclaw browser --browser-profile openclaw start    # Start managed browser
+openclaw browser --browser-profile openclaw snapshot # Screenshot current page
 ```
 
 ## Safety Rules

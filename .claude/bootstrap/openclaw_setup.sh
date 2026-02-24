@@ -383,13 +383,10 @@ if has openclaw; then
   done
 fi
 
-# ---- 7c) Browser setup (Docker-based) ----
-BROWSER_SCRIPT="$SCRIPT_DIR/openclaw_browser_setup.sh"
-if [[ -f "$BROWSER_SCRIPT" ]]; then
-  log "Setting up Docker-based browser..."
-  chmod +x "$BROWSER_SCRIPT" 2>/dev/null || true
-  bash "$BROWSER_SCRIPT"
-fi
+# ---- 7c) Browser ----
+# OpenClaw uses its built-in managed browser ("openclaw" profile).
+# See https://docs.openclaw.ai/tools/browser
+log "Browser: using OpenClaw-managed browser (openclaw profile)"
 
 # ---- 8) Add OPENCLAW_STATE_DIR to shell profiles ----
 STATE_EXPORT_LINE="export OPENCLAW_STATE_DIR=\"${OPENCLAW_STATE_DIR}\""

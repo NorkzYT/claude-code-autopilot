@@ -69,12 +69,6 @@ Set up Discord bot channel:
 bash .claude/bootstrap/openclaw_discord_setup.sh
 ```
 
-Set up OpenClaw browser container / CDP:
-
-```bash
-bash .claude/bootstrap/openclaw_browser_setup.sh
-```
-
 Run repo analysis manually:
 
 ```bash
@@ -154,11 +148,6 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw
 ```
 
-## Browser and Localhost
+## Browser
 
-If you use the Docker browser container, use `host.docker.internal` to reach services running on the host machine:
-
-- `http://host.docker.internal:8080`
-- `http://host.docker.internal:3000`
-
-`localhost:<port>` inside the browser container points to the container itself, not your host app.
+OpenClaw uses its built-in managed browser (`openclaw` profile) by default. For Chrome extension testing, use the Chrome extension relay (`chrome` profile). See https://docs.openclaw.ai/tools/browser

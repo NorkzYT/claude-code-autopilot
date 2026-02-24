@@ -20,7 +20,7 @@ This means local developer workflows only. It does not mean staging or productio
 - Staged agent workflow (autopilot, triage, fixer, closer)
 - OpenClaw setup and agent bootstrap scripts
 - OpenClaw Discord setup wizard with secure guild/channel/user allowlists
-- OpenClaw browser Docker setup for CDP and local UI checks
+- OpenClaw-managed browser for CDP and local UI checks
 - Generated root `TOOLS.md` with detected build/test/local-run/confirm commands
 - Generated root `HEARTBEAT.md` and `PROJECT.md` (via `analyze_repo.sh`, `--deep` for `PROJECT.md`)
 - Sonnet-first routing and explicit Opus escalation path

@@ -5,7 +5,7 @@ This page is a short entry point. The full OpenClaw guides live in `.claude/docs
 ## What OpenClaw Adds
 
 - Discord remote control (slash commands and channel bindings)
-- Browser automation (CDP + Docker Chromium)
+- Browser automation (OpenClaw-managed browser + Chrome extension relay)
 - Cron jobs and automation
 - Gateway and multi-agent routing
 - Cross-session memory and search
@@ -41,13 +41,8 @@ Do not use plain text promises like "I'll check back in 5 minutes" unless a real
 
 Yes, OpenClaw can verify local frontends and local APIs while you develop.
 
-- If you use the Docker browser container, use `http://host.docker.internal:<port>` from the browser context
-- If you use a native browser or relay mode on the host, `http://localhost:<port>` works
-
-Example:
-
-- frontend: `http://host.docker.internal:8080` (Docker browser)
-- API: `http://host.docker.internal:3000`
+- OpenClaw-managed browser (`openclaw` profile): `http://localhost:<port>` works directly
+- Chrome extension relay (`chrome` profile): `http://localhost:<port>` works directly
 
 ## Hook Model
 
