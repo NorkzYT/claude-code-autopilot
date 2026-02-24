@@ -233,6 +233,7 @@ pick_deep_scan_timeouts() {
 # ─── Parse Arguments ────────────────────────────────────────
 WORKSPACE="${1:-}"
 DEEP=false
+DEBUG=false
 
 if [[ -z "$WORKSPACE" ]]; then
   echo "Usage: bash $0 <workspace-path> [--deep]" >&2
@@ -243,6 +244,7 @@ shift
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --deep) DEEP=true; shift ;;
+    --debug) DEBUG=true; shift ;;
     *)      warn "Unknown option: $1"; shift ;;
   esac
 done
@@ -815,14 +817,89 @@ $AUTO_GEN_MARKER
 
 Write ONLY the markdown content, no preamble or explanation."
 
+  DEEP_SCAN_LOG_DIR="$OPENCLAW_DIR/logs"
+  mkdir -p "$DEEP_SCAN_LOG_DIR"
+  CLAUDE_OUTPUT=""
+  CLAUDE_LAST_RC=0
+  CLAUDE_LAST_ELAPSED=0
+  CLAUDE_LAST_OUT_LOG=""
+  CLAUDE_LAST_ERR_LOG=""
+
+  run_claude_deep_scan_attempt() {
+    local attempt="$1"
+    local timeout_s="${2:-}"
+    local out_log="$DEEP_SCAN_LOG_DIR/claude-deep-scan.attempt${attempt}.stdout.log"
+    local err_log="$DEEP_SCAN_LOG_DIR/claude-deep-scan.attempt${attempt}.stderr.log"
+    local meta_log="$DEEP_SCAN_LOG_DIR/claude-deep-scan.attempt${attempt}.meta.log"
+    local rc elapsed
+
+    : > "$out_log"
+    : > "$err_log"
+    : > "$meta_log"
+
+    SECONDS=0
+    set +e
+    if has timeout && [[ -n "$timeout_s" ]]; then
+      timeout "${timeout_s}s" claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
+      rc=$?
+    else
+      claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
+      rc=$?
+    fi
+    set -e
+    elapsed=$SECONDS
+
+    CLAUDE_LAST_RC="$rc"
+    CLAUDE_LAST_ELAPSED="$elapsed"
+    CLAUDE_LAST_OUT_LOG="$out_log"
+    CLAUDE_LAST_ERR_LOG="$err_log"
+    CLAUDE_OUTPUT="$(cat "$out_log" 2>/dev/null || true)"
+
+    {
+      echo "attempt=$attempt"
+      echo "timeout_s=${timeout_s:-none}"
+      echo "rc=$rc"
+      echo "elapsed_s=$elapsed"
+      echo "stdout_log=$out_log"
+      echo "stderr_log=$err_log"
+    } > "$meta_log"
+
+    if [[ "$DEBUG" == "true" ]]; then
+      echo "    [DEBUG] Deep scan attempt ${attempt}: rc=${rc}, elapsed=${elapsed}s"
+      echo "    [DEBUG] Logs: $out_log | $err_log"
+      if [[ -s "$err_log" ]]; then
+        echo "    [DEBUG] stderr tail (attempt ${attempt}):"
+        tail -40 "$err_log" | sed 's/^/      /'
+      fi
+      if [[ -z "$CLAUDE_OUTPUT" && -s "$out_log" ]]; then
+        echo "    [DEBUG] stdout tail (attempt ${attempt}):"
+        tail -20 "$out_log" | sed 's/^/      /'
+      fi
+    fi
+  }
+
+  describe_deep_scan_failure() {
+    local rc="$1"
+    local elapsed="$2"
+    if [[ "$rc" == "124" ]]; then
+      echo "timed out after ${elapsed}s (timeout exit 124)"
+    elif [[ "$rc" == "0" ]]; then
+      echo "returned empty output (rc=0, ${elapsed}s)"
+    else
+      echo "failed with rc=${rc} after ${elapsed}s"
+    fi
+  }
+
   if has timeout; then
-    CLAUDE_OUTPUT="$(timeout "${CLAUDE_DEEP_TIMEOUT}s" claude --print "$CLAUDE_PROMPT" 2>/dev/null || echo "")"
+    run_claude_deep_scan_attempt 1 "$CLAUDE_DEEP_TIMEOUT"
     if [[ -z "$CLAUDE_OUTPUT" ]] && [[ "$CLAUDE_DEEP_RETRY_TIMEOUT" -gt "$CLAUDE_DEEP_TIMEOUT" ]]; then
-      log "Claude deep scan returned empty output (or timed out). Retrying once with ${CLAUDE_DEEP_RETRY_TIMEOUT}s..."
-      CLAUDE_OUTPUT="$(timeout "${CLAUDE_DEEP_RETRY_TIMEOUT}s" claude --print "$CLAUDE_PROMPT" 2>/dev/null || echo "")"
+      warn "Claude deep scan attempt 1 $(describe_deep_scan_failure "$CLAUDE_LAST_RC" "$CLAUDE_LAST_ELAPSED")"
+      warn "Attempt 1 logs: $CLAUDE_LAST_OUT_LOG ; $CLAUDE_LAST_ERR_LOG"
+      log "Retrying Claude deep scan once with ${CLAUDE_DEEP_RETRY_TIMEOUT}s..."
+      run_claude_deep_scan_attempt 2 "$CLAUDE_DEEP_RETRY_TIMEOUT"
     fi
   else
-    CLAUDE_OUTPUT="$(claude --print "$CLAUDE_PROMPT" 2>/dev/null || echo "")"
+    run_claude_deep_scan_attempt 1 ""
   fi
 
   if [[ "$CLAUDE_OUTPUT" == *"The write requires your approval"* ]] || [[ "$CLAUDE_OUTPUT" == *"Please approve the write to proceed"* ]]; then
@@ -838,7 +915,8 @@ Write ONLY the markdown content, no preamble or explanation."
     echo "$CLAUDE_OUTPUT" > "$PROJECT_FILE"
     log "Created: $PROJECT_FILE"
   else
-    warn "Claude deep scan returned empty output or timed out — creating placeholder"
+    warn "Claude deep scan $(describe_deep_scan_failure "$CLAUDE_LAST_RC" "$CLAUDE_LAST_ELAPSED") — creating placeholder"
+    warn "Deep scan logs: $CLAUDE_LAST_OUT_LOG ; $CLAUDE_LAST_ERR_LOG"
     {
       echo "$AUTO_GEN_MARKER"
       echo "# PROJECT.md - $PROJECT_NAME Architecture"
