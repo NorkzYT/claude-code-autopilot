@@ -63,6 +63,7 @@
     <span id="status-text">Connecting...</span>
     <div id="controls">
       <button id="btn-interact" title="Toggle interactive mode (click/type in browser)">Interactive: OFF</button>
+      <button id="btn-devtools" title="Open Chrome DevTools in new tab">DevTools</button>
       <span id="fps"></span>
     </div>
   </div>
@@ -85,6 +86,7 @@
     const statusText = document.getElementById('status-text');
     const fpsEl = document.getElementById('fps');
     const btnInteract = document.getElementById('btn-interact');
+    const btnDevtools = document.getElementById('btn-devtools');
     const urlBar = document.getElementById('url-bar');
     const urlInput = document.getElementById('url-input');
     const urlGo = document.getElementById('url-go');
@@ -95,13 +97,16 @@
     let interactive = false;
     let meta = {};
 
+    // ── DevTools button ────────────────────────────────────
+    btnDevtools.addEventListener('click', () => {
+      window.open('/devtools/', '_blank');
+    });
+
     // ── Coordinate translation ─────────────────────────────
     function imgToChrome(clientX, clientY) {
       const rect = screen.getBoundingClientRect();
-      // Position within the displayed image (0..1)
       const ratioX = (clientX - rect.left) / rect.width;
       const ratioY = (clientY - rect.top) / rect.height;
-      // Scale to Chrome's device dimensions
       const dw = meta.deviceWidth || 1920;
       const dh = meta.deviceHeight || 1080;
       return { x: Math.round(ratioX * dw), y: Math.round(ratioY * dh) };
@@ -159,7 +164,6 @@
 
     screen.addEventListener('mousemove', (e) => {
       if (!interactive) return;
-      // Throttle: only send every ~50ms
       if (screen._lastMove && Date.now() - screen._lastMove < 50) return;
       screen._lastMove = Date.now();
       const pos = imgToChrome(e.clientX, e.clientY);
@@ -178,9 +182,7 @@
     // ── Keyboard events ────────────────────────────────────
     document.addEventListener('keydown', (e) => {
       if (!interactive) return;
-      // Esc exits interactive mode
       if (e.key === 'Escape') { btnInteract.click(); return; }
-      // Don't capture if typing in URL bar
       if (e.target === urlInput) return;
       e.preventDefault();
       sendInput({
@@ -191,7 +193,6 @@
         windowsVirtualKeyCode: e.keyCode,
         modifiers: getModifiers(e),
       });
-      // Also send char event for printable characters
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
         sendInput({ type: 'char', text: e.key, modifiers: getModifiers(e) });
       }

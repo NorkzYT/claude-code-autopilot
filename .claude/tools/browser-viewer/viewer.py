@@ -7,6 +7,8 @@ Page.startScreencast, and pushes them to any connected web client.
 Also accepts mouse/keyboard input from viewer clients and forwards them
 to Chrome via CDP Input.dispatch* methods, enabling interactive control
 (e.g. logging into Keepa, Amazon Seller Central before OpenClaw takes over).
+
+Includes a reverse proxy for Chrome DevTools access at /devtools/.
 """
 
 import asyncio
@@ -238,6 +240,31 @@ async def health_handler(_request: web.Request) -> web.Response:
     })
 
 
+async def cdp_proxy_handler(request: web.Request) -> web.Response:
+    """Reverse proxy for Chrome DevTools Protocol HTTP endpoints."""
+    path = request.match_info.get("path", "")
+    target_url = f"http://{CDP_HOST}:{CDP_PORT}/{path}"
+    
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.request(
+                method=request.method,
+                url=target_url,
+                headers={k: v for k, v in request.headers.items() if k.lower() not in ("host", "connection")},
+                data=await request.read() if request.can_read_body else None,
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                # Forward response
+                headers = {k: v for k, v in resp.headers.items() if k.lower() not in ("transfer-encoding", "connection")}
+                return web.Response(
+                    status=resp.status,
+                    headers=headers,
+                    body=await resp.read(),
+                )
+        except Exception as e:
+            return web.Response(status=502, text=f"CDP proxy error: {e}")
+
+
 # ── App lifecycle ────────────────────────────────────────────
 
 async def on_startup(app: web.Application) -> None:
@@ -257,11 +284,14 @@ def main() -> None:
     app.router.add_get("/", index_handler)
     app.router.add_get("/ws", websocket_handler)
     app.router.add_get("/health", health_handler)
+    # Proxy Chrome DevTools endpoints
+    app.router.add_route("*", "/devtools/{path:.*}", cdp_proxy_handler)
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
 
     print(f"[viewer] Interactive browser viewer on http://0.0.0.0:{VIEWER_PORT}")
     print(f"[viewer] CDP target: {CDP_HOST}:{CDP_PORT}")
+    print(f"[viewer] DevTools proxy: http://0.0.0.0:{VIEWER_PORT}/devtools/")
     web.run_app(app, host="0.0.0.0", port=VIEWER_PORT, print=None)
 
 
