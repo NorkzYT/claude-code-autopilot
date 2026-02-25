@@ -472,9 +472,33 @@ fi
 WRAPPER_SCRIPT="${OPENCLAW_HOME}/chromium-vnc-wrapper.sh"
 cat > "$WRAPPER_SCRIPT" << 'WRAPPER_EOF'
 #!/usr/bin/env bash
-# Wrapper for Chromium to ensure it uses VNC display
+# Wrapper for Chromium to ensure it uses VNC display and loads extensions
 export DISPLAY=:99
-exec /snap/bin/chromium "$@"
+
+# Extension paths (snap-accessible locations only)
+EXTENSIONS_DIR="$HOME/snap/chromium/common/extensions"
+EXTENSION_PATHS=""
+
+# Build comma-separated list of extension directories
+if [[ -d "$EXTENSIONS_DIR" ]]; then
+  for ext_dir in "$EXTENSIONS_DIR"/*/ ; do
+    if [[ -d "$ext_dir" ]]; then
+      ext_path="${ext_dir%/}"
+      if [[ -z "$EXTENSION_PATHS" ]]; then
+        EXTENSION_PATHS="$ext_path"
+      else
+        EXTENSION_PATHS="$EXTENSION_PATHS,$ext_path"
+      fi
+    fi
+  done
+fi
+
+# Launch chromium with extensions
+if [[ -n "$EXTENSION_PATHS" ]]; then
+  exec /snap/bin/chromium --load-extension="$EXTENSION_PATHS" "$@"
+else
+  exec /snap/bin/chromium "$@"
+fi
 WRAPPER_EOF
 chmod +x "$WRAPPER_SCRIPT"
 log "Created Chromium VNC wrapper: $WRAPPER_SCRIPT"
