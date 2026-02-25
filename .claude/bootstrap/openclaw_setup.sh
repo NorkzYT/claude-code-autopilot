@@ -441,6 +441,13 @@ if [[ -x /snap/bin/chromium ]]; then
 fi
 log "Browser: using OpenClaw-managed browser (openclaw profile)"
 
+# Set default viewport to 1920x1080 if gateway is running
+if has openclaw && openclaw gateway status >/dev/null 2>&1; then
+  if openclaw browser set viewport 1920 1080 2>/dev/null; then
+    log "Browser viewport set to 1920x1080"
+  fi
+fi
+
 # ---- 8) Add OPENCLAW_STATE_DIR to shell profiles ----
 STATE_EXPORT_LINE="export OPENCLAW_STATE_DIR=\"${OPENCLAW_STATE_DIR}\""
 for rcfile in "$HOME/.bashrc" "$HOME/.zshrc"; do
