@@ -3,13 +3,12 @@ services:
     build:
       context: ../tools/browser-viewer
     container_name: openclaw-browser-viewer
-    ports:
-      - "${VIEWER_PORT:-6080}:6080"
+    # Use host networking so the viewer can reach Chrome on 127.0.0.1
+    # (Chrome/CDP binds to loopback only by default).
+    network_mode: host
     environment:
-      - CDP_HOST=host.docker.internal
-      - CDP_PORT=${CDP_PORT:-9222}
-      - VIEWER_PORT=6080
+      - CDP_HOST=127.0.0.1
+      - CDP_PORT=${CDP_PORT:-18800}
+      - VIEWER_PORT=${VIEWER_PORT:-6085}
       - QUALITY=${QUALITY:-80}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     restart: unless-stopped
