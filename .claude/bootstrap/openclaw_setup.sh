@@ -194,6 +194,7 @@ if TS_IP="$(detect_tailscale_ipv4)"; then
   fi
 fi
 
+
 sanitize_agent_name() {
   local name="$1"
   name="$(echo "$name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g')"
@@ -279,6 +280,7 @@ if has openclaw; then
   # Optional: headed mode for extension testing (uncomment if needed)
   # openclaw config set browser.headless false 2>/dev/null || true
 fi
+
 
 # ---- 3) Copy agent instructions template ----
 AGENTS_TEMPLATE="${CLAUDE_DIR}/templates/AGENTS.md"
@@ -392,6 +394,7 @@ PY
   fi
 fi
 
+
 # ---- 7a) Configure built-in OpenClaw hooks (workflow support) ----
 if has openclaw; then
   configure_openclaw_plugin_hooks || true
@@ -451,6 +454,35 @@ if has openclaw && openclaw gateway status >/dev/null 2>&1; then
     bash "${CLAUDE_DIR}/scripts/openclaw-browser-exit-fullscreen.sh" 2>/dev/null || true
     log "Browser: exited fullscreen mode"
   fi
+fi
+
+
+# ---- 7.5) Setup VNC browser viewer and wrapper ----
+log "Setting up VNC browser viewer..."
+
+# Run VNC setup script
+VNC_SETUP_SCRIPT="${SCRIPT_DIR}/openclaw_vnc_setup.sh"
+if [[ -x "$VNC_SETUP_SCRIPT" ]]; then
+  bash "$VNC_SETUP_SCRIPT" || warn "VNC setup failed"
+else
+  warn "VNC setup script not found: $VNC_SETUP_SCRIPT"
+fi
+
+# Create Chromium wrapper with DISPLAY variable
+WRAPPER_SCRIPT="${OPENCLAW_HOME}/chromium-vnc-wrapper.sh"
+cat > "$WRAPPER_SCRIPT" << 'WRAPPER_EOF'
+#!/usr/bin/env bash
+# Wrapper for Chromium to ensure it uses VNC display
+export DISPLAY=:99
+exec /snap/bin/chromium "$@"
+WRAPPER_EOF
+chmod +x "$WRAPPER_SCRIPT"
+log "Created Chromium VNC wrapper: $WRAPPER_SCRIPT"
+
+# Configure OpenClaw to use the wrapper
+if has openclaw; then
+  openclaw config set browser.executablePath "$WRAPPER_SCRIPT" 2>/dev/null || true
+  log "Configured OpenClaw browser to use VNC wrapper"
 fi
 
 # ---- 8) Add OPENCLAW_STATE_DIR to shell profiles ----
@@ -535,4 +567,12 @@ if [[ "$TAILSCALE_DETECTED" == "1" ]]; then
   echo "    openclaw devices list"
   echo "    openclaw devices approve <requestId>"
 fi
+echo ""
+echo "  VNC Browser Viewer:"
+echo "    - Services: openclaw-xvfb, openclaw-x11vnc, openclaw-novnc (systemd user services)"
+echo "    - Web viewer: http://localhost:6081/vnc.html"
+echo "    - Full Chrome UI with tabs, extensions, and controls"
+echo "    - Browser automatically renders to VNC display"
+echo "    - Services start automatically on system boot"
+
 echo ""
