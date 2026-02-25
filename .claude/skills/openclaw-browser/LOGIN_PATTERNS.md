@@ -119,7 +119,7 @@ For sites that require fresh login (e.g., session cookies expire quickly).
 
 ## Browser Access
 
-OpenClaw uses its built-in managed browser (`openclaw` profile). For Chrome extension testing, use the relay (`chrome` profile).
+OpenClaw uses its built-in managed browser (`openclaw` profile).
 
 ```bash
 openclaw browser --browser-profile openclaw status   # Check managed browser
@@ -142,4 +142,3 @@ openclaw browser --browser-profile openclaw snapshot # Screenshot current page
 |------|--------------|---------------|-----------------|-------|
 | Keepa | Cookie import | `.keepa.com` | ~24h | Cloudflare protected |
 | Amazon Seller Central | Cookie import | `.amazon.com` | Varies | May require 2FA on fresh login |
-| Kairo Dashboard | Cookie import | `.kairo.pcscorp.dev` | Long-lived | Local service |

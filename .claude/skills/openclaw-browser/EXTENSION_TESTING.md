@@ -1,48 +1,47 @@
-# Chrome Extension Testing via Extension Relay
+# Chrome Extension Testing with OpenClaw
 
-> How to test Chrome extensions using OpenClaw's Extension Relay mode.
+> How to test Chrome extensions using OpenClaw's Managed Browser with automatic extension loading.
 
-## Why Extension Relay?
+## Overview
 
-Chrome DevTools Protocol (CDP) cannot dynamically load extensions in headless mode. Extension Relay attaches to a real Chrome instance where extensions are already installed, giving OpenClaw full control over extension-injected UI.
+OpenClaw's Managed Browser (`openclaw` profile) provides full automated control with Chrome extension support via the `--load-extension` flag. Extensions load automatically and work exactly as if manually installed.
+
+**Key Capabilities**:
+- ✅ Full automatic control of ALL tabs
+- ✅ Extensions load automatically via `--load-extension`
+- ✅ Headless mode supported (some extensions may need headed)
+- ✅ CDP protocol for maximum control
+- ✅ No manual permission needed
 
 ## Setup
 
-### 1. Create Dedicated Chrome Profile
+### 1. Place Extensions in Snap-Accessible Directory
 
-Create a separate Chrome profile for OpenClaw automation (never use your daily driver):
+Extensions must be in a location accessible to snap-confined Chromium:
 
 ```bash
-google-chrome --user-data-dir="$HOME/.openclaw/chrome-profiles/extension-testing" --no-first-run
+# Create extension directory (if not exists)
+mkdir -p ~/snap/chromium/common/extensions
+
+# Copy your extension to this directory
+cp -r /path/to/your-extension ~/snap/chromium/common/extensions/your-extension-name
 ```
 
-### 2. Install Target Extensions
+**Important**: Snap's `home` interface EXCLUDES hidden directories (`~/.anything/`). Always use `~/snap/chromium/common/` for extensions.
 
-In the dedicated profile, install:
-- Keepa (product price tracker)
-- Custom scraper extensions
-- Any other extensions you want to test
+### 2. Extension Auto-Loading
 
-### 3. Install OpenClaw Browser Relay Extension
+The wrapper script (`~/.openclaw/chromium-vnc-wrapper.sh`) automatically loads all extensions from `~/snap/chromium/common/extensions/` on browser startup. No additional configuration needed.
 
-1. Install from Chrome Web Store: search "OpenClaw Browser Relay"
-2. Configure relay: Settings → Gateway URL `ws://127.0.0.1:18789`
-3. Toggle relay icon on the tab you want to control
+### 3. Verify Extension Loading
 
-### 4. Configure OpenClaw Profile
+Check that extensions are loading:
 
-Add to OpenClaw config:
+```bash
+# Check browser process for --load-extension flag
+ps aux | grep chromium | grep "load-extension"
 
-```json
-{
-  "defaultProfile": "extension-testing",
-  "profiles": {
-    "extension-testing": {
-      "driver": "extension",
-      "cdpUrl": "http://127.0.0.1:18792"
-    }
-  }
-}
+# Should show: --load-extension=.../extensions/extension-name
 ```
 
 ## Testing Workflow
@@ -50,86 +49,231 @@ Add to OpenClaw config:
 ### Basic Extension Interaction
 
 ```bash
-# 1. Snapshot page including extension-injected elements
+# Navigate to a page where extension should activate
+openclaw browser navigate "https://example.com"
+
+# Take interactive snapshot (shows extension-injected elements)
 openclaw browser snapshot --interactive
 
-# 2. Click extension buttons/UI elements
+# Click extension buttons/UI elements
 openclaw browser click <ref>
 
-# 3. Verify result after interaction
+# Verify result
 openclaw browser snapshot
-
-# 4. Capture evidence screenshot
-openclaw browser screenshot --name "extension-test-<name>"
 ```
 
-### Keepa Product Finder Example
+### Keepa Product Price Tracker Example
 
 ```bash
-# Navigate to product page (e.g., Amazon)
-openclaw browser navigate "https://www.amazon.com/dp/B0..."
+# Navigate to Amazon product page
+openclaw browser navigate "https://www.amazon.com/dp/B07DDJNHFF"
 
-# Wait for Keepa extension to inject its UI
-# (Keepa adds price history chart below the product)
+# Wait for Keepa to inject price history chart
 sleep 3
 
-# Snapshot to see Keepa-injected elements
+# Snapshot shows Keepa chart below product image
 openclaw browser snapshot --interactive
 
-# Click Keepa's "Track Product" button (ref from snapshot)
-openclaw browser click <keepa-track-ref>
-
-# Verify tracking was added
-openclaw browser snapshot
-openclaw browser screenshot --name "keepa-tracking-confirmed"
+# Interact with Keepa elements
+openclaw browser click <keepa-ref>
 ```
 
-### Custom Extension + External Site (e.g., Kairo)
+### Custom Extension Testing
 
 ```bash
-# Load page with extension content script active
-openclaw browser navigate <product-page-url>
+# Navigate to target page
+openclaw browser navigate "https://www.amazon.com/dp/PRODUCT_ID"
 
-# Snapshot to find extension-injected scrape button
+# Extension content script should inject UI elements
+sleep 2
+
+# Snapshot to find extension-injected elements
 openclaw browser snapshot --interactive
 
-# Click extension's "Export to Kairo" button
-openclaw browser click <export-ref>
+# Interact with extension UI (e.g., click export button)
+openclaw browser click <extension-button-ref>
 
-# Verify data flowed to target site
-openclaw browser navigate <kairo-dashboard-url>
+# Verify action completed
 openclaw browser snapshot
-openclaw browser screenshot --name "kairo-export-verified"
 ```
 
-### Extension Popup Testing
+### Multi-Tab Extension Testing
 
 ```bash
-# Note: Extension popups from toolbar are harder to access
-# Prefer testing content-script-injected elements instead
+# Open multiple tabs
+openclaw browser navigate "https://example.com"
+openclaw browser open "https://google.com"
+openclaw browser open "https://github.com"
 
-# For extension pages (options, popups opened as tabs):
-openclaw browser navigate "chrome-extension://<extension-id>/popup.html"
+# List all tabs
+openclaw browser tabs
+
+# Switch between tabs and verify extension works in each
+openclaw browser focus <tab-id>
 openclaw browser snapshot --interactive
+```
+
+## Verifying Extension Presence
+
+### Check CDP Targets
+
+Extensions create iframe and service worker targets in CDP. Use Python to check:
+
+```python
+import urllib.request
+import json
+
+data = urllib.request.urlopen('http://localhost:18800/json').read()
+targets = json.loads(data)
+
+# Look for extension iframes and service workers
+for target in targets:
+    if 'chrome-extension' in target.get('url', ''):
+        print(f"{target['type']}: {target['url']}")
+```
+
+### Visual Verification via VNC
+
+View the browser directly to see extension icons and injected UI:
+
+- Open VNC viewer at: `http://YOUR_SERVER:6081/vnc.html`
+- You should see:
+  - Extension icons in Chrome toolbar
+  - Extension-injected UI elements on pages
+  - Extension popups when icons are clicked
+
+## Common Extension Testing Patterns
+
+### Testing Content Scripts
+
+Content scripts inject into page context:
+
+```bash
+openclaw browser navigate "https://target-site.com"
+sleep 2  # Wait for content script injection
+
+# Check for injected elements
+openclaw browser snapshot --interactive
+
+# Interact with injected elements
+openclaw browser click <injected-element-ref>
+```
+
+### Testing Background Scripts
+
+Background scripts don't have visible UI but can be verified via CDP:
+
+```python
+import urllib.request
+import json
+
+data = urllib.request.urlopen('http://localhost:18800/json').read()
+targets = json.loads(data)
+
+# Check for service workers
+for t in targets:
+    if 'service-worker' in t.get('type', '').lower():
+        print(f"Service Worker: {t.get('url')}")
+```
+
+### Testing Extension Popups
+
+Extension popups (from toolbar icons) can be tested by navigating to them as tabs:
+
+```bash
+# Open extension popup as tab
+openclaw browser navigate "chrome-extension://EXTENSION_ID/popup.html"
+
+# Interact with popup UI
+openclaw browser snapshot --interactive
+openclaw browser click <popup-element-ref>
+```
+
+## Configuration
+
+### Enable Headed Mode for Visual Debugging
+
+Some extensions require visible browser UI:
+
+```bash
+openclaw config set browser.headless false
+```
+
+### Verify Configuration
+
+```bash
+# Check profile (should be "openclaw")
+openclaw config get browser.defaultProfile
+
+# Check headless setting
+openclaw config get browser.headless
+
+# Check wrapper script
+cat ~/.openclaw/chromium-vnc-wrapper.sh
+```
+
+## Troubleshooting
+
+### Extension Not Loading
+
+**Check extension directory**:
+```bash
+ls -la ~/snap/chromium/common/extensions/
+```
+
+**Verify wrapper script**:
+```bash
+cat ~/.openclaw/chromium-vnc-wrapper.sh | grep load-extension
+```
+
+**Check browser process**:
+```bash
+ps aux | grep chromium | grep "load-extension"
+```
+
+### Extension Not Injecting into Page
+
+**Wait for content scripts**:
+```bash
+# Add delay after navigation
+openclaw browser navigate "https://target-site.com"
+sleep 3  # Wait for injection
+openclaw browser snapshot --interactive
+```
+
+**Check console for errors**:
+```bash
+openclaw browser console
+```
+
+### Extension Not Visible in Toolbar
+
+**Use VNC viewer** to visually confirm extension icons:
+- Open: `http://YOUR_SERVER:6081/vnc.html`
+- Check Chrome toolbar for extension icons
+
+**Verify extension manifest** allows toolbar icon:
+```bash
+cat ~/snap/chromium/common/extensions/YOUR_EXTENSION/manifest.json | grep action
 ```
 
 ## Limitations
 
-- **Must use headed mode** — Extensions don't load in headless Chrome
-- **Element refs are stale after navigation** — Always re-snapshot after page changes
-- **Extension popups** from the toolbar are less accessible than content-script-injected elements
-- **Some extensions detect automation** — May need to set `navigator.webdriver = false`
-- **Cross-origin restrictions** — Extension relay respects Chrome's security model
+- **Snap confinement**: Extensions must be in snap-accessible paths (`~/snap/chromium/common/`)
+- **Headless limitations**: Some extension UI features may require headed mode
+- **Extension updates**: Must manually update extension files (no auto-update from Chrome Web Store)
+- **Element staleness**: Snapshot refs become invalid after navigation (always re-snapshot)
 
-## Configuration Reference
+## Best Practices
 
-```bash
-# Enable headed mode for extension testing
-openclaw config set browser.headless false
+1. **Always re-snapshot after navigation** - Element refs are page-specific
+2. **Use delays after navigation** - Allow time for extension content scripts to inject
+3. **Test in headed mode first** - Easier to debug extension behavior visually
+4. **Check CDP targets** - Verify extension workers/iframes are present
+5. **Monitor console** - Extension errors appear in browser console
 
-# Set extension testing profile as default
-openclaw config set browser.defaultProfile "extension-testing"
+## Additional Resources
 
-# Verify relay connection
-openclaw browser relay status
-```
+- **OpenClaw Browser Docs**: https://docs.openclaw.ai/tools/browser
+- **Chrome Extension Manifest**: https://developer.chrome.com/docs/extensions/mv3/manifest/
+- **CDP Protocol**: https://chromedevtools.github.io/devtools-protocol/

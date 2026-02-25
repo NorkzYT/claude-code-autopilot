@@ -282,7 +282,7 @@ if [[ ! "$CFG_SECURE" =~ ^[Nn]$ ]]; then
     fi
 
     echo ""
-    read -rp "  Bind this Discord channel to a specific agent ID (e.g. kairo) [optional]: " DISCORD_AGENT_ID
+    read -rp "  Bind this Discord channel to a specific agent ID (e.g. myproject) [optional]: " DISCORD_AGENT_ID
     if [[ -n "$DISCORD_AGENT_ID" ]]; then
       if upsert_discord_channel_binding "$DISCORD_GUILD_ID" "$DISCORD_CHANNEL_ID" "$DISCORD_AGENT_ID"; then
         log "Bound Discord channel ${DISCORD_CHANNEL_ID} to agent '${DISCORD_AGENT_ID}'"

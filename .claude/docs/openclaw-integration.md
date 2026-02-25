@@ -350,12 +350,11 @@ Automated tasks import cookies before accessing authenticated pages. See `.claud
 
 ### Chrome Extension Testing
 
-Use Extension Relay mode to test extensions in a real Chrome instance:
+OpenClaw's Managed Browser supports Chrome extensions via automatic loading:
 
-1. Create dedicated Chrome profile for automation
-2. Install extensions in that profile
-3. Install OpenClaw Browser Relay extension
-4. Configure relay to connect to gateway
+1. Place extensions in `~/snap/chromium/common/extensions/`
+2. Extensions auto-load on browser startup via wrapper script
+3. Full automated control of all tabs with extension features enabled
 
 See `.claude/skills/openclaw-browser/EXTENSION_TESTING.md` for full guide.
 
@@ -421,8 +420,8 @@ bash .claude/bootstrap/add_openclaw_agent.sh <agent-name> <workspace-path> [opti
 ### Example
 
 ```bash
-# Register the Kairo project
-bash .claude/bootstrap/add_openclaw_agent.sh kairo /opt/github/Kairo --name "Kairo" --emoji "🔧"
+# Register a project
+bash .claude/bootstrap/add_openclaw_agent.sh myproject /path/to/project --name "My Project" --emoji "🔧"
 ```
 
 ### What It Does
@@ -448,8 +447,8 @@ Templates live in `.claude/templates/agent-persona/` and use placeholder variabl
 
 | Placeholder | Description |
 |-------------|-------------|
-| `{{AGENT_NAME}}` | Lowercase agent identifier (e.g., `kairo`) |
-| `{{DISPLAY_NAME}}` | Human-readable name (e.g., `Kairo`) |
+| `{{AGENT_NAME}}` | Lowercase agent identifier (e.g., `myproject`) |
+| `{{DISPLAY_NAME}}` | Human-readable name (e.g., `My Project`) |
 | `{{WORKSPACE_PATH}}` | Absolute path to workspace |
 | `{{EMOJI}}` | Agent emoji |
 

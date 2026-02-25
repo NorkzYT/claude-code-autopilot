@@ -16,7 +16,7 @@ set -euo pipefail
 #   --no-restart              Don't restart the gateway
 #
 # Example:
-#   bash .claude/bootstrap/add_openclaw_agent.sh kairo /opt/github/Kairo --name "Kairo" --emoji "🔧"
+#   bash .claude/bootstrap/add_openclaw_agent.sh myproject /opt/github/MyProject --name "My Project" --emoji "🔧"
 # ─────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

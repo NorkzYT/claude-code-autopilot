@@ -42,7 +42,7 @@ bash .claude/bootstrap/add_openclaw_agent.sh <agent-id> <repo-path>
 Example:
 
 ```bash
-bash .claude/bootstrap/add_openclaw_agent.sh kairo /opt/github/Kairo
+bash .claude/bootstrap/add_openclaw_agent.sh myproject /path/to/project
 ```
 
 What it does:
@@ -150,4 +150,4 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 
 ## Browser
 
-OpenClaw uses its built-in managed browser (`openclaw` profile) by default. For Chrome extension testing, use the Chrome extension relay (`chrome` profile). See https://docs.openclaw.ai/tools/browser
+OpenClaw uses its built-in managed browser (`openclaw` profile) by default. See https://docs.openclaw.ai/tools/browser

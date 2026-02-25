@@ -468,7 +468,8 @@ else
   warn "VNC setup script not found: $VNC_SETUP_SCRIPT"
 fi
 
-# Create Chromium wrapper with DISPLAY variable
+# Create Chromium wrapper with DISPLAY variable and extension loading
+# Extension loading: Managed browser automatically loads extensions
 WRAPPER_SCRIPT="${OPENCLAW_HOME}/chromium-vnc-wrapper.sh"
 cat > "$WRAPPER_SCRIPT" << 'WRAPPER_EOF'
 #!/usr/bin/env bash
@@ -537,7 +538,7 @@ elif [[ -t 0 ]]; then  # Only if running in a terminal (not piped)
   read -p "Would you like to register a project as an OpenClaw agent? (y/N) " -n 1 -r
   echo ""
   if [[ $REPLY =~ ^[Yy]$ ]]; then
-    read -p "Agent name (lowercase, e.g. 'kairo'): " AGENT_REG_NAME
+    read -p "Agent name (lowercase, e.g. 'myproject'): " AGENT_REG_NAME
     read -p "Workspace path: " AGENT_REG_PATH
     if [[ -n "$AGENT_REG_NAME" && -n "$AGENT_REG_PATH" && -d "$AGENT_REG_PATH" ]]; then
       if [[ -f "$ADD_AGENT_SCRIPT" ]]; then

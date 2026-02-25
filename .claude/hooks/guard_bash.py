@@ -36,6 +36,19 @@ ALLOWLISTED_NPM = [
     # Example: r"^npm\s+install\s+--save-dev\s+typescript\b",
 ]
 
+# -----------------------------------------------------------------------------
+# Always allowed: safe commands that should never be blocked regardless of mode
+# These are read-only or project-internal scripts with no side effects
+# -----------------------------------------------------------------------------
+ALWAYS_ALLOWED = [
+    # Local workflow execution (project-internal scripts)
+    r"^\s*bash\s+.*\.claude/scripts/openclaw-local-workflow\.sh\b",
+    r"^\s*bash\s+.*\.claude/bootstrap/analyze_repo\.sh\b",
+    # CI/CD monitoring (read-only GitHub CLI)
+    r"^\s*gh\s+run\s+(list|view|watch)\b",
+    r"^\s*gh\s+pr\s+(view|list|checks)\b",
+]
+
 # Commands promoted from blocked to allowed in autonomous mode only
 # These are safe for unattended operation on feature branches
 AUTONOMOUS_PROMOTED = [
@@ -52,6 +65,12 @@ AUTONOMOUS_PROMOTED = [
     r"^\s*pip3?\s+install\b",
     # Git push to feature branches only (block main/master)
     r"^\s*git\s+push\b(?!.*\b(main|master)\b)",
+    # CI/CD monitoring (read-only)
+    r"^\s*gh\s+run\s+(list|view|watch)\b",
+    r"^\s*gh\s+pr\s+(create|view|list|checks)\b",
+    # Local workflow execution
+    r"^\s*bash\s+.*openclaw-local-workflow\.sh\b",
+    r"^\s*bash\s+.*analyze_repo\.sh\b",
 ]
 
 # Patterns blocked even in autonomous mode (commit policy enforcement)
@@ -67,6 +86,14 @@ AUTONOMOUS_BLOCKED = [
     # No force push
     (r"git\s+push\b.*--force", "force push (policy: never force push)"),
 ]
+
+
+def is_always_allowed(cmd: str) -> bool:
+    """Check if command matches an always-allowed pattern."""
+    for pattern in ALWAYS_ALLOWED:
+        if re.search(pattern, cmd, re.IGNORECASE):
+            return True
+    return False
 
 
 def is_autonomous_promoted(cmd: str) -> bool:
@@ -164,6 +191,10 @@ if AUTONOMOUS_MODE:
         if re.search(pattern, cmd, re.IGNORECASE):
             print(f"BLOCKED: {reason}", file=sys.stderr)
             sys.exit(2)
+
+# Check always-allowed patterns first (bypass all other checks)
+if is_always_allowed(cmd):
+    sys.exit(0)
 
 # Check standard blocked patterns
 for pattern, name in blocked:

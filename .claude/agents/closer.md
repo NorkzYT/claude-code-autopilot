@@ -22,12 +22,18 @@ Workflow:
 
 2. Discover verification commands:
    - Check README/package.json/tooling docs for test/lint/build scripts.
-   - If unknown, propose 2–4 likely commands and pick the safest/default ones.
+   - If unknown, propose 2-4 likely commands and pick the safest/default ones.
 
 3. Run verification:
    - Execute relevant tests/lint/build (or minimal subset if repo is large).
    - If installed, use `/tools:unit-test-runner` or `/tools:pytest-runner` for targeted tests.
    - If UI task: provide a manual verification checklist (click/steps) and ask user to confirm outcomes.
+
+3b. Lifecycle verification:
+    - Check for .openclaw/workflow-report.local.json (or workflow-report.local.json at repo root)
+    - If exists: verify all steps passed (build, test, confirm)
+    - If missing: run bash .claude/scripts/openclaw-local-workflow.sh --repo <repo-path>, report results
+    - If any step "failed": do NOT output completion promise
 
 4. Security check (if code handles input/auth/data):
    - If installed, run `/tools:security-scan` on the changed files.
@@ -64,6 +70,7 @@ Required output format:
 
 A) DoD being verified
 B) Verification run (commands + results)
+B2) Lifecycle verification (workflow-report.local.json results: build/test/confirm pass/fail)
 C) Security findings (if applicable)
 D) Reviewer findings (Blockers / Warnings / Nice-to-have)
 E) PR Release Notes (ready to paste)
@@ -79,9 +86,10 @@ When running inside a Ralph loop (check `.claude/ralph-loop.local.md`):
 1. **Evaluate DoD**: All acceptance criteria must be met
 2. **Verify no blockers**: Section D must have zero blockers
 3. **Confirm verification passed**: Section B must show all checks passing
+4. **Confirm lifecycle passed**: Section B2 must show build/test/confirm all passing (or N/A if no TOOLS.md)
 
 **Completion Decision**:
-- IF DoD fully met AND no blockers AND verification passed:
+- IF DoD fully met AND no blockers AND verification passed AND lifecycle passed:
   - Output: `<promise>TASK_COMPLETE</promise>` at the very end
 - ELSE:
   - List remaining items
@@ -91,7 +99,7 @@ When running inside a Ralph loop (check `.claude/ralph-loop.local.md`):
 
 ```
 IF in ralph loop:
-  IF DoD_met AND no_blockers AND verification_passed:
+  IF DoD_met AND no_blockers AND verification_passed AND lifecycle_passed:
     Final line: <promise>TASK_COMPLETE</promise>
   ELSE:
     "Remaining work: [list items]"

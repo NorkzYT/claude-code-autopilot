@@ -20,7 +20,7 @@ Agents follow the **Orchestrator -> Explorer/Coder** pattern:
 | `parallel-orchestrator` | Orchestrates parallel agent deployment | Read, Glob, Grep, Bash, Task |
 | `orchestrator` | Planning only, forced delegation | Read, Glob, Grep, Task |
 | `autopilot-fixer` | Fix-up pass for incomplete work | Full access |
-| `closer` | Verification and PR-ready summary | Read, Glob, Grep, Bash, Task |
+| `closer` | Verification, lifecycle check, and PR-ready summary | Read, Glob, Grep, Bash, Task |
 
 ### Specialized Agents
 
@@ -32,6 +32,38 @@ Agents follow the **Orchestrator -> Explorer/Coder** pattern:
 | `surgical-reviewer` | Code review focused on correctness | Read, Glob, Grep |
 | `runbook` | Generates next-action prompts when stuck | Read only |
 | `accessibility-auditor` | WCAG 2.1 AA compliance audit and remediation | Full access |
+
+## Full Engineering Lifecycle
+
+The autopilot pipeline now includes full lifecycle verification:
+
+```
+Fix -> Build -> Test -> Confirm -> Deploy -> Verify CI -> Next Issue
+```
+
+### Lifecycle-Aware Agents
+
+| Agent | Lifecycle Role |
+|-------|----------------|
+| `autopilot` | Runs full lifecycle (step 6: build/test/confirm via openclaw-local-workflow.sh) |
+| `autopilot` | Deploys on feature branch (step 8b: commit/push/CI monitor) |
+| `closer` | Verifies lifecycle passed (step 3b: reads workflow-report.local.json) |
+
+### Lifecycle Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `.claude/scripts/openclaw-local-workflow.sh` | Runs build -> run -> test -> confirm from TOOLS.md |
+| `.claude/bootstrap/analyze_repo.sh` | Auto-detects BUILD/TEST/RUN/CONFIRM commands -> TOOLS.md |
+
+### Issue Lifecycle Skill
+
+After a fix is deployed, use the `issue-lifecycle` skill to:
+- Close the resolved issue with a commit reference
+- List the next open bugs/issues
+- Present options to the user
+
+See `.claude/skills/issue-lifecycle/SKILL.md` for details.
 
 ## Spawning Agents
 
@@ -128,13 +160,13 @@ Use `/ship` for fire-and-forget execution:
 ### How It Works
 
 1. `/ship` creates a Ralph loop with `TASK_COMPLETE` promise
-2. Autopilot executes the full pipeline
-3. Closer verifies DoD and outputs `<promise>TASK_COMPLETE</promise>` when done
+2. Autopilot executes the full pipeline (including lifecycle verification)
+3. Closer verifies DoD + lifecycle and outputs `<promise>TASK_COMPLETE</promise>` when done
 4. Loop continues if promise not output
 
 ### Agent Responsibilities in Ralph Loops
 
-- **autopilot**: Check `.claude/ralph-loop.local.md` at start; aware of iteration count
-- **closer**: Final gate; outputs completion promise when DoD met
+- **autopilot**: Check `.claude/ralph-loop.local.md` at start; run full lifecycle; aware of iteration count
+- **closer**: Final gate; verifies lifecycle passed; outputs completion promise when DoD met
 
 See `.claude/hooks/CLAUDE.md` for full Ralph loop documentation.
