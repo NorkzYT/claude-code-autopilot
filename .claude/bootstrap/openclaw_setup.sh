@@ -441,10 +441,15 @@ if [[ -x /snap/bin/chromium ]]; then
 fi
 log "Browser: using OpenClaw-managed browser (openclaw profile)"
 
-# Set default viewport to 1920x1080 if gateway is running
+# Set default viewport to 1920x1080 and exit fullscreen if gateway is running
 if has openclaw && openclaw gateway status >/dev/null 2>&1; then
   if openclaw browser set viewport 1920 1080 2>/dev/null; then
     log "Browser viewport set to 1920x1080"
+  fi
+  # Exit fullscreen mode (F11)
+  if [[ -x "${CLAUDE_DIR}/scripts/openclaw-browser-exit-fullscreen.sh" ]]; then
+    bash "${CLAUDE_DIR}/scripts/openclaw-browser-exit-fullscreen.sh" 2>/dev/null || true
+    log "Browser: exited fullscreen mode"
   fi
 fi
 
