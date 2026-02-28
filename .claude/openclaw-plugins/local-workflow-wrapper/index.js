@@ -73,13 +73,13 @@ function channelRouting(ctx) {
 
   if (channel === "discord") {
     if (channelId) {
-      return { channel, to: `channel:${channelId}`, guildId, channelId, userId };
+      return { channel, to: channelId, toKind: "channel", guildId, channelId, userId };
     }
     if (userId) {
-      return { channel, to: `user:${userId}`, guildId, channelId: null, userId };
+      return { channel, to: userId, toKind: "user", guildId, channelId: null, userId };
     }
   }
-  return { channel, to: null, guildId, channelId, userId };
+  return { channel, to: null, toKind: null, guildId, channelId, userId };
 }
 
 function configuredAgents(config) {
@@ -328,6 +328,9 @@ async function addCronJobFromCommand(ctx, resolved, delaySpec, promptText) {
     "isolated",
     "--message",
     message,
+    "--expect-final",
+    "--timeout-seconds",
+    "300",
     "--delete-after-run",
   ];
 
@@ -467,7 +470,10 @@ export async function register(api) {
 
       const jobId = parsed?.id || "(id not returned by CLI)";
       const nextRun = parsed?.nextRunAt || `in ${delaySpec}`;
-      const delivery = route.channel && route.to ? `${route.channel}:${route.to}` : "announce (default route)";
+      const delivery =
+        route.channel && route.to
+          ? `${route.channel}:${route.toKind || "target"}:${route.to}`
+          : "announce (default route)";
       const commandPreview = `openclaw cron add --name ${shellQuote(jobName)} --at ${shellQuote(delaySpec)} ...`;
 
       return [
