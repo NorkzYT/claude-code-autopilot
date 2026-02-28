@@ -1,6 +1,7 @@
 # External Editor (`Ctrl+G`)
 
 Press `Ctrl+G` in Claude Code to open an external editor for prompts.
+Codex uses the same editor path when launched with `ccx` (via `.claude/bin/codex-local`).
 
 The kit ships a `claude-editor` wrapper that tries, in order:
 
@@ -25,6 +26,20 @@ If you use a plain SSH terminal, the wrapper falls back to `nano` because VS Cod
 ```bash
 CLAUDE_EDITOR_DEBUG=1 claude-editor test.txt
 ```
+
+## Codex note
+
+If Codex shows:
+
+`Cannot open external editor: set $VISUAL or $EDITOR before starting Codex.`
+
+launch Codex with:
+
+```bash
+ccx
+```
+
+`ccx` sets `EDITOR` and `VISUAL` to `claude-editor` automatically when available.
 
 ## VS Code keybinding conflict (`Ctrl+G`)
 

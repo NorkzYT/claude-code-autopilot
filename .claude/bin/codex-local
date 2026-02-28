@@ -1,20 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# codex-local
-# Runs Codex with project-local state instead of ~/.codex.
-#
-# Usage:
-#   codex-local [codex args...]
-
 if ! command -v codex >/dev/null 2>&1; then
-  echo "ERROR: 'codex' CLI not found in PATH." >&2
-  exit 1
+echo "ERROR: 'codex' CLI not found in PATH." >&2
+exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${PWD}"
 LOCAL_CODEX_HOME="${PROJECT_ROOT}/.codex-home"
 mkdir -p "$LOCAL_CODEX_HOME"
 
-exec env CODEX_HOME="$LOCAL_CODEX_HOME" codex "$@"
+EDITOR_BIN=""
+if command -v claude-editor >/dev/null 2>&1; then
+EDITOR_BIN="$(command -v claude-editor)"
+elif [[ -x "${PROJECT_ROOT}/.claude/scripts/claude-editor.sh" ]]; then
+EDITOR_BIN="${PROJECT_ROOT}/.claude/scripts/claude-editor.sh"
+elif [[ -x "${SCRIPT_DIR}/../scripts/claude-editor.sh" ]]; then
+EDITOR_BIN="${SCRIPT_DIR}/../scripts/claude-editor.sh"
+fi
 
+if [[ -n "$EDITOR_BIN" ]]; then
+: "${EDITOR:=$EDITOR_BIN}"
+: "${VISUAL:=$EDITOR_BIN}"
+export EDITOR VISUAL
+fi
+
+exec env CODEX_HOME="$LOCAL_CODEX_HOME" codex "$@"
