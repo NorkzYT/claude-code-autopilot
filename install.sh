@@ -780,6 +780,7 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
   echo ""
   echo "  Setup Discord:"
   echo "    bash .claude/bootstrap/openclaw_discord_setup.sh"
+  echo "    bash .claude/bootstrap/openclaw_discord_scale_setup.sh   # lanes + thread parallelism"
   echo "    (or: openclaw channels add --channel discord --token <your-bot-token>)"
   echo ""
   echo "  Status:"

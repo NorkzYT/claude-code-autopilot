@@ -69,6 +69,18 @@ Set up Discord bot channel:
 bash .claude/bootstrap/openclaw_discord_setup.sh
 ```
 
+Set up Discord scaling (parallel threads + channel->agent lanes):
+
+```bash
+bash .claude/bootstrap/openclaw_discord_scale_setup.sh
+```
+
+What it does:
+- configures strict Discord allowlist (guild + user + allowed channels)
+- binds channels to specific agents (lane routing)
+- sets `agents.defaults.maxConcurrent`
+- keeps thread-per-task workflow for parallel runs in one channel
+
 Run repo analysis manually:
 
 ```bash
