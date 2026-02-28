@@ -1,0 +1,59 @@
+from crewai import Agent, Crew, Process, Task
+from crewai.project import CrewBase, agent, crew, task
+
+
+@CrewBase
+class AmazonMarketingCrew:
+    """CrewAI team focused on subscriber growth for an Amazon seller tool."""
+
+    agents_config = "config/agents.yaml"
+    tasks_config = "config/tasks.yaml"
+
+    @agent
+    def market_researcher(self) -> Agent:
+        return Agent(config=self.agents_config["market_researcher"], verbose=True)
+
+    @agent
+    def positioning_copywriter(self) -> Agent:
+        return Agent(config=self.agents_config["positioning_copywriter"], verbose=True)
+
+    @agent
+    def channel_strategist(self) -> Agent:
+        return Agent(config=self.agents_config["channel_strategist"], verbose=True)
+
+    @agent
+    def funnel_analyst(self) -> Agent:
+        return Agent(config=self.agents_config["funnel_analyst"], verbose=True)
+
+    @agent
+    def weekly_operator(self) -> Agent:
+        return Agent(config=self.agents_config["weekly_operator"], verbose=True)
+
+    @task
+    def define_icp(self) -> Task:
+        return Task(config=self.tasks_config["define_icp"])
+
+    @task
+    def craft_positioning(self) -> Task:
+        return Task(config=self.tasks_config["craft_positioning"])
+
+    @task
+    def plan_channels(self) -> Task:
+        return Task(config=self.tasks_config["plan_channels"])
+
+    @task
+    def design_funnel(self) -> Task:
+        return Task(config=self.tasks_config["design_funnel"])
+
+    @task
+    def weekly_execution_plan(self) -> Task:
+        return Task(config=self.tasks_config["weekly_execution_plan"])
+
+    @crew
+    def crew(self) -> Crew:
+        return Crew(
+            agents=self.agents,
+            tasks=self.tasks,
+            process=Process.sequential,
+            verbose=True,
+        )

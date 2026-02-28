@@ -25,6 +25,110 @@ Then follow the prompt output:
 4. `bash .claude/bootstrap/openclaw_discord_setup.sh` (optional)
 5. `bash .claude/bootstrap/add_openclaw_agent.sh <agent-id> <repo-path>` (for extra repos)
 
+Important:
+- `PROJECT.md` is generated only by deep analysis.
+- If you run `analyze_repo.sh` manually, include `--deep`:
+  - `bash .claude/bootstrap/analyze_repo.sh <repo-path> --deep`
+- Auto-generated `PROJECT.md` files (from `analyze_repo.sh`) can be refreshed by re-running `--deep`.
+- Custom/manual `PROJECT.md` files are preserved and not overwritten.
+
+## Add a New Repo Agent
+
+Recommended (uses this repo's bootstrap automation):
+
+```bash
+bash .claude/bootstrap/add_openclaw_agent.sh <agent-id> <repo-path>
+```
+
+Example:
+
+```bash
+bash .claude/bootstrap/add_openclaw_agent.sh myproject /opt/github/myproject
+```
+
+Direct OpenClaw CLI (minimal registration only):
+
+```bash
+openclaw agents add <agent-id> --workspace <repo-path> --non-interactive
+```
+
+## One Agent -> One Discord Channel (Seamless Flow)
+
+Use this exact sequence when you want a repo agent pinned to one Discord channel.
+
+1. Register the repo as an agent:
+
+```bash
+bash .claude/bootstrap/add_openclaw_agent.sh <agent-id> <repo-path>
+```
+
+2. Ensure Discord channel integration is configured:
+
+```bash
+bash .claude/bootstrap/openclaw_discord_setup.sh
+```
+
+3. Run the lane/concurrency wizard and enter:
+   - your Discord Server ID (guild)
+   - your Discord user ID
+   - `Require @mention ...`: choose `n` if you want always-on plain-text
+   - `Max concurrent runs`: choose `1` for strict one-task-at-a-time in this lane (or higher if needed)
+   - primary Discord channel ID
+   - primary agent ID (same `<agent-id>` you registered)
+
+```bash
+bash .claude/bootstrap/openclaw_discord_scale_setup.sh
+```
+
+4. In that Discord channel, start a fresh session and verify routing:
+   - run `/new`
+   - run `/status`
+   - confirm session includes: `agent:<agent-id>:discord:channel:<channel-id>`
+
+5. Verify config on host:
+
+```bash
+openclaw config get bindings --json
+openclaw config get channels.discord --json
+openclaw status --deep
+```
+
+Notes:
+- If `/status` still shows `Activation: mention` after `/new`, run the scale wizard again and then start a fresh `/new`.
+- The scale wizard writes both guild-level and channel-level `requireMention` policy.
+
+## Add Concurrency (Bash Script)
+
+Use the OpenClaw scaling wizard:
+
+```bash
+bash .claude/bootstrap/openclaw_discord_scale_setup.sh
+```
+
+This configures:
+
+- strict Discord allowlist (guild + user + channels)
+- channel -> agent lane bindings
+- `agents.defaults.maxConcurrent`
+- guild-level + channel-level `requireMention` policy
+- thread-first parallel workflow (one thread per task)
+
+Recommended usage model:
+
+1. Keep one lane per channel.
+2. Create multiple Discord threads in that channel.
+3. Run `/new` in each thread and execute tasks in parallel.
+
+Verify applied config:
+
+```bash
+openclaw config get channels.discord --json
+openclaw config get bindings --json
+openclaw status --deep
+```
+
+If `/status` still shows `Activation: mention` right after `/new`, rerun the scale wizard and then start a fresh session with `/new`.
+
 ## Discord (OpenClaw 2026.2.x)
 
 Use slash commands first:

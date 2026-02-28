@@ -1,0 +1,49 @@
+# {{PROJECT_NAME}} CrewAI Marketing Workspace
+
+This directory contains a CrewAI scaffold focused on subscriber growth for an Amazon seller tool.
+
+## Goals
+
+- Build a practical go-to-market plan for monthly and yearly subscriptions.
+- Create a ranked acquisition experiment backlog.
+- Generate a weekly operations cadence you can execute from Codex/OpenClaw tasks.
+
+## Project Layout
+
+- `src/{{PY_PACKAGE}}/crew.py` - CrewAI agents, tasks, and orchestration.
+- `src/{{PY_PACKAGE}}/config/agents.yaml` - Agent role, goal, and backstory config.
+- `src/{{PY_PACKAGE}}/config/tasks.yaml` - Task prompts and expected outputs.
+- `src/{{PY_PACKAGE}}/main.py` - Entrypoint and artifact generation.
+- `reports/` - Durable markdown/csv outputs from each run.
+- `outputs/` - Raw run metadata and snapshots.
+
+## Setup
+
+```bash
+cd .crewai
+cp .env.example .env
+# set LLM provider key(s) in .env
+uv sync
+```
+
+## Run
+
+```bash
+cd .crewai
+uv run crewai run
+```
+
+If you want to pass goal overrides or run without an LLM call:
+
+```bash
+bash .claude/scripts/crewai-local-workflow.sh --goal "Subscriber growth plan"
+bash .claude/scripts/crewai-local-workflow.sh --dry-run
+```
+
+## Expected Artifacts
+
+- `reports/go-to-market-plan.md`
+- `reports/experiment-backlog.csv`
+- `reports/weekly-ops.md`
+
+Each run also writes timestamped run metadata under `outputs/`.

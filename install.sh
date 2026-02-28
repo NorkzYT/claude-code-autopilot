@@ -26,6 +26,9 @@ Options:
                             Includes: linux_devtools.sh, install-extras.sh (wshobson agents/commands)
   --no-extras               Skip installing extras (wshobson agents/commands/skills)
   --with-openclaw           Install and configure OpenClaw integration
+  --open-claw               Alias for --with-openclaw
+  --with-crewai             Install and configure CrewAI integration
+  --crewAI                  Alias for --with-crewai
 EOF
 }
 
@@ -36,6 +39,7 @@ FORCE="0"
 BOOTSTRAP_LINUX="0"
 NO_EXTRAS="0"
 export INSTALL_OPENCLAW="0"
+export INSTALL_CREWAI="0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -45,7 +49,8 @@ while [[ $# -gt 0 ]]; do
     --force)  FORCE="1"; shift 1;;
     --bootstrap-linux) BOOTSTRAP_LINUX="1"; shift 1;;
     --no-extras) NO_EXTRAS="1"; shift 1;;
-    --with-openclaw) INSTALL_OPENCLAW="1"; shift 1;;
+    --with-openclaw|--open-claw) INSTALL_OPENCLAW="1"; shift 1;;
+    --with-crewai|--crewAI|--crewai) INSTALL_CREWAI="1"; shift 1;;
     -h|--help) usage; exit 0;;
     *) echo "Unknown arg: $1" >&2; usage; exit 2;;
   esac
@@ -575,28 +580,73 @@ if [[ "$BOOTSTRAP_LINUX" == "1" ]]; then
   fi
 fi
 
-# --- Optional: OpenClaw integration ---
-if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
-  OPENCLAW_SCRIPT="$DEST_CLAUDE/bootstrap/openclaw_setup.sh"
-  if [[ -f "$OPENCLAW_SCRIPT" ]]; then
-    echo ""
-    echo "Running OpenClaw setup: $OPENCLAW_SCRIPT"
-    chmod +x "$OPENCLAW_SCRIPT" 2>/dev/null || true
+run_optional_stack_setup() {
+  local enabled="$1"
+  local stack_name="$2"
+  local stack_script="$3"
+  local stack_env="${4:-}"
 
-    if [[ "$(id -u)" -eq 0 ]]; then
-      if command -v su >/dev/null 2>&1; then
-        su - "$TARGET_USER" -c "OPENCLAW_AUTO_REGISTER=1 bash \"$OPENCLAW_SCRIPT\" \"$DEST_ABS\""
+  if [[ "$enabled" != "1" ]]; then
+    return 0
+  fi
+
+  if [[ ! -f "$stack_script" ]]; then
+    echo "WARN: ${stack_name} setup script not found at $stack_script"
+    return 0
+  fi
+
+  echo ""
+  echo "Running ${stack_name} setup: $stack_script"
+  chmod +x "$stack_script" 2>/dev/null || true
+
+  local setup_status=0
+  if [[ "$(id -u)" -eq 0 ]]; then
+    if command -v su >/dev/null 2>&1; then
+      if [[ -n "$stack_env" ]]; then
+        su - "$TARGET_USER" -c "$stack_env bash \"$stack_script\" \"$DEST_ABS\"" || setup_status=$?
       else
-        echo "WARN: 'su' not found; running OpenClaw setup as root."
-        OPENCLAW_AUTO_REGISTER=1 bash "$OPENCLAW_SCRIPT" "$DEST_ABS"
+        su - "$TARGET_USER" -c "bash \"$stack_script\" \"$DEST_ABS\"" || setup_status=$?
       fi
     else
-      OPENCLAW_AUTO_REGISTER=1 bash "$OPENCLAW_SCRIPT" "$DEST_ABS"
+      echo "WARN: 'su' not found; running ${stack_name} setup as root."
+      if [[ -n "$stack_env" ]]; then
+        env "$stack_env" bash "$stack_script" "$DEST_ABS" || setup_status=$?
+      else
+        bash "$stack_script" "$DEST_ABS" || setup_status=$?
+      fi
     fi
   else
-    echo "WARN: OpenClaw setup script not found at $OPENCLAW_SCRIPT"
+    if [[ -n "$stack_env" ]]; then
+      env "$stack_env" bash "$stack_script" "$DEST_ABS" || setup_status=$?
+    else
+      bash "$stack_script" "$DEST_ABS" || setup_status=$?
+    fi
   fi
-fi
+
+  if [[ "$setup_status" -ne 0 ]]; then
+    echo "WARN: ${stack_name} setup exited with status ${setup_status}."
+    echo "WARN: You can re-run it manually:"
+    echo "WARN:   bash $stack_script \"$DEST_ABS\""
+  fi
+}
+
+# Optional stack integrations. Keep this registry-style list so adding new
+# stacks only requires one entry here plus a setup script.
+STACK_NAMES=("OpenClaw" "CrewAI")
+STACK_ENABLED=("$INSTALL_OPENCLAW" "$INSTALL_CREWAI")
+STACK_SCRIPTS=(
+  "$DEST_CLAUDE/bootstrap/openclaw_setup.sh"
+  "$DEST_CLAUDE/bootstrap/crewai_setup.sh"
+)
+STACK_ENVS=("OPENCLAW_AUTO_REGISTER=1" "")
+
+for idx in "${!STACK_NAMES[@]}"; do
+  run_optional_stack_setup \
+    "${STACK_ENABLED[$idx]}" \
+    "${STACK_NAMES[$idx]}" \
+    "${STACK_SCRIPTS[$idx]}" \
+    "${STACK_ENVS[$idx]}"
+done
 
 echo ""
 echo "Done. Installed .claude/ into ${DEST_ABS} (logs preserved)."
@@ -729,6 +779,7 @@ echo "  - cca                               Launch Claude with terminal naming +
 echo "  - ccx                               Launch Codex with project-local CODEX_HOME (.codex-home)"
 echo "  - .claude/extras/doctor.sh          Validate .claude/ configuration"
 echo "  - .claude/extras/install-extras.sh  Install/update wshobson agents & commands"
+echo "  - .claude/scripts/crewai-local-workflow.sh  Run local CrewAI workflows (if installed)"
 echo ""
 echo "=============================================="
 echo "  EXTERNAL EDITOR (Ctrl+G)"
@@ -801,6 +852,30 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
   echo ""
   echo "  Quick reference:"
   echo "    .claude/README-openclaw.md   # bootstrap scripts + common commands"
+  echo ""
+  echo "=============================================="
+  echo ""
+fi
+if [[ "$INSTALL_CREWAI" == "1" ]]; then
+  echo "=============================================="
+  echo "  CREWAI INTEGRATION"
+  echo "=============================================="
+  echo ""
+  echo "  CrewAI project scaffold has been created at:"
+  echo "    .crewai/"
+  echo ""
+  echo "  Quick start:"
+  echo "    cd .crewai"
+  echo "    cp .env.example .env"
+  echo "    # add your LLM provider keys/config"
+  echo "    uv sync"
+  echo "    uv run crewai run"
+  echo ""
+  echo "  Local workflow wrapper:"
+  echo "    bash .claude/scripts/crewai-local-workflow.sh --goal \"Subscriber growth plan\""
+  echo ""
+  echo "  Guide:"
+  echo "    docs/crewai.md"
   echo ""
   echo "=============================================="
   echo ""

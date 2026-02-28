@@ -25,6 +25,7 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 Run the same install command with `--force`.
 
 Use `--with-openclaw` only when you want to rerun OpenClaw setup and regenerate `.openclaw/*` files.
+Use `--with-crewai` when you want to scaffold or refresh `.crewai/*` assets.
 
 ## Installer Flags
 
@@ -37,6 +38,16 @@ Use `--with-openclaw` only when you want to rerun OpenClaw setup and regenerate 
 | `--bootstrap-linux` | Full bootstrap (devtools + extras) |
 | `--no-extras` | Skip wshobson agents/commands |
 | `--with-openclaw` | Run OpenClaw setup and agent bootstrap |
+| `--open-claw` | Alias for `--with-openclaw` |
+| `--with-crewai` | Run CrewAI setup and scaffold `.crewai/` |
+| `--crewAI` | Alias for `--with-crewai` |
+
+You can combine flags in one run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
+  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw --with-crewai
+```
 
 ## Project `llms.txt`
 
