@@ -80,6 +80,7 @@ What it does:
 - binds channels to specific agents (lane routing)
 - sets `agents.defaults.maxConcurrent`
 - keeps thread-per-task workflow for parallel runs in one channel
+- avoids duplicate lane entries for the same channel (parallelism comes from threads)
 
 Run repo analysis manually:
 

@@ -284,7 +284,7 @@ print(json.dumps([{"channelId": sys.argv[1], "agentId": sys.argv[2]}]))
 PY
 )"
 
-read -rp "Add more channel->agent lanes? (y/N): " ADD_MORE
+read -rp "Add more channel->agent lanes (different channel IDs)? (y/N): " ADD_MORE
 while [[ "$ADD_MORE" =~ ^[Yy]$ ]]; do
   read -rp "  Channel ID: " LANE_CHANNEL
   read -rp "  Agent ID: " LANE_AGENT
@@ -294,14 +294,33 @@ while [[ "$ADD_MORE" =~ ^[Yy]$ ]]; do
     if ! agent_exists "$LANE_AGENT"; then
       warn "  Agent '$LANE_AGENT' not found; lane skipped."
     else
-      LANES_JSON="$(python3 - "$LANES_JSON" "$LANE_CHANNEL" "$LANE_AGENT" <<'PY'
+      LANE_UPSERT_OUT="$(python3 - "$LANES_JSON" "$LANE_CHANNEL" "$LANE_AGENT" <<'PY'
 import json, sys
 lanes = json.loads(sys.argv[1])
-lanes.append({"channelId": sys.argv[2], "agentId": sys.argv[3]})
+ch = str(sys.argv[2])
+ag = str(sys.argv[3])
+action = "added"
+for lane in lanes:
+    if str(lane.get("channelId", "")).strip() == ch:
+        if str(lane.get("agentId", "")).strip() == ag:
+            action = "duplicate"
+        else:
+            lane["agentId"] = ag
+            action = "replaced"
+        break
+else:
+    lanes.append({"channelId": ch, "agentId": ag})
+print(action)
 print(json.dumps(lanes))
 PY
 )"
-      log "Added lane channel=$LANE_CHANNEL agent=$LANE_AGENT"
+      LANE_ACTION="$(printf '%s\n' "$LANE_UPSERT_OUT" | head -n1)"
+      LANES_JSON="$(printf '%s\n' "$LANE_UPSERT_OUT" | tail -n +2)"
+      case "$LANE_ACTION" in
+        duplicate) warn "  Lane already exists for channel=$LANE_CHANNEL agent=$LANE_AGENT (skipped)." ;;
+        replaced)  log "Updated lane channel=$LANE_CHANNEL -> agent=$LANE_AGENT (replaced previous agent for that channel)" ;;
+        *)         log "Added lane channel=$LANE_CHANNEL agent=$LANE_AGENT" ;;
+      esac
     fi
   fi
   read -rp "Add another lane? (y/N): " ADD_MORE
@@ -326,6 +345,7 @@ echo "Thread-first usage (recommended):"
 echo "  1) In each lane channel, create one thread per task."
 echo "  2) In each new thread, run: /new"
 echo "  3) Run tasks in multiple threads concurrently."
+echo "  4) Do not duplicate lanes for the same channel; threads provide parallelism."
 echo ""
 echo "Verify:"
 echo "  openclaw config get channels.discord --json"
