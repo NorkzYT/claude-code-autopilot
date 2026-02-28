@@ -19,21 +19,33 @@ list_agents() {
   if ! has openclaw; then
     return 1
   fi
-  openclaw agents list --json 2>/dev/null | python3 - <<'PY'
+  local raw
+  raw="$(openclaw agents list --json 2>/dev/null || true)"
+  [[ -z "$raw" ]] && return 0
+
+  python3 -c '
 import json, sys
+
+raw = sys.stdin.read().strip()
+if not raw:
+    sys.exit(0)
 try:
-    data = json.load(sys.stdin)
+    data = json.loads(raw)
 except Exception:
     sys.exit(0)
-agents = data if isinstance(data, list) else data.get("agents", [])
+
+agents = data if isinstance(data, list) else (data.get("agents") if isinstance(data, dict) else [])
+if not isinstance(agents, list):
+    agents = []
+
 for a in agents:
     if not isinstance(a, dict):
         continue
-    n = a.get("name") or a.get("id") or ""
+    n = a.get("id") or a.get("name") or ""
     w = a.get("workspace") or ""
     if n:
         print(f"{n}\t{w}")
-PY
+' <<<"$raw"
 }
 
 agent_exists() {
@@ -204,7 +216,10 @@ mkdir -p "$(dirname "$CONFIG_FILE")"
 echo "Known agents:"
 if AGENT_ROWS="$(list_agents)"; then
   if [[ -n "$AGENT_ROWS" ]]; then
-    printf '  - %s\n' "$(printf '%s\n' "$AGENT_ROWS" | awk -F'\t' '{print $1 "  (" $2 ")"}')"
+    while IFS=$'\t' read -r aid aws; do
+      [[ -z "$aid" ]] && continue
+      echo "  - $aid  ($aws)"
+    done <<< "$AGENT_ROWS"
   else
     echo "  (none found)"
   fi
