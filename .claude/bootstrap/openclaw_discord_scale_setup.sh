@@ -103,6 +103,7 @@ guild_cfg = guilds.get(guild_id)
 if not isinstance(guild_cfg, dict):
     guild_cfg = {}
 guilds[guild_id] = guild_cfg
+guild_cfg["requireMention"] = require_mention_bool
 
 if user_id.strip():
     users = guild_cfg.get("users")

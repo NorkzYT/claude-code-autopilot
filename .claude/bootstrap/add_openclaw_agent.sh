@@ -784,9 +784,17 @@ fi
 log "Section 7c: Installing OpenClaw local workflow plugin..."
 
 LOCAL_WORKFLOW_PLUGIN_ID="local-workflow-wrapper"
-LOCAL_WORKFLOW_PLUGIN_SRC="$WORKSPACE_PATH/.claude/openclaw-plugins/$LOCAL_WORKFLOW_PLUGIN_ID"
+LOCAL_WORKFLOW_PLUGIN_SRC_WORKSPACE="$WORKSPACE_PATH/.claude/openclaw-plugins/$LOCAL_WORKFLOW_PLUGIN_ID"
+LOCAL_WORKFLOW_PLUGIN_SRC_SCRIPT_REPO="$SCRIPT_DIR/../openclaw-plugins/$LOCAL_WORKFLOW_PLUGIN_ID"
+LOCAL_WORKFLOW_PLUGIN_SRC=""
 
-if [[ -d "$LOCAL_WORKFLOW_PLUGIN_SRC" ]]; then
+if [[ -d "$LOCAL_WORKFLOW_PLUGIN_SRC_WORKSPACE" ]]; then
+  LOCAL_WORKFLOW_PLUGIN_SRC="$LOCAL_WORKFLOW_PLUGIN_SRC_WORKSPACE"
+elif [[ -d "$LOCAL_WORKFLOW_PLUGIN_SRC_SCRIPT_REPO" ]]; then
+  LOCAL_WORKFLOW_PLUGIN_SRC="$LOCAL_WORKFLOW_PLUGIN_SRC_SCRIPT_REPO"
+fi
+
+if [[ -n "$LOCAL_WORKFLOW_PLUGIN_SRC" ]]; then
   plugin_ready=false
   plugin_install_out=""
   if plugin_install_out="$(openclaw plugins install -l "$LOCAL_WORKFLOW_PLUGIN_SRC" 2>&1)"; then
@@ -818,8 +826,9 @@ if [[ -d "$LOCAL_WORKFLOW_PLUGIN_SRC" ]]; then
     warn "Skipping plugin enable because install failed"
   fi
 else
-  warn "Plugin source not found: $LOCAL_WORKFLOW_PLUGIN_SRC"
-  warn "Expected .claude/openclaw-plugins/$LOCAL_WORKFLOW_PLUGIN_ID/ in the workspace"
+  warn "Plugin source not found in either location:"
+  warn "  - $LOCAL_WORKFLOW_PLUGIN_SRC_WORKSPACE"
+  warn "  - $LOCAL_WORKFLOW_PLUGIN_SRC_SCRIPT_REPO"
 fi
 
 # ─── Section 8: Restart Gateway ─────────────────────────────

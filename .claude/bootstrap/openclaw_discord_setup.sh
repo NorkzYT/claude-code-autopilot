@@ -51,6 +51,8 @@ guild_cfg = guilds.get(guild_id)
 if not isinstance(guild_cfg, dict):
     guild_cfg = {}
 guilds[guild_id] = guild_cfg
+if require_mention.lower() in ("true", "false"):
+    guild_cfg["requireMention"] = (require_mention.lower() == "true")
 
 users = guild_cfg.get("users")
 if not isinstance(users, list):

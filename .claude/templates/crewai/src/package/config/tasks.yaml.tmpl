@@ -1,0 +1,45 @@
+define_icp:
+  description: >
+    Define the ideal customer profile and priority market segments for:
+    - Tool: {tool_name}
+    - Tagline: {tool_tagline}
+    - Target persona: {target_persona}
+    - Offer: {primary_offer}
+    Use practical segmentation criteria that can guide channel and offer decisions.
+  expected_output: >
+    A concise ICP definition with 2-3 high-priority segments, main pain points,
+    and buying triggers.
+  agent: market_researcher
+
+craft_positioning:
+  description: >
+    Create positioning and core messaging for the prioritized segments.
+    Emphasize differentiation around faster sourcing and data-backed decision making.
+  expected_output: >
+    Messaging matrix with value proposition, proof points, objection handling,
+    and CTA guidance for monthly vs yearly plans.
+  agent: positioning_copywriter
+
+plan_channels:
+  description: >
+    Build a 4-week channel plan to grow qualified awareness and subscription intent.
+    Include channel rationale, content themes, publishing cadence, and success criteria.
+  expected_output: >
+    Ranked channel strategy and 4-week content/campaign outline.
+  agent: channel_strategist
+
+design_funnel:
+  description: >
+    Design a measurement framework for awareness -> activation -> paid conversion.
+    Include KPI definitions and decision thresholds for experiment keep/kill choices.
+  expected_output: >
+    Funnel map with KPI definitions, target ranges, and experiment scoring model.
+  agent: funnel_analyst
+
+weekly_execution_plan:
+  description: >
+    Convert all previous outputs into a weekly operations plan optimized for a solo founder.
+    Provide concrete priorities, dependencies, and iteration cadence.
+  expected_output: >
+    Weekly action plan with top 3 experiments, required inputs, and reporting checklist.
+  agent: weekly_operator

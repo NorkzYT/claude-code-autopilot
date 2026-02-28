@@ -45,6 +45,23 @@ Example:
 bash .claude/bootstrap/add_openclaw_agent.sh myproject /path/to/project
 ```
 
+Pin one agent to one Discord channel (recommended runbook):
+
+```bash
+# 1) Register agent
+bash .claude/bootstrap/add_openclaw_agent.sh <agent-id> <repo-path>
+
+# 2) Ensure Discord bot/channel is connected
+bash .claude/bootstrap/openclaw_discord_setup.sh
+
+# 3) Bind channel -> agent lane
+bash .claude/bootstrap/openclaw_discord_scale_setup.sh
+```
+
+After step 3:
+- in Discord channel: `/new` then `/status`
+- confirm session shows `agent:<agent-id>:discord:channel:<channel-id>`
+
 What it does:
 - registers the agent in OpenClaw
 - creates/updates root OpenClaw core files (`AGENTS.md`, `SOUL.md`, `TOOLS.md`, etc.)

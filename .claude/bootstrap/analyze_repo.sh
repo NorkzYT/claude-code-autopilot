@@ -984,6 +984,11 @@ if sections:
   echo "    - $TOOLS_FILE"
   echo "    - $HEARTBEAT_FILE"
   echo "    - $LLMS_FILE"
+  if [[ ! -s "$WORKSPACE/PROJECT.md" ]]; then
+    echo ""
+    echo "  Note: PROJECT.md is generated only in deep mode."
+    echo "  Run: bash $0 $WORKSPACE --deep"
+  fi
 
 # ═══════════════════════════════════════════════════════════════
 # Phase B: Deep Scan (Claude-powered)
@@ -995,8 +1000,11 @@ else
   PROJECT_FILE="$WORKSPACE/PROJECT.md"
 
   if [[ -s "$PROJECT_FILE" ]]; then
-    skip "PROJECT.md already exists with content, not overwriting"
-    exit 0
+    if is_custom "$PROJECT_FILE"; then
+      skip "PROJECT.md has custom content, not overwriting"
+      exit 0
+    fi
+    log "PROJECT.md is auto-generated; refreshing with a new deep scan"
   fi
 
   if ! has claude; then
@@ -1150,16 +1158,10 @@ else
   if has timeout; then
     run_claude_deep_scan_attempt 1 "$CLAUDE_DEEP_TIMEOUT"
     if [[ -z "$CLAUDE_OUTPUT" ]] && [[ "$CLAUDE_DEEP_RETRY_TIMEOUT" -gt 0 ]] && [[ "$CLAUDE_DEEP_RETRY_TIMEOUT" -gt "$CLAUDE_DEEP_TIMEOUT" ]]; then
-      # Don't retry if attempt 1 was a silent timeout — retrying won't help
-      if [[ ("$CLAUDE_LAST_RC" == "137" || "$CLAUDE_LAST_RC" == "124") ]] && [[ -z "$CLAUDE_OUTPUT" ]]; then
-        warn "Skipping retry: attempt 1 was a silent timeout (rc=$CLAUDE_LAST_RC, elapsed=${CLAUDE_LAST_ELAPSED}s, empty output)"
-        warn "Attempt 1 logs: $CLAUDE_LAST_OUT_LOG ; $CLAUDE_LAST_ERR_LOG"
-      else
-        warn "Claude deep scan attempt 1 $(describe_deep_scan_failure "$CLAUDE_LAST_RC" "$CLAUDE_LAST_ELAPSED")"
-        warn "Attempt 1 logs: $CLAUDE_LAST_OUT_LOG ; $CLAUDE_LAST_ERR_LOG"
-        log "Retrying Claude deep scan once with ${CLAUDE_DEEP_RETRY_TIMEOUT}s..."
-        run_claude_deep_scan_attempt 2 "$CLAUDE_DEEP_RETRY_TIMEOUT"
-      fi
+      warn "Claude deep scan attempt 1 $(describe_deep_scan_failure "$CLAUDE_LAST_RC" "$CLAUDE_LAST_ELAPSED")"
+      warn "Attempt 1 logs: $CLAUDE_LAST_OUT_LOG ; $CLAUDE_LAST_ERR_LOG"
+      log "Retrying Claude deep scan once with ${CLAUDE_DEEP_RETRY_TIMEOUT}s..."
+      run_claude_deep_scan_attempt 2 "$CLAUDE_DEEP_RETRY_TIMEOUT"
     fi
   else
     run_claude_deep_scan_attempt 1 ""
@@ -1185,15 +1187,30 @@ else
       echo "# PROJECT.md - $PROJECT_NAME Architecture"
       echo ""
       echo "<!-- Deep scan failed or returned empty. Re-run: bash analyze_repo.sh $WORKSPACE --deep -->"
+      echo "<!-- Last failure: rc=${CLAUDE_LAST_RC}, elapsed=${CLAUDE_LAST_ELAPSED}s -->"
+      echo "<!-- Logs: ${CLAUDE_LAST_OUT_LOG} ; ${CLAUDE_LAST_ERR_LOG} -->"
       echo ""
       echo "## Overview"
       echo ""
-      echo "(Auto-populated by analyze_repo.sh --deep)"
+      echo "Deep scan did not complete. Populate this file manually or re-run deep scan with a longer timeout:"
+      echo ""
+      echo "\`CLAUDE_DEEP_TIMEOUT=900 CLAUDE_DEEP_RETRY_TIMEOUT=1800 bash $0 $WORKSPACE --deep\`"
       echo ""
       echo "## Architecture"
       echo ""
-      echo "(Auto-populated by analyze_repo.sh --deep)"
+      echo "- Pending deep scan output."
+      echo "- Start from README.md, primary entrypoints, and top-level build files."
     } > "$PROJECT_FILE"
+    if [[ ! -s "$PROJECT_FILE" ]]; then
+      cat > "$PROJECT_FILE" <<EOF
+$AUTO_GEN_MARKER
+# PROJECT.md - $PROJECT_NAME Architecture
+
+Deep scan failed and placeholder generation did not complete.
+Re-run with:
+\`CLAUDE_DEEP_TIMEOUT=900 CLAUDE_DEEP_RETRY_TIMEOUT=1800 bash $0 $WORKSPACE --deep\`
+EOF
+    fi
     log "Created placeholder: $PROJECT_FILE"
   fi
 

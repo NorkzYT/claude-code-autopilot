@@ -64,6 +64,25 @@ Or configure it manually in `~/.openclaw/openclaw.json` under `channels.discord`
 
 Bind a channel to a specific agent so `/new` starts sessions on that repo agent instead of `main`.
 
+Recommended end-to-end flow (for new repos):
+
+```bash
+# 1) Register repo agent
+bash .claude/bootstrap/add_openclaw_agent.sh <agent-id> <repo-path>
+
+# 2) Ensure Discord integration is configured
+bash .claude/bootstrap/openclaw_discord_setup.sh
+
+# 3) Bind channel -> agent and concurrency via wizard
+bash .claude/bootstrap/openclaw_discord_scale_setup.sh
+```
+
+In the scale wizard, set:
+- primary Discord channel ID
+- primary agent ID
+- `Require @mention ...`: `n` for always-on plain text
+- `Max concurrent`: `1` for strict sequential behavior in that lane (or higher if desired)
+
 Example:
 
 ```bash

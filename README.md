@@ -2,7 +2,7 @@
 
 A portable `.claude/` bundle for Claude Code with a staged agent workflow, safety hooks, logging, and a strict verification loop.
 
-It also includes OpenClaw setup and bootstrap scripts for remote control, browser automation, multi-agent routing, and cross-session memory.
+It also includes OpenClaw and CrewAI bootstrap scripts for remote control, browser automation, multi-agent routing, and cross-session memory.
 
 This repo is built to support a full local engineer workflow:
 
@@ -30,11 +30,25 @@ Then restart Claude Code to load the new configuration.
 
 > **Note:** Run Claude Code as a **non-root user**. The kit's hooks, logs, and VS Code integration are designed for regular user accounts. If using VS Code Remote (SSH/Tailscale), ensure you attach as the same user that runs Claude.
 
-### Install With OpenClaw (Recommended if you want Discord/browser/multi-agent)
+### Install With OpenClaw (Discord/browser/multi-agent)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw
+```
+
+### Install With CrewAI (marketing/research/ops crews)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
+  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-crewai
+```
+
+### Install With OpenClaw + CrewAI Together
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
+  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw --with-crewai
 ```
 
 ## Start Here
@@ -43,13 +57,16 @@ Pick one path:
 
 1. Claude Code only (local terminal workflow): use the Quick Install command above
 2. Claude Code + OpenClaw (Discord, browser, remote control): add `--with-openclaw`
-3. Refresh an existing repo: re-run the install command with `--force`
+3. Claude Code + CrewAI (crew-based domain teams): add `--with-crewai`
+4. Claude Code + OpenClaw + CrewAI: use both flags in one command
+5. Refresh an existing repo: re-run the install command with `--force`
 
 What this kit covers:
 
 - Claude Code hooks and guardrails (`.claude/hooks/*`)
 - staged agent workflow (autopilot, triage, fixer, closer)
 - OpenClaw gateway, Discord, browser, and agent bootstrap scripts
+- CrewAI bootstrap with a marketing crew scaffold under `.crewai/`
 - Codex compatibility layer (`AGENTS.md`, `.agents/skills`, `.codex/rules`)
 
 Then read:
@@ -57,6 +74,7 @@ Then read:
 - `.claude/README-openclaw.md` for OpenClaw scripts and common commands
 - `.claude/docs/openclaw-integration.md` for full setup and troubleshooting
 - `.claude/docs/openclaw-remote-commands.md` for Discord use (slash commands, pairing, allowlists, bindings)
+- `docs/crewai.md` for CrewAI setup, execution, and artifact workflow
 
 ---
 
@@ -99,6 +117,12 @@ If you install with OpenClaw, it also:
 6. **Adds gateway tooling** — Remote access, channel routing, and session management
 7. **Adds browser tooling** — OpenClaw-managed browser for local UI verification and CDP flows
 8. **Bootstraps repo agents** — Generates root OpenClaw core files, `.openclaw/` runtime state, skills, and compatibility files for multi-repo work
+
+If you install with CrewAI, it also:
+
+9. **Scaffolds a CrewAI workspace** — Generates `.crewai/` with agents/tasks config and Python entrypoints
+10. **Creates growth artifacts** — Produces go-to-market, experiment backlog, and weekly ops outputs under `.crewai/reports/`
+11. **Adds a local runner** — `.claude/scripts/crewai-local-workflow.sh` for CLI-driven automation
 
 ---
 
@@ -206,6 +230,7 @@ The README is the fast path. Detailed guides live in `docs/*.md` and `.claude/do
 - `docs/editor.md` — external editor (`Ctrl+G`) and VS Code remote setup
 - `docs/troubleshooting.md` — common issues and validation commands
 - `docs/openclaw.md` — OpenClaw quick guide and hook model overview
+- `docs/crewai.md` — CrewAI setup and marketing crew workflow
 - `docs/openclaw-plugin-hooks.md` — plugin hooks and wrapper design for local workflow automation
 - `docs/roadmap.md` — roadmap for full engineer workflow enforcement
 

@@ -1,0 +1,214 @@
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from dotenv import load_dotenv
+
+from .crew import AmazonMarketingCrew
+
+
+def _has_provider_key() -> bool:
+    return any(
+        os.getenv(key)
+        for key in (
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "GEMINI_API_KEY",
+            "GROQ_API_KEY",
+            "MISTRAL_API_KEY",
+            "AZURE_OPENAI_API_KEY",
+        )
+    )
+
+
+def _default_inputs(goal: str) -> dict[str, str]:
+    return {
+        "tool_name": os.getenv("TOOL_NAME", "{{PROJECT_NAME}} Amazon Seller Tool"),
+        "tool_tagline": os.getenv(
+            "TOOL_TAGLINE",
+            "Source profitable products faster with statistics and data-backed decisions.",
+        ),
+        "target_persona": os.getenv(
+            "TARGET_PERSONA",
+            "Amazon sellers and sourcing teams who need faster, data-based sourcing.",
+        ),
+        "primary_offer": os.getenv(
+            "PRIMARY_OFFER", "Monthly and yearly subscriptions for sourcing intelligence."
+        ),
+        "primary_goal": goal,
+    }
+
+
+def _ensure_dirs(base_dir: Path) -> tuple[Path, Path]:
+    reports_dir = base_dir / "reports"
+    outputs_dir = base_dir / "outputs"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    return reports_dir, outputs_dir
+
+
+def _write_go_to_market_plan(reports_dir: Path, inputs: dict[str, str], result_text: str) -> None:
+    plan_path = reports_dir / "go-to-market-plan.md"
+    plan_body = f"""# Go-To-Market Plan
+
+## Product
+- Tool: {inputs["tool_name"]}
+- Core value: {inputs["tool_tagline"]}
+- Offer: {inputs["primary_offer"]}
+
+## Audience
+- Primary persona: {inputs["target_persona"]}
+
+## Goal
+- {inputs["primary_goal"]}
+
+## Messaging Angle
+- Emphasize faster sourcing with confidence through statistics and decision-ready data.
+- Focus on time saved, better sourcing hit-rate, and reduced guesswork.
+
+## Channel Priorities
+1. Short-form educational content (reels/shorts/posts with sourcing examples).
+2. Amazon seller communities and newsletters.
+3. Targeted landing pages by seller maturity level (new, scaling, advanced).
+
+## Funnel Design
+1. Awareness -> data-backed sourcing insight content.
+2. Activation -> clear demo of speed and decision quality.
+3. Conversion -> monthly plan trial, then annual upgrade campaign.
+
+## Crew Output Snapshot
+{result_text}
+"""
+    plan_path.write_text(plan_body, encoding="utf-8")
+
+
+def _write_experiment_backlog(reports_dir: Path) -> None:
+    backlog_path = reports_dir / "experiment-backlog.csv"
+    rows = [
+        {
+            "experiment": "Case-study landing page for high-volume sellers",
+            "channel": "SEO + community distribution",
+            "effort": "M",
+            "expected_lift": "15% more qualified trials",
+            "kpi": "Trial starts, activation rate",
+            "decision_threshold": "Keep if trial-to-paid >= baseline + 10%",
+        },
+        {
+            "experiment": "Short-form before/after sourcing workflow videos",
+            "channel": "TikTok, YouTube Shorts, Instagram Reels",
+            "effort": "S",
+            "expected_lift": "20% awareness growth",
+            "kpi": "Qualified traffic, email signups",
+            "decision_threshold": "Keep if CPA proxy improves by 15%",
+        },
+        {
+            "experiment": "Annual-plan savings + ROI calculator",
+            "channel": "Pricing page + onboarding emails",
+            "effort": "M",
+            "expected_lift": "10% annual plan share increase",
+            "kpi": "Annual conversion share",
+            "decision_threshold": "Keep if annual share rises >= 8%",
+        },
+    ]
+
+    with backlog_path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=[
+                "experiment",
+                "channel",
+                "effort",
+                "expected_lift",
+                "kpi",
+                "decision_threshold",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_weekly_ops(reports_dir: Path) -> None:
+    weekly_path = reports_dir / "weekly-ops.md"
+    weekly_body = """# Weekly Operations Plan
+
+## Weekly Cadence
+1. Review KPI board (trial starts, activation, paid conversion, annual share).
+2. Launch or continue top 3 ranked experiments (impact/confidence/effort).
+3. Capture learnings and promote one winning narrative into core messaging.
+4. Prepare next week backlog with clear keep/kill thresholds.
+
+## Inputs Needed
+- Last 7 days traffic + conversion data.
+- Product usage/activation indicators.
+- Current channel spend and content output.
+
+## Decision Rules
+- Scale experiments that meet decision thresholds.
+- Pause experiments after 2 cycles with no positive movement.
+- Prioritize initiatives improving activation and paid conversion, not just top-of-funnel traffic.
+"""
+    weekly_path.write_text(weekly_body, encoding="utf-8")
+
+
+def _write_run_metadata(outputs_dir: Path, inputs: dict[str, str], result_text: str, dry_run: bool) -> None:
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    metadata: dict[str, Any] = {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "dry_run": dry_run,
+        "inputs": inputs,
+        "result_preview": result_text[:4000],
+    }
+    out_path = outputs_dir / f"run-{timestamp}.json"
+    out_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+
+
+def run() -> None:
+    parser = argparse.ArgumentParser(description="Run Amazon marketing CrewAI workflow.")
+    parser.add_argument(
+        "--goal",
+        default=os.getenv("PRIMARY_GOAL", "Increase monthly and yearly subscriber growth."),
+        help="Primary campaign goal.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Generate output artifacts without calling an LLM provider.",
+    )
+    args = parser.parse_args()
+
+    load_dotenv()
+
+    base_dir = Path(__file__).resolve().parents[2]
+    reports_dir, outputs_dir = _ensure_dirs(base_dir)
+    inputs = _default_inputs(args.goal)
+
+    result_text = "Dry run completed. Add provider keys in .env for live CrewAI execution."
+    dry_run = args.dry_run
+
+    if not args.dry_run and _has_provider_key():
+        result = AmazonMarketingCrew().crew().kickoff(inputs=inputs)
+        result_text = str(result)
+        dry_run = False
+    elif not args.dry_run:
+        print("No LLM provider key found in .env. Generating dry-run artifacts instead.")
+        dry_run = True
+
+    _write_go_to_market_plan(reports_dir, inputs, result_text)
+    _write_experiment_backlog(reports_dir)
+    _write_weekly_ops(reports_dir)
+    _write_run_metadata(outputs_dir, inputs, result_text, dry_run)
+
+    print("Artifacts written:")
+    print(f"  - {reports_dir / 'go-to-market-plan.md'}")
+    print(f"  - {reports_dir / 'experiment-backlog.csv'}")
+    print(f"  - {reports_dir / 'weekly-ops.md'}")
+
+
+if __name__ == "__main__":
+    run()
