@@ -232,6 +232,7 @@ The README is the fast path. Detailed guides live in `docs/*.md` and `.claude/do
 - `docs/troubleshooting.md` — common issues and validation commands
 - `docs/openclaw.md` — OpenClaw quick guide and hook model overview
 - `docs/crewai.md` — CrewAI setup and marketing crew workflow
+- `docs/docker-openclaw-crewai.md` — separate compose files for OpenClaw-only or CrewAI-only container stacks
 - `docs/openclaw-plugin-hooks.md` — plugin hooks and wrapper design for local workflow automation
 - `docs/roadmap.md` — roadmap for full engineer workflow enforcement
 

@@ -1,0 +1,22 @@
+name: openclaw-stack
+
+services:
+  openclaw-gateway:
+    build:
+      context: .
+      dockerfile: docker/openclaw/Dockerfile
+    container_name: openclaw-gateway
+    restart: unless-stopped
+    environment:
+      OPENCLAW_STATE_DIR: /home/openclaw/.openclaw
+      OPENCLAW_GATEWAY_PORT: "18789"
+      OPENCLAW_GATEWAY_BIND: "all"
+    ports:
+      - "18789:18789"
+    volumes:
+      - openclaw_state:/home/openclaw/.openclaw
+      - ${HOST_REPOS_DIR:-/opt/repos}:/opt/repos:rw
+    working_dir: /opt/repos
+
+volumes:
+  openclaw_state:
