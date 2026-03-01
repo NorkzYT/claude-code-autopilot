@@ -31,7 +31,7 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 ```bash
 cd .crewai
 cp .env.example .env
-# set at least one provider key (for example OPENAI_API_KEY or ANTHROPIC_API_KEY)
+# choose direct API mode or proxy mode in .env
 uv sync
 ```
 
@@ -48,6 +48,12 @@ Run through wrapper with goal override:
 
 ```bash
 bash .claude/scripts/crewai-local-workflow.sh --goal "Subscriber growth plan"
+```
+
+Run through wrapper and auto-start local CLIProxyAPI:
+
+```bash
+bash .claude/scripts/crewai-local-workflow.sh --with-proxy --goal "Subscriber growth plan"
 ```
 
 Dry-run without calling an LLM:
@@ -82,6 +88,46 @@ And a sequential task flow:
 3. Plan channels
 4. Design funnel metrics
 5. Build weekly execution plan
+
+## CLIProxyAPI Mode (Subscription-Backed)
+
+If you want CrewAI to route through local OpenAI-compatible proxy instead of direct provider API keys:
+
+1. Start local proxy container:
+
+```bash
+bash .claude/scripts/crewai-cliproxyapi.sh up
+```
+
+2. In `.crewai/.env`, keep:
+
+```bash
+CREWAI_LLM_MODE=proxy
+OPENAI_BASE_URL=http://127.0.0.1:8317/v1
+CLI_PROXY_BASE_URL=http://127.0.0.1:8317/v1
+CLI_PROXY_API_KEY=<local-proxy-key-from-.crewai/cliproxyapi/config.yaml>
+OPENAI_API_KEY=<same-local-proxy-key-or-empty>
+```
+
+Set `MARKETING_MODEL` to a model name or alias that exists in your CLIProxyAPI config.
+
+3. Run CrewAI:
+
+```bash
+bash .claude/scripts/crewai-local-workflow.sh --with-proxy
+```
+
+Helper commands:
+
+```bash
+bash .claude/scripts/crewai-cliproxyapi.sh status
+bash .claude/scripts/crewai-cliproxyapi.sh logs
+bash .claude/scripts/crewai-cliproxyapi.sh down
+```
+
+Notes:
+- Configure your subscription/provider routing inside CLIProxyAPI itself.
+- Ensure your usage complies with the terms of each provider/subscription.
 
 ## Troubleshooting
 

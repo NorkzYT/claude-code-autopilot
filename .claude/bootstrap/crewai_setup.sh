@@ -94,6 +94,8 @@ TEMPLATE_MAP=(
   ".env.example.tmpl:.env.example"
   ".gitignore.tmpl:.gitignore"
   "pyproject.toml.tmpl:pyproject.toml"
+  "cliproxyapi/config.yaml.tmpl:cliproxyapi/config.yaml"
+  "cliproxyapi/docker-compose.yml.tmpl:cliproxyapi/docker-compose.yml"
   "src/package/__init__.py.tmpl:src/${PY_PACKAGE}/__init__.py"
   "src/package/crew.py.tmpl:src/${PY_PACKAGE}/crew.py"
   "src/package/main.py.tmpl:src/${PY_PACKAGE}/main.py"
@@ -122,7 +124,9 @@ for mapping in "${TEMPLATE_MAP[@]}"; do
 done
 
 mkdir -p "$CREWAI_DIR/reports" "$CREWAI_DIR/outputs"
+mkdir -p "$CREWAI_DIR/cliproxyapi/auths" "$CREWAI_DIR/cliproxyapi/logs"
 touch "$CREWAI_DIR/reports/.gitkeep" "$CREWAI_DIR/outputs/.gitkeep"
+touch "$CREWAI_DIR/cliproxyapi/auths/.gitkeep" "$CREWAI_DIR/cliproxyapi/logs/.gitkeep"
 echo "$PY_PACKAGE" > "$CREWAI_DIR/.package-name"
 
 if has uv; then
@@ -147,10 +151,13 @@ echo ""
 echo "  Next steps:"
 echo "    1. cd .crewai"
 echo "    2. cp .env.example .env"
-echo "    3. Add your LLM provider key(s) to .env"
+echo "    3. Choose one mode:"
+echo "       - Direct provider keys in .env, OR"
+echo "       - CLIProxyAPI: bash .claude/scripts/crewai-cliproxyapi.sh up"
 echo "    4. uv sync"
 echo "    5. uv run crewai run"
 echo ""
 echo "  Optional wrapper:"
 echo "    bash .claude/scripts/crewai-local-workflow.sh --goal \"Subscriber growth plan\""
+echo "    bash .claude/scripts/crewai-local-workflow.sh --with-proxy --goal \"Subscriber growth plan\""
 echo ""

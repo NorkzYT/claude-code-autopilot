@@ -22,9 +22,20 @@ This directory contains a CrewAI scaffold focused on subscriber growth for an Am
 ```bash
 cd .crewai
 cp .env.example .env
-# set LLM provider key(s) in .env
+# choose direct API mode or proxy mode in .env
 uv sync
 ```
+
+### Optional: CLIProxyAPI (Subscription-Backed Routing)
+
+```bash
+# from repo root
+bash .claude/scripts/crewai-cliproxyapi.sh up
+```
+
+Then configure providers/subscription clients in CLIProxyAPI and run CrewAI with
+`CREWAI_LLM_MODE=proxy` in `.crewai/.env`.
+Set `MARKETING_MODEL` to a model or alias exposed by your proxy config.
 
 ## Run
 
@@ -37,6 +48,7 @@ If you want to pass goal overrides or run without an LLM call:
 
 ```bash
 bash .claude/scripts/crewai-local-workflow.sh --goal "Subscriber growth plan"
+bash .claude/scripts/crewai-local-workflow.sh --with-proxy --goal "Subscriber growth plan"
 bash .claude/scripts/crewai-local-workflow.sh --dry-run
 ```
 

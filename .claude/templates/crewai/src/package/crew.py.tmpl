@@ -1,4 +1,6 @@
-from crewai import Agent, Crew, Process, Task
+import os
+
+from crewai import Agent, Crew, LLM, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 
 
@@ -9,25 +11,50 @@ class AmazonMarketingCrew:
     agents_config = "config/agents.yaml"
     tasks_config = "config/tasks.yaml"
 
+    def _llm(self) -> LLM:
+        mode = os.getenv("CREWAI_LLM_MODE", "direct").strip().lower()
+        model = os.getenv("MARKETING_MODEL", "gpt-4o-mini")
+
+        # Proxy mode routes through local OpenAI-compatible CLIProxyAPI.
+        if mode == "proxy":
+            proxy_key = os.getenv("CLI_PROXY_API_KEY", "").strip()
+            if proxy_key and not os.getenv("OPENAI_API_KEY"):
+                os.environ["OPENAI_API_KEY"] = proxy_key
+
+            base_url = (
+                os.getenv("OPENAI_BASE_URL", "").strip()
+                or os.getenv("OPENAI_API_BASE", "").strip()
+                or "http://127.0.0.1:8317/v1"
+            )
+            api_key = os.getenv("OPENAI_API_KEY", "").strip() or proxy_key
+            llm_kwargs = {"model": model}
+            if base_url:
+                llm_kwargs["base_url"] = base_url
+            if api_key:
+                llm_kwargs["api_key"] = api_key
+            return LLM(**llm_kwargs)
+
+        return LLM(model=model)
+
     @agent
     def market_researcher(self) -> Agent:
-        return Agent(config=self.agents_config["market_researcher"], verbose=True)
+        return Agent(config=self.agents_config["market_researcher"], verbose=True, llm=self._llm())
 
     @agent
     def positioning_copywriter(self) -> Agent:
-        return Agent(config=self.agents_config["positioning_copywriter"], verbose=True)
+        return Agent(config=self.agents_config["positioning_copywriter"], verbose=True, llm=self._llm())
 
     @agent
     def channel_strategist(self) -> Agent:
-        return Agent(config=self.agents_config["channel_strategist"], verbose=True)
+        return Agent(config=self.agents_config["channel_strategist"], verbose=True, llm=self._llm())
 
     @agent
     def funnel_analyst(self) -> Agent:
-        return Agent(config=self.agents_config["funnel_analyst"], verbose=True)
+        return Agent(config=self.agents_config["funnel_analyst"], verbose=True, llm=self._llm())
 
     @agent
     def weekly_operator(self) -> Agent:
-        return Agent(config=self.agents_config["weekly_operator"], verbose=True)
+        return Agent(config=self.agents_config["weekly_operator"], verbose=True, llm=self._llm())
 
     @task
     def define_icp(self) -> Task:
