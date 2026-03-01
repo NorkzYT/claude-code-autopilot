@@ -31,6 +31,8 @@ Important:
   - `bash .claude/bootstrap/analyze_repo.sh <repo-path> --deep`
 - Auto-generated `PROJECT.md` files (from `analyze_repo.sh`) can be refreshed by re-running `--deep`.
 - Custom/manual `PROJECT.md` files are preserved and not overwritten.
+- To wait for Claude completion without timeout wrapper:
+  - `CLAUDE_DEEP_NO_TIMEOUT=1 bash .claude/bootstrap/analyze_repo.sh <repo-path> --deep`
 
 ## Add a New Repo Agent
 
