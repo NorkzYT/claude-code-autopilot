@@ -1,10 +1,10 @@
 # {{PROJECT_NAME}} CrewAI Marketing Workspace
 
-This directory contains a CrewAI scaffold focused on subscriber growth for an Amazon seller tool.
+This directory contains a CrewAI scaffold focused on traction and customer growth for any software tool.
 
 ## Goals
 
-- Build a practical go-to-market plan for monthly and yearly subscriptions.
+- Build a practical go-to-market plan for your primary paid conversion path.
 - Create a ranked acquisition experiment backlog.
 - Generate a weekly operations cadence you can execute from Codex/OpenClaw tasks.
 
@@ -22,9 +22,21 @@ This directory contains a CrewAI scaffold focused on subscriber growth for an Am
 ```bash
 cd .crewai
 cp .env.example .env
-# set LLM provider key(s) in .env
+# choose direct API mode or proxy mode in .env
 uv sync
 ```
+
+### Optional: CLIProxyAPI (Subscription-Backed Routing)
+
+```bash
+# from repo root
+bash .claude/scripts/crewai-cliproxyapi.sh up
+```
+
+Then configure providers/subscription clients in CLIProxyAPI and run CrewAI with
+`CREWAI_LLM_MODE=proxy` in `.crewai/.env`.
+Set `MARKETING_MODEL` to a model or alias exposed by your proxy config
+(default scaffold value: `gpt-5.3-codex`).
 
 ## Run
 
@@ -37,6 +49,7 @@ If you want to pass goal overrides or run without an LLM call:
 
 ```bash
 bash .claude/scripts/crewai-local-workflow.sh --goal "Subscriber growth plan"
+bash .claude/scripts/crewai-local-workflow.sh --with-proxy --goal "Subscriber growth plan"
 bash .claude/scripts/crewai-local-workflow.sh --dry-run
 ```
 

@@ -10,10 +10,18 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from .crew import AmazonMarketingCrew
+from .crew import GrowthMarketingCrew
 
 
 def _has_provider_key() -> bool:
+    mode = os.getenv("CREWAI_LLM_MODE", "direct").strip().lower()
+    if mode == "proxy":
+        return bool(
+            os.getenv("OPENAI_API_KEY")
+            or os.getenv("CLI_PROXY_API_KEY")
+            or os.getenv("ANTHROPIC_API_KEY")
+            or os.getenv("GEMINI_API_KEY")
+        )
     return any(
         os.getenv(key)
         for key in (
@@ -29,17 +37,18 @@ def _has_provider_key() -> bool:
 
 def _default_inputs(goal: str) -> dict[str, str]:
     return {
-        "tool_name": os.getenv("TOOL_NAME", "{{PROJECT_NAME}} Amazon Seller Tool"),
+        "tool_name": os.getenv("TOOL_NAME", "{{PROJECT_NAME}}"),
         "tool_tagline": os.getenv(
             "TOOL_TAGLINE",
-            "Source profitable products faster with statistics and data-backed decisions.",
+            "Help users solve a real workflow problem faster with clear measurable outcomes.",
         ),
         "target_persona": os.getenv(
             "TARGET_PERSONA",
-            "Amazon sellers and sourcing teams who need faster, data-based sourcing.",
+            "Teams and individual operators who need better results with less manual effort.",
         ),
         "primary_offer": os.getenv(
-            "PRIMARY_OFFER", "Monthly and yearly subscriptions for sourcing intelligence."
+            "PRIMARY_OFFER",
+            "Primary paid conversion path (for example: subscription, annual plan, or one-time purchase).",
         ),
         "primary_goal": goal,
     }
@@ -69,18 +78,18 @@ def _write_go_to_market_plan(reports_dir: Path, inputs: dict[str, str], result_t
 - {inputs["primary_goal"]}
 
 ## Messaging Angle
-- Emphasize faster sourcing with confidence through statistics and decision-ready data.
-- Focus on time saved, better sourcing hit-rate, and reduced guesswork.
+- Emphasize measurable outcomes, reduced manual work, and faster time-to-value.
+- Focus on user pain reduction, confidence, and clear ROI from adoption.
 
 ## Channel Priorities
-1. Short-form educational content (reels/shorts/posts with sourcing examples).
-2. Amazon seller communities and newsletters.
-3. Targeted landing pages by seller maturity level (new, scaling, advanced).
+1. Problem-driven educational content mapped to user pain points.
+2. Niche communities, newsletters, and creator/influencer partnerships where your ICP already gathers.
+3. Targeted landing pages by user segment and sophistication level.
 
 ## Funnel Design
-1. Awareness -> data-backed sourcing insight content.
-2. Activation -> clear demo of speed and decision quality.
-3. Conversion -> monthly plan trial, then annual upgrade campaign.
+1. Awareness -> pain-to-outcome educational content.
+2. Activation -> quick value demonstration and fast first success.
+3. Conversion -> clear paid path with objection handling and trust signals.
 
 ## Crew Output Snapshot
 {result_text}
@@ -92,7 +101,7 @@ def _write_experiment_backlog(reports_dir: Path) -> None:
     backlog_path = reports_dir / "experiment-backlog.csv"
     rows = [
         {
-            "experiment": "Case-study landing page for high-volume sellers",
+            "experiment": "Case-study landing page for high-value user segment",
             "channel": "SEO + community distribution",
             "effort": "M",
             "expected_lift": "15% more qualified trials",
@@ -100,7 +109,7 @@ def _write_experiment_backlog(reports_dir: Path) -> None:
             "decision_threshold": "Keep if trial-to-paid >= baseline + 10%",
         },
         {
-            "experiment": "Short-form before/after sourcing workflow videos",
+            "experiment": "Short-form before/after workflow transformation videos",
             "channel": "TikTok, YouTube Shorts, Instagram Reels",
             "effort": "S",
             "expected_lift": "20% awareness growth",
@@ -169,7 +178,7 @@ def _write_run_metadata(outputs_dir: Path, inputs: dict[str, str], result_text: 
 
 
 def run() -> None:
-    parser = argparse.ArgumentParser(description="Run Amazon marketing CrewAI workflow.")
+    parser = argparse.ArgumentParser(description="Run growth marketing CrewAI workflow.")
     parser.add_argument(
         "--goal",
         default=os.getenv("PRIMARY_GOAL", "Increase monthly and yearly subscriber growth."),
@@ -183,6 +192,16 @@ def run() -> None:
     args = parser.parse_args()
 
     load_dotenv()
+    mode = os.getenv("CREWAI_LLM_MODE", "direct").strip().lower()
+    if mode == "proxy":
+        proxy_key = os.getenv("CLI_PROXY_API_KEY", "").strip()
+        proxy_base = os.getenv("CLI_PROXY_BASE_URL", "").strip()
+        if proxy_key and not os.getenv("OPENAI_API_KEY"):
+            os.environ["OPENAI_API_KEY"] = proxy_key
+        if proxy_base and not os.getenv("OPENAI_BASE_URL"):
+            os.environ["OPENAI_BASE_URL"] = proxy_base
+        if proxy_base and not os.getenv("OPENAI_API_BASE"):
+            os.environ["OPENAI_API_BASE"] = proxy_base
 
     base_dir = Path(__file__).resolve().parents[2]
     reports_dir, outputs_dir = _ensure_dirs(base_dir)
@@ -192,7 +211,7 @@ def run() -> None:
     dry_run = args.dry_run
 
     if not args.dry_run and _has_provider_key():
-        result = AmazonMarketingCrew().crew().kickoff(inputs=inputs)
+        result = GrowthMarketingCrew().crew().kickoff(inputs=inputs)
         result_text = str(result)
         dry_run = False
     elif not args.dry_run:

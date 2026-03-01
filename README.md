@@ -123,6 +123,7 @@ If you install with CrewAI, it also:
 9. **Scaffolds a CrewAI workspace** — Generates `.crewai/` with agents/tasks config and Python entrypoints
 10. **Creates growth artifacts** — Produces go-to-market, experiment backlog, and weekly ops outputs under `.crewai/reports/`
 11. **Adds a local runner** — `.claude/scripts/crewai-local-workflow.sh` for CLI-driven automation
+12. **Supports local proxy mode** — `.claude/scripts/crewai-cliproxyapi.sh` to run Dockerized CLIProxyAPI for subscription-backed routing
 
 ---
 

@@ -1,0 +1,16 @@
+services:
+  cli-proxy-api:
+    image: eceasy/cli-proxy-api:latest
+    container_name: cliproxyapi-{{PROJECT_SLUG}}
+    restart: unless-stopped
+    command: ["serve", "-c", "/app/config.yaml"]
+    ports:
+      - "8317:8317"
+      - "8085:8085"
+      # OAuth callback ports used by some provider flows.
+      - "1455:1455"
+      - "54545:54545"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./auths:/app/auths
+      - ./logs:/app/logs
