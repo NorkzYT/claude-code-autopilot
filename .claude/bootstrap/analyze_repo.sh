@@ -1015,13 +1015,25 @@ else
 
   IFS='|' read -r DEEP_TIER DEEP_FILE_COUNT DEEP_SIZE_MB CLAUDE_DEEP_TIMEOUT CLAUDE_DEEP_RETRY_TIMEOUT DEEP_SIZE_SOURCE \
     <<<"$(pick_deep_scan_timeouts "$WORKSPACE")"
-  if has timeout; then
+  DEEP_DISABLE_TIMEOUT=false
+  if [[ "${CLAUDE_DEEP_NO_TIMEOUT:-0}" == "1" || "${CLAUDE_DEEP_WAIT_FOR_COMPLETION:-0}" == "1" ]]; then
+    DEEP_DISABLE_TIMEOUT=true
+  fi
+
+  DEEP_USE_TIMEOUT=false
+  if has timeout && [[ "$DEEP_DISABLE_TIMEOUT" == "false" ]]; then
+    DEEP_USE_TIMEOUT=true
+  fi
+
+  if [[ "$DEEP_USE_TIMEOUT" == "true" ]]; then
     if [[ "$DEEP_TIER" == "override" ]]; then
       log "Running Claude deep scan (timeout: ${CLAUDE_DEEP_TIMEOUT}s, retry: ${CLAUDE_DEEP_RETRY_TIMEOUT}s; env override)..."
     else
       log "Deep scan size estimate: tier=${DEEP_TIER}, files=${DEEP_FILE_COUNT}, size≈${DEEP_SIZE_MB}MB (source=${DEEP_SIZE_SOURCE})"
       log "Running Claude deep scan (timeout: ${CLAUDE_DEEP_TIMEOUT}s, retry: ${CLAUDE_DEEP_RETRY_TIMEOUT}s)..."
     fi
+  elif [[ "$DEEP_DISABLE_TIMEOUT" == "true" ]]; then
+    log "Running Claude deep scan (no timeout; wait-until-complete mode enabled)"
   else
     log "Running Claude deep scan (no timeout command found; may take several minutes)..."
   fi
@@ -1089,7 +1101,7 @@ else
     set +e
     if [[ "$TOOLLESS_MODE" == "true" ]]; then
       # Tool-less mode: pipe prompt via stdin to handle large snapshots safely
-      if has timeout && [[ -n "$timeout_s" ]]; then
+      if [[ "$DEEP_USE_TIMEOUT" == "true" ]] && [[ -n "$timeout_s" ]]; then
         printf '%s' "$CLAUDE_PROMPT" | timeout -k 20s "${timeout_s}s" claude --print --tools "" >"$out_log" 2>"$err_log"
         rc=$?
       else
@@ -1097,7 +1109,7 @@ else
         rc=$?
       fi
     else
-      if has timeout && [[ -n "$timeout_s" ]]; then
+      if [[ "$DEEP_USE_TIMEOUT" == "true" ]] && [[ -n "$timeout_s" ]]; then
         timeout -k 20s "${timeout_s}s" claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
         rc=$?
       else
@@ -1155,9 +1167,21 @@ else
   # Run Claude from the target workspace directory
   cd "$WORKSPACE"
 
-  if has timeout; then
+  if [[ "$DEEP_USE_TIMEOUT" == "true" ]]; then
     run_claude_deep_scan_attempt 1 "$CLAUDE_DEEP_TIMEOUT"
     if [[ -z "$CLAUDE_OUTPUT" ]] && [[ "$CLAUDE_DEEP_RETRY_TIMEOUT" -gt 0 ]] && [[ "$CLAUDE_DEEP_RETRY_TIMEOUT" -gt "$CLAUDE_DEEP_TIMEOUT" ]]; then
+      if [[ "$CLAUDE_LAST_RC" == "137" ]] && [[ "$TOOLLESS_MODE" == "false" ]]; then
+        warn "Attempt 1 was killed (rc=137). Switching retry to tool-less snapshot mode."
+        REPO_SNAPSHOT="$(build_repo_snapshot "$WORKSPACE" 2>/dev/null || true)"
+        if [[ -n "$REPO_SNAPSHOT" ]]; then
+          TOOLLESS_MODE=true
+          SNAPSHOT_SIZE="${#REPO_SNAPSHOT}"
+          CLAUDE_PROMPT="$(build_deep_scan_prompt "$WORKSPACE" "$PROJECT_NAME" "$DEEP_TIER" "$GITIGNORE_CONTEXT" "$REPO_SNAPSHOT")"
+          log "Retry will use tool-less mode with pre-computed snapshot (${SNAPSHOT_SIZE} chars)"
+        else
+          warn "Snapshot generation failed; retrying in tool-enabled mode"
+        fi
+      fi
       warn "Claude deep scan attempt 1 $(describe_deep_scan_failure "$CLAUDE_LAST_RC" "$CLAUDE_LAST_ELAPSED")"
       warn "Attempt 1 logs: $CLAUDE_LAST_OUT_LOG ; $CLAUDE_LAST_ERR_LOG"
       log "Retrying Claude deep scan once with ${CLAUDE_DEEP_RETRY_TIMEOUT}s..."
