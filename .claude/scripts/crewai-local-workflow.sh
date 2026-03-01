@@ -65,7 +65,7 @@ if [[ "$WITH_PROXY" == "1" ]]; then
   bash "$PROXY_SCRIPT" up --repo "$REPO_DIR"
 fi
 
-PY_PACKAGE="amazon_growth_team"
+PY_PACKAGE="growth_marketing_team"
 if [[ -f "$CREWAI_DIR/.package-name" ]]; then
   PY_PACKAGE="$(head -n 1 "$CREWAI_DIR/.package-name" | tr -d '[:space:]')"
 fi

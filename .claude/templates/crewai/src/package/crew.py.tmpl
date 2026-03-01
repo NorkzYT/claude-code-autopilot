@@ -5,15 +5,15 @@ from crewai.project import CrewBase, agent, crew, task
 
 
 @CrewBase
-class AmazonMarketingCrew:
-    """CrewAI team focused on subscriber growth for an Amazon seller tool."""
+class GrowthMarketingCrew:
+    """CrewAI team focused on traction and customer growth for a product."""
 
     agents_config = "config/agents.yaml"
     tasks_config = "config/tasks.yaml"
 
     def _llm(self) -> LLM:
         mode = os.getenv("CREWAI_LLM_MODE", "direct").strip().lower()
-        model = os.getenv("MARKETING_MODEL", "gpt-4o-mini")
+        model = os.getenv("MARKETING_MODEL", "gpt-5.3-codex")
 
         # Proxy mode routes through local OpenAI-compatible CLIProxyAPI.
         if mode == "proxy":

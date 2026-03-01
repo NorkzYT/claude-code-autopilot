@@ -110,6 +110,7 @@ OPENAI_API_KEY=<same-local-proxy-key-or-empty>
 ```
 
 Set `MARKETING_MODEL` to a model name or alias that exists in your CLIProxyAPI config.
+Default scaffold value is `gpt-5.3-codex`.
 
 3. Run CrewAI:
 
