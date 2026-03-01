@@ -10,6 +10,7 @@ Use these docs when you need details that do not belong in the quick-start READM
 - `docs/troubleshooting.md` — common issues and validation commands
 - `docs/openclaw.md` — OpenClaw setup summary and links to the full OpenClaw docs in `.claude/docs/`
 - `docs/crewai.md` — CrewAI setup, marketing crew scaffold, and run workflow
+- `docs/docker-openclaw-crewai.md` — Docker Compose guides for OpenClaw-only and CrewAI-only stacks
 - `docs/openclaw-plugin-hooks.md` — how to use OpenClaw hooks and wrapper commands for local workflow automation
 - `docs/roadmap.md` — roadmap for full local engineer workflow enforcement
 

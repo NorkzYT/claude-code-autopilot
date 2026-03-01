@@ -130,6 +130,28 @@ Notes:
 - Configure your subscription/provider routing inside CLIProxyAPI itself.
 - Ensure your usage complies with the terms of each provider/subscription.
 
+## Running CrewAI in Its Own Container
+
+Start stack:
+
+```bash
+docker compose -f docker-compose.crewai.yml up -d crewai-runner
+```
+
+Run a repo workflow in the CrewAI container:
+
+```bash
+docker exec -it crewai-runner crewai-entrypoint run /opt/repos/<repo-name> --goal "Increase traction and paying customers"
+```
+
+The compose stack mounts host `/opt/repos` into the container at `/opt/repos`.
+
+Optional proxy profile:
+
+```bash
+docker compose -f docker-compose.crewai.yml --profile proxy up -d cliproxyapi
+```
+
 ## Troubleshooting
 
 - `uv: command not found`

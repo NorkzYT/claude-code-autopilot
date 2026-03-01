@@ -188,3 +188,18 @@ See `docs/openclaw-plugin-hooks.md` for how to wire it into OpenClaw command wra
 - `.claude/docs/openclaw-integration.md` — full setup and ops guide
 - `.claude/docs/openclaw-commands.md` — CLI and slash command reference
 - `.claude/docs/openclaw-remote-commands.md` — Discord pairing, allowlists, bindings, channel routing
+
+## Docker Stack (OpenClaw + CrewAI)
+
+Use the OpenClaw-only compose file:
+
+```bash
+docker compose -f docker-compose.openclaw.yml up -d
+```
+
+This mounts `/opt/repos` into the OpenClaw container so one gateway can work across many repos/agents.
+
+See:
+- `docs/docker-openclaw-crewai.md` for all commands
+- OpenClaw Docker docs: `https://docs.openclaw.ai/install/docker`
+- OpenClaw sandbox docs: `https://docs.openclaw.ai/gateway/sandboxing`
