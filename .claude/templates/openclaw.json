@@ -6,7 +6,6 @@
         "mode": "cache-ttl",
         "ttl": "30m"
       },
-      "historyTurns": 20,
       "compaction": {
         "mode": "safeguard"
       }
@@ -19,6 +18,11 @@
   "browser": {
     "enabled": true,
     "headless": true
+  },
+  "messages": {
+    "groupChat": {
+      "historyLimit": 20
+    }
   },
   "cron": {
     "enabled": true
