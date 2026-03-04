@@ -34,6 +34,23 @@ exec: claude --print "Use the autopilot-opus subagent (Task tool with subagent_t
 
 **Escalation criteria:** 4+ files across modules, architectural decisions, high regression risk, or 3+ distinct deliverables.
 
+## Autopilot Skills (Universal Pipeline)
+
+These skills are mandatory for all coding tasks from any channel or cron. They give you a consistent quality pipeline.
+
+| Skill | Purpose | When |
+|-------|---------|------|
+| `autopilot-workflow` | Full task execution pipeline (triage → plan → implement → verify → report) | **Every coding task** — this is the default |
+| `quality-gates` | Self-verification: re-read files, run tests, check commits, self-review | After every code change (called by autopilot-workflow step 5) |
+| `model-router` | Complexity triage: Simple/Medium/Complex → stay on Sonnet or escalate to Opus | Start of every task (called by autopilot-workflow step 1) |
+| `session-hygiene` | Context rot prevention: track turns, write checkpoints, suggest session splits | Passive throughout session; proactive at 20-25 coding turns |
+
+**Default behavior:** For any coding task, follow the `autopilot-workflow` pipeline. It integrates the other three skills automatically.
+
+**Session splitting rule:** After 20-25 coding turns, proactively suggest a fresh session with `/new`. Write progress to `memory/YYYY-MM-DD.md` first.
+
+**`/recheckin` enforcement:** For any task expected to take >5 minutes, create a `/recheckin` cron job BEFORE starting implementation. Include the cron job ID in your message (or state the CLI did not return one).
+
 ## Coding Standards
 
 1. **Smallest change** -- No drive-by refactors
