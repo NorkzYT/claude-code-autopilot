@@ -75,6 +75,18 @@
       }
     },
     {
+      "name": "task-status-check",
+      "description": "One-shot status check for a running task. Created by /recheckin.",
+      "schedule": "",
+      "timezone": "UTC",
+      "enabled": false,
+      "oneshot": true,
+      "command": "claude --print 'Check the current status of the task described in your last memory/YYYY-MM-DD.md entry. Report progress to the channel. If the task is complete, confirm it. If blocked, describe the blocker.'",
+      "delivery": "announce",
+      "on_failure": "alert",
+      "timeout_seconds": 120
+    },
+    {
       "name": "repo-index-refresh",
       "description": "Weekly refresh of project metadata and deep codebase scan",
       "schedule": "0 3 * * 0",

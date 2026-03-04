@@ -2,13 +2,28 @@
 
 The `/ship` command is the recommended way to execute tasks with guaranteed completion.
 
+## Modes
+
+### Multi-Session Ralph (Default for complex tasks)
+
+For tasks with 3+ sub-tasks, `/ship` generates a PRD and launches an AFK Multi-Session Ralph loop. Each iteration runs in a fresh `claude -p` session — no context rot.
+
+### Session Ralph (Fallback for simple tasks)
+
+For quick 1-2 iteration tasks, `/ship` falls back to the in-session Ralph loop via `ralph_loop_hook.py`.
+
 ## What It Does
 
-1. Runs `promptsmith` to refine the raw task into an execution-ready prompt
-2. Sets up a Ralph loop (max 30 iterations, promise: TASK_COMPLETE)
-3. Executes the full `autopilot` pipeline (which includes `review-chain` for QA)
-4. `closer` is the final gate -- verifies DoD and outputs completion promise
-5. If closer says not done, the Ralph loop continues automatically
+1. Analyzes the task complexity (simple vs complex)
+2. **Complex path (3+ tasks):**
+   a. Runs `promptsmith` to generate a PRD at `.claude/context/ralph-active/PRD.md`
+   b. Breaks the task into ordered, atomic sub-tasks
+   c. Launches `afk-ralph.sh` in the background (Docker if available)
+   d. Returns immediately with status info
+3. **Simple path (1-2 tasks):**
+   a. Sets up Session Ralph loop (max 30 iterations, promise: TASK_COMPLETE)
+   b. Executes the `autopilot` pipeline inline
+   c. `closer` is the final gate — outputs completion promise
 
 ## Usage
 
@@ -19,6 +34,20 @@ The `/ship` command is the recommended way to execute tasks with guaranteed comp
 ```
 
 ## Architecture
+
+### Multi-Session (Complex Tasks)
+
+```
+/ship "task"
++-- promptsmith (generates PRD)
++-- afk-ralph.sh (background loop)
+    +-- ralph-once.sh (iteration 1) → fresh session
+    +-- ralph-once.sh (iteration 2) → fresh session
+    +-- ralph-once.sh (iteration N) → fresh session
+    +-- <promise>COMPLETE</promise> → notify + exit
+```
+
+### Session (Simple Tasks)
 
 ```
 Ralph Loop (wrapper, max 30 iterations)
@@ -34,32 +63,31 @@ Ralph Loop (wrapper, max 30 iterations)
     +-- ELSE: loop continues
 ```
 
-## Pipeline Details
+## Monitoring & Control
 
-### promptsmith
-Converts raw task text into a structured prompt with clear goal, constraints, and acceptance criteria.
-
-### autopilot
-Full delivery pipeline: plan -> implement -> self-verify -> review-chain -> fix -> close. See `.claude/agents/autopilot.md`.
-
-### review-chain
-Orchestrates up to 2 cycles of: surgical-reviewer -> parse findings -> autopilot-fixer (if blockers) -> re-review. Outputs a verdict: PASS, PASS_WITH_WARNINGS, or BLOCKERS_REMAIN.
-
-### closer
-Verifies DoD, checks review-chain verdict, runs final verification commands. Outputs `<promise>TASK_COMPLETE</promise>` only when everything passes.
+```
+/ralph-status     # Check progress
+/cancel-ralph     # Stop the loop
+```
 
 ## When to Use
 
 - Complex tasks requiring multiple iterations
 - Tasks with verification requirements (tests must pass)
 - Any task where you want guaranteed completion or timeout
+- AFK execution (leave it running overnight)
 
 ## Context Checkpoints
 
 Every 10 assistant responses, the `context_checkpoint` hook outputs a paste-ready continuation prompt to stderr. If you need to `/clear` mid-task, copy that block to resume seamlessly.
 
-## Cancellation
+## Related Skills
 
-```
-/cancel-ralph
-```
+- `/afk-ralph N "task"` — Explicit multi-session Ralph with custom iterations
+- `/ralph-once` — Single iteration for human review
+- `/ralph-status` — Check loop progress
+- `/cancel-ralph` — Stop running loop
+
+## Documentation
+
+See `.claude/docs/ralph-pattern.md` for the full Ralph pattern reference, including PRD writing guide and troubleshooting.

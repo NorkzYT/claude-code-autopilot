@@ -1,5 +1,17 @@
 {
   "$schema": "https://openclaw.dev/schema/config.json",
+  "agents": {
+    "defaults": {
+      "contextPruning": {
+        "mode": "cache-ttl",
+        "ttl": "30m"
+      },
+      "historyTurns": 20,
+      "compaction": {
+        "mode": "safeguard"
+      }
+    }
+  },
   "gateway": {
     "mode": "local",
     "port": 18789

@@ -666,6 +666,31 @@ if [[ "$SKIP_SKILLS" == "false" ]]; then
     log "Converted $CONVERTED skill(s)"
   fi
 
+  # Copy universal pipeline skills from the installer repo.
+  # These are agent-agnostic and give every OpenClaw agent autopilot quality.
+  INSTALLER_SKILLS_DIR="$SCRIPT_DIR/../skills"
+  UNIVERSAL_SKILLS=(autopilot-workflow quality-gates model-router session-hygiene)
+
+  for skill_name in "${UNIVERSAL_SKILLS[@]}"; do
+    src_file="$INSTALLER_SKILLS_DIR/$skill_name/SKILL.md"
+    target_dir="$WORKSPACE_PATH/.openclaw/skills/$skill_name"
+    target_file="$target_dir/SKILL.md"
+
+    if [[ ! -f "$src_file" ]]; then
+      continue
+    fi
+
+    if [[ -f "$target_file" ]]; then
+      skip ".openclaw/skills/$skill_name/SKILL.md (already exists)"
+      continue
+    fi
+
+    mkdir -p "$target_dir"
+    cp "$src_file" "$target_file"
+    log "Installed universal skill: $skill_name"
+    CONVERTED=$((CONVERTED + 1))
+  done
+
   # Register .openclaw/skills in OpenClaw config for discovery
   for config_path in "${CONFIG_PATHS[@]}"; do
     if [[ -f "$config_path" ]]; then

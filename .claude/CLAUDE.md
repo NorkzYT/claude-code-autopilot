@@ -28,6 +28,7 @@ Instead of embedding full docs, load on-demand:
 | OpenClaw integration | Read `.claude/docs/openclaw-integration.md` |
 | Browser login patterns | Read `.claude/skills/openclaw-browser/LOGIN_PATTERNS.md` |
 | Extension testing | Read `.claude/skills/openclaw-browser/EXTENSION_TESTING.md` |
+| Ralph pattern | Read `.claude/docs/ralph-pattern.md` |
 
 ## Hierarchical Context Architecture
 
@@ -54,25 +55,38 @@ Instead of embedding full docs, load on-demand:
 
 For guaranteed task completion, use **Ralph loops** as the default execution mode.
 
+### Multi-Session Ralph (Primary — no context rot)
+
+Fresh `claude -p` session per iteration. Each reads a PRD + progress file, does ONE task, commits, exits.
+
 **Recommended**: Use `/ship` for fire-and-forget execution:
 ```
 /ship "Build a REST API with tests"
 ```
 
-This wraps the autopilot pipeline with a Ralph loop that continues until `<promise>TASK_COMPLETE</promise>` is output.
+Or explicitly control iterations:
+```
+/afk-ralph 20 "Build REST API with auth"
+/ralph-once                  # Single iteration, human review
+/ralph-status                # Check progress
+/cancel-ralph                # Stop loop
+```
+
+### Session Ralph (Secondary — quick in-session iteration)
+
+Hook-based loop in the same session. Useful for quick 1-2 iteration fixes.
+
+```
+/ralph-loop 10 TESTS_PASS "Make all tests pass"
+```
 
 ### Completion Promise Protocol
 
-- Tasks running in Ralph loops must output `<promise>TASK_COMPLETE</promise>` when done
-- The closer agent is the final gate that decides if the task is truly complete
-- Loop continues automatically if the promise is not output
+- Multi-Session: `<promise>COMPLETE</promise>` in stdout exits the loop
+- Session: `<promise>TASK_COMPLETE</promise>` fulfills the hook
+- The closer agent is the final gate for Session Ralph
 
-### Manual Ralph Loop
-
-For custom iteration limits or promises:
-```
-/ralph-loop 20 TESTS_PASS "Make all tests pass"
-```
+See `.claude/docs/ralph-pattern.md` for the full reference (decision matrix, PRD writing guide, troubleshooting).
 
 ## Default Agents
 

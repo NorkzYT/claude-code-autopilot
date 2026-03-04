@@ -144,8 +144,15 @@ blocked = [
     (r"\bpowershell\b", "powershell"),
     (r"\bcmd\.exe\b", "cmd.exe"),
 
+    # Destructive find commands
+    (r"\bfind\b.*\s-delete\b", "find -delete"),
+    (r"\bfind\b.*-exec\s+rm\b", "find -exec rm"),
+    (r"\bfind\b.*-execdir\s+rm\b", "find -execdir rm"),
+    (r"\bfind\b.*\|\s*xargs\s+rm\b", "find | xargs rm"),
+
     # Additional dangerous patterns
     (r"\bmkfs\b", "mkfs"),
+    (r"\bdd\s+.*of=/dev/", "dd to device"),
     (r":\(\)\s*\{\s*:\s*\|\s*:\s*;\s*\}\s*;\s*:", "fork bomb"),
 
     # Remote code execution patterns (supply-chain attacks)

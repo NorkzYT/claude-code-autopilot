@@ -266,6 +266,11 @@ if has openclaw; then
   fi
   openclaw config set cron.enabled true 2>/dev/null || true
   openclaw config set browser.downloads.directory "$OPENCLAW_HOME/downloads" 2>/dev/null || true
+  # Agent defaults: context pruning + history limits (prevent context rot)
+  openclaw config set agents.defaults.contextPruning.mode cache-ttl 2>/dev/null || true
+  openclaw config set agents.defaults.contextPruning.ttl 30m 2>/dev/null || true
+  openclaw config set agents.defaults.historyTurns 20 --json 2>/dev/null || true
+  openclaw config set agents.defaults.compaction.mode safeguard 2>/dev/null || true
   log "Config updated via openclaw config set"
   if [[ "$TAILSCALE_DETECTED" == "1" ]]; then
     if [[ -n "$TAILSCALE_DNS_NAME" ]]; then

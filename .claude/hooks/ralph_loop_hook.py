@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 """
-Ralph Wiggum iterative loop hook.
+Ralph Wiggum iterative loop hook — SESSION RALPH.
 
-This Stop hook implements iterative, self-referential AI development loops.
-When active, it blocks session exit and feeds the same prompt back to continue
-working until a completion promise is fulfilled.
+This is the "Session Ralph" implementation: an in-session Stop hook that blocks
+session exit and re-injects prompts within the SAME session. This is useful for
+quick 1-2 iteration fixes but is prone to context rot in long runs.
+
+For complex multi-task work, use MULTI-SESSION RALPH instead:
+  - .claude/scripts/afk-ralph.sh  — AFK loop with fresh sessions per iteration
+  - .claude/scripts/ralph-once.sh — Single iteration (HITL mode)
+  - .claude/scripts/ralph-docker.sh — Docker sandbox wrapper
+  - /ship, /afk-ralph, /ralph-once skills
+
+See .claude/docs/ralph-pattern.md for the full decision matrix.
 
 State file format (.claude/ralph-loop.local.md):
 ---
