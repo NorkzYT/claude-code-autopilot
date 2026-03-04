@@ -289,12 +289,14 @@ fi
 
 
 # ---- 3) Copy agent instructions template ----
+# Always refresh from template — this is the system default, not user content.
+# Per-workspace AGENTS.md (created by add_openclaw_agent.sh) is where customizations live.
 AGENTS_TEMPLATE="${CLAUDE_DIR}/templates/AGENTS.md"
 AGENTS_DEST="${OPENCLAW_HOME}/AGENTS.md"
 
-if [[ -f "$AGENTS_TEMPLATE" && ! -f "$AGENTS_DEST" ]]; then
+if [[ -f "$AGENTS_TEMPLATE" ]]; then
   cp "$AGENTS_TEMPLATE" "$AGENTS_DEST"
-  log "Agent instructions created: $AGENTS_DEST"
+  log "Agent instructions updated: $AGENTS_DEST"
 fi
 
 # ---- 4) Copy heartbeat template ----

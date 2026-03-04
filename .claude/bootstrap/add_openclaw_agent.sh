@@ -357,6 +357,43 @@ if [[ "$SKIP_PERSONA" == "false" ]]; then
       "$tmpl" > "$target"
     log "Created $filename"
   done
+  # Inject autopilot skills section into existing AGENTS.md if missing.
+  # This ensures existing workspaces get the pipeline on re-runs.
+  AGENTS_FILE="$WORKSPACE_PATH/AGENTS.md"
+  if [[ -f "$AGENTS_FILE" ]] && ! grep -q "Autopilot Skills" "$AGENTS_FILE" 2>/dev/null; then
+    AUTOPILOT_BLOCK='
+## Autopilot Skills (Universal Pipeline)
+
+These skills are mandatory for all coding tasks from any channel or cron. They give you a consistent quality pipeline.
+
+| Skill | Purpose | When |
+|-------|---------|------|
+| `autopilot-workflow` | Full task execution pipeline (triage → plan → implement → verify → report) | **Every coding task** — this is the default |
+| `quality-gates` | Self-verification: re-read files, run tests, check commits, self-review | After every code change (called by autopilot-workflow step 5) |
+| `model-router` | Complexity triage: Simple/Medium/Complex → stay on Sonnet or escalate to Opus | Start of every task (called by autopilot-workflow step 1) |
+| `session-hygiene` | Context rot prevention: track turns, write checkpoints, suggest session splits | Passive throughout session; proactive at 20-25 coding turns |
+
+**Default behavior:** For any coding task, follow the `autopilot-workflow` pipeline. It integrates the other three skills automatically.
+
+**Session splitting rule:** After 20-25 coding turns, proactively suggest a fresh session with `/new`. Write progress to `memory/YYYY-MM-DD.md` first.
+
+**`/recheckin` enforcement:** For any task expected to take >5 minutes, create a `/recheckin` cron job BEFORE starting implementation. Include the cron job ID in your message (or state the CLI did not return one).'
+
+    # Inject before "## Safety" or append at end
+    if grep -q "^## Safety" "$AGENTS_FILE" 2>/dev/null; then
+      python3 -c "
+import sys
+content = open('$AGENTS_FILE').read()
+block = '''$AUTOPILOT_BLOCK'''
+content = content.replace('## Safety', block.strip() + '\n\n## Safety', 1)
+open('$AGENTS_FILE', 'w').write(content)
+" 2>/dev/null && log "Injected autopilot skills into existing AGENTS.md" || true
+    else
+      printf '\n%s\n' "$AUTOPILOT_BLOCK" >> "$AGENTS_FILE"
+      log "Appended autopilot skills to existing AGENTS.md"
+    fi
+  fi
+
 else
   log "Section 4: Skipping persona files (--skip-persona)"
 fi
