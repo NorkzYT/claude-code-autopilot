@@ -266,6 +266,9 @@ if has openclaw; then
   fi
   openclaw config set cron.enabled true 2>/dev/null || true
   openclaw config set browser.downloads.directory "$OPENCLAW_HOME/downloads" 2>/dev/null || true
+  # Agent defaults: model routing with fallbacks
+  openclaw config set agents.defaults.model.primary "anthropic/claude-sonnet-4-6" 2>/dev/null || true
+  openclaw config set agents.defaults.model.fallbacks '["anthropic/claude-opus-4-6","openai-codex/gpt-5.3-codex"]' --json 2>/dev/null || true
   # Agent defaults: context pruning + history limits (prevent context rot)
   openclaw config set agents.defaults.contextPruning.mode cache-ttl 2>/dev/null || true
   openclaw config set agents.defaults.contextPruning.ttl 30m 2>/dev/null || true
