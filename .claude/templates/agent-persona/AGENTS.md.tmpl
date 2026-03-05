@@ -27,6 +27,7 @@ Before doing anything else:
 2. Read `USER.md` -- this is who you're helping
 3. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
 4. **If in MAIN SESSION** (direct chat with your human): Also read `MEMORY.md`
+5. **For any coding task:** Follow the **Autopilot Workflow** section below -- output each step header visibly.
 
 Don't ask permission. Just do it.
 
@@ -59,88 +60,56 @@ This workspace is the {{DISPLAY_NAME}} project at `{{WORKSPACE_PATH}}`.
 - `.agents/skills/` -- Codex-compatible shared skills (symlink to `.openclaw/skills/`)
 - `.codex/rules/default.rules` -- Codex command guardrails aligned with `.claude/hooks/guard_bash.py`
 
-## Autopilot Skills (Universal Pipeline)
+## Autopilot Workflow (Mandatory for All Coding Tasks)
 
-These skills are mandatory for all coding tasks from any channel or cron. They give you a consistent quality pipeline.
+**IMPORTANT: Follow this pipeline automatically for EVERY coding task. Do not wait for the user to ask.**
 
-| Skill | Purpose | When |
-|-------|---------|------|
-| `autopilot-workflow` | Full task execution pipeline (triage → plan → implement → verify → report) | **Every coding task** — this is the default |
-| `quality-gates` | Self-verification: re-read files, run tests, check commits, self-review | After every code change (called by autopilot-workflow step 5) |
-| `model-router` | Complexity triage: Simple/Medium/Complex → stay on Sonnet or escalate to Opus | Start of every task (called by autopilot-workflow step 1) |
-| `session-hygiene` | Context rot prevention: track turns, write checkpoints, suggest session splits | Passive throughout session; proactive at 20-25 coding turns |
+**Output format:** Start each step with its header so progress is visible. Example: "**Triage:** Simple, 2 files -- Go parser + React component" / "**Plan:** 1) Remove /10 division 2) Fix falsy check" etc.
 
-**Default behavior:** For any coding task, follow the `autopilot-workflow` pipeline. It integrates the other three skills automatically.
+### Step 1: Triage
+- Classify: **Simple** (1-2 files) / **Medium** (3-4 files) / **Complex** (4+ files, architectural)
+- Complex tasks → escalate to Opus via `autopilot-opus` subagent
+- For tasks expected to take >5 min: create `/recheckin` cron FIRST, include job ID in message
 
-**Session splitting rule:** After 20-25 coding turns, proactively suggest a fresh session with `/new`. Write progress to `memory/YYYY-MM-DD.md` first.
+### Step 2: Plan
+- Write a short plan (3-10 lines) before implementing
+- Identify files to change, dependencies, and risk areas
 
-**`/recheckin` enforcement:** For any task expected to take >5 minutes, create a `/recheckin` cron job BEFORE starting implementation. Include the cron job ID in your message (or state the CLI did not return one).
+### Step 3: Implement
+- Read before writing. Follow existing patterns. Smallest change possible.
+- Quality: SOLID, DRY, KISS, Separation of Concerns
+- For each edit: Reason → Act → Observe (re-read file after editing) → Repeat if mismatch
+
+### Step 4: Verify
+- Re-read EVERY changed file after editing
+- Run build command from TOOLS.md
+- Run test command from TOOLS.md
+- 4+ files changed → run self-review checklist (missed edge cases, naming, error handling)
+
+### Step 5: Commit
+- Conventional format: `type(scope): description`
+- Feature branch only. Never commit untested code.
+- NEVER include `Co-Authored-By` in commit messages.
+
+### Step 6: Report
+- What changed (bullets), files modified, test results, status
+
+### Session Health
+- After 20-25 coding turns: write checkpoint to `memory/YYYY-MM-DD.md`, suggest `/new`
+- `/recheckin` enforcement: for any task >5 min, create cron job BEFORE starting. Include job ID or state CLI did not return one.
+
+For detailed reference, read the skill files: `autopilot-workflow`, `quality-gates`, `model-router`, `session-hygiene`
 
 ## Engineering Execution
 
-### Default: Work Directly (Codex / current model)
+Follow the **Autopilot Workflow** above for all coding tasks. Key principles:
 
-For most tasks, work directly without delegating to sub-agents:
-1. Read PROJECT.md and relevant source files
-2. Make the code change
-3. Run build command from TOOLS.md
-4. Run local stack/reload command from TOOLS.md (local only, not staging/prod)
-5. Run test command from TOOLS.md
-6. Confirm the changed flow works locally (browser/CDP for UI changes)
-7. Commit on feature branch
-8. Report what changed and what was tested
-
-This covers: bug fixes, small features, refactors, config changes, docs, and any task touching 1-3 files.
-
-### Model Routing (Quality + Cost)
-
-- Start with a short plan/triage on the current model (typically Sonnet).
-- Automatically choose the route; do not ask the user which model/agent to use unless they explicitly requested one.
-- Execute small tasks directly on Sonnet.
-- Escalate to Claude `autopilot-opus` automatically only after the plan is clear and the task is truly complex.
-- Use browser/CDP verification only when UI behavior changed.
-
-### Escalate to Claude: Complex Multi-File Tasks Only
-
-For tasks requiring deep architectural changes or multi-component coordination, escalate to the Claude autopilot pipeline:
-
-```
-Use the autopilot-opus subagent (Task tool with subagent_type=autopilot-opus) for this task: <description>
-```
-
-**Escalate when ALL of these are true:**
-- Task touches 4+ files across different modules/packages
-- Requires architectural decisions (new patterns, service boundaries)
-- Benefits from specialist review (security audit, type system, performance)
-- Risk of regression is high (core business logic, auth, data layer)
-
-You may also escalate when the task has 3+ distinct deliverables even if file count is not yet known.
-
-**Do NOT escalate for:**
-- Single-file bug fixes
-- Adding/modifying tests
-- Documentation updates
-- Config/environment changes
-- UI tweaks or styling
-- Dependency updates
-- Code that follows an existing pattern
-
-When in doubt, do the work directly. Escalation has a high token cost.
-
-## Task Completion Protocol
-
-For EVERY bug fix or feature:
-1. **Understand** — Read PROJECT.md, relevant source files
-2. **Fix** — Make the code change
-3. **Build** — Run build command from TOOLS.md
-4. **Run Local** — Start/reload the local stack only (e.g. `yarn dev`, `make up`, `docker compose up`)
-5. **Test** — Run test command from TOOLS.md
-6. **Confirm** — Verify the changed flow works locally (browser/CDP if UI change)
-7. **Commit** — On feature branch, not main
-8. **Report** — Summary of what changed, what was tested
-
-NEVER mark a task done after only writing code.
-NEVER include `Co-Authored-By` in commit messages (git `commit-msg` hook enforces this in generated workspaces).
+- Work directly on the current model for Simple/Medium tasks (1-4 files)
+- Escalate to `autopilot-opus` only for Complex tasks (4+ files across modules, architectural decisions, high regression risk, or 3+ distinct deliverables)
+- Do NOT escalate for: single-file fixes, tests, docs, config, UI tweaks, dependency updates, or code following existing patterns
+- Use browser/CDP verification only when UI behavior changed
+- NEVER mark a task done after only writing code -- build, test, and verify first
+- NEVER include `Co-Authored-By` in commit messages (git `commit-msg` hook enforces this)
 
 ## Timed Follow-Ups (Discord / OpenClaw)
 

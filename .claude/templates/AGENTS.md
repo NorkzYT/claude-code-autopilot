@@ -12,44 +12,45 @@ All tasks use the **three-file pattern** for session persistence:
 
 Store in `.claude/context/<task-name>/` directory.
 
-## Dispatching Tasks to Claude Code
+## Autopilot Workflow (Mandatory for All Coding Tasks)
 
-Most tasks should be handled directly by the current model. Only escalate to Claude Code for complex multi-file architectural changes.
+**IMPORTANT: Follow this pipeline automatically for EVERY coding task. Do not wait for the user to ask.**
 
-### Direct execution (default -- saves tokens):
-Handle the task yourself using the available tools. Follow the Task Completion Protocol.
+**Output format:** Start each step with its header so progress is visible. Example: "**Triage:** Simple, 2 files -- Go parser + React component" / "**Plan:** 1) Remove /10 division 2) Fix falsy check" etc.
 
-### Model Routing (Quality + Cost)
+### Step 1: Triage
+- Classify: **Simple** (1-2 files) / **Medium** (3-4 files) / **Complex** (4+ files, architectural)
+- Complex tasks → escalate to Opus via `autopilot-opus` subagent
+- For tasks expected to take >5 min: create `/recheckin` cron FIRST, include job ID in message
 
-- Start on **Sonnet** for plan/triage and most implementation.
-- Route automatically by complexity; do not ask the user which model to use unless they explicitly request one.
-- After the plan is clear, escalate to **Opus/autopilot-opus** automatically only for complex multi-file or architectural work.
-- Keep browser/HAR/vision steps explicit and only when required.
+### Step 2: Plan
+- Write a short plan (3-10 lines) before implementing
+- Identify files to change, dependencies, and risk areas
 
-### Claude Code escalation (complex tasks only):
-For multi-component architectural changes that need specialist sub-agents:
-```
-exec: claude --print "Use the autopilot-opus subagent (Task tool with subagent_type=autopilot-opus) for this task: <description>"
-```
+### Step 3: Implement
+- Read before writing. Follow existing patterns. Smallest change possible.
+- Quality: SOLID, DRY, KISS, Separation of Concerns
+- For each edit: Reason → Act → Observe (re-read file after editing) → Repeat if mismatch
 
-**Escalation criteria:** 4+ files across modules, architectural decisions, high regression risk, or 3+ distinct deliverables.
+### Step 4: Verify
+- Re-read EVERY changed file after editing
+- Run build command from TOOLS.md
+- Run test command from TOOLS.md
+- 4+ files changed → run self-review checklist (missed edge cases, naming, error handling)
 
-## Autopilot Skills (Universal Pipeline)
+### Step 5: Commit
+- Conventional format: `type(scope): description`
+- Feature branch only. Never commit untested code.
+- NEVER include `Co-Authored-By` in commit messages.
 
-These skills are mandatory for all coding tasks from any channel or cron. They give you a consistent quality pipeline.
+### Step 6: Report
+- What changed (bullets), files modified, test results, status
 
-| Skill | Purpose | When |
-|-------|---------|------|
-| `autopilot-workflow` | Full task execution pipeline (triage → plan → implement → verify → report) | **Every coding task** — this is the default |
-| `quality-gates` | Self-verification: re-read files, run tests, check commits, self-review | After every code change (called by autopilot-workflow step 5) |
-| `model-router` | Complexity triage: Simple/Medium/Complex → stay on Sonnet or escalate to Opus | Start of every task (called by autopilot-workflow step 1) |
-| `session-hygiene` | Context rot prevention: track turns, write checkpoints, suggest session splits | Passive throughout session; proactive at 20-25 coding turns |
+### Session Health
+- After 20-25 coding turns: write checkpoint to `memory/YYYY-MM-DD.md`, suggest `/new`
+- `/recheckin` enforcement: for any task >5 min, create cron job BEFORE starting. Include job ID or state CLI did not return one.
 
-**Default behavior:** For any coding task, follow the `autopilot-workflow` pipeline. It integrates the other three skills automatically.
-
-**Session splitting rule:** After 20-25 coding turns, proactively suggest a fresh session with `/new`. Write progress to `memory/YYYY-MM-DD.md` first.
-
-**`/recheckin` enforcement:** For any task expected to take >5 minutes, create a `/recheckin` cron job BEFORE starting implementation. Include the cron job ID in your message (or state the CLI did not return one).
+For detailed reference, read the skill files: `autopilot-workflow`, `quality-gates`, `model-router`, `session-hygiene`
 
 ## Coding Standards
 

@@ -360,24 +360,47 @@ if [[ "$SKIP_PERSONA" == "false" ]]; then
   # Inject autopilot skills section into existing AGENTS.md if missing.
   # This ensures existing workspaces get the pipeline on re-runs.
   AGENTS_FILE="$WORKSPACE_PATH/AGENTS.md"
-  if [[ -f "$AGENTS_FILE" ]] && ! grep -q "Autopilot Skills" "$AGENTS_FILE" 2>/dev/null; then
+  if [[ -f "$AGENTS_FILE" ]] && ! grep -q "Autopilot Workflow" "$AGENTS_FILE" 2>/dev/null; then
     AUTOPILOT_BLOCK='
-## Autopilot Skills (Universal Pipeline)
+## Autopilot Workflow (Mandatory for All Coding Tasks)
 
-These skills are mandatory for all coding tasks from any channel or cron. They give you a consistent quality pipeline.
+**IMPORTANT: Follow this pipeline automatically for EVERY coding task. Do not wait for the user to ask.**
 
-| Skill | Purpose | When |
-|-------|---------|------|
-| `autopilot-workflow` | Full task execution pipeline (triage → plan → implement → verify → report) | **Every coding task** — this is the default |
-| `quality-gates` | Self-verification: re-read files, run tests, check commits, self-review | After every code change (called by autopilot-workflow step 5) |
-| `model-router` | Complexity triage: Simple/Medium/Complex → stay on Sonnet or escalate to Opus | Start of every task (called by autopilot-workflow step 1) |
-| `session-hygiene` | Context rot prevention: track turns, write checkpoints, suggest session splits | Passive throughout session; proactive at 20-25 coding turns |
+**Output format:** Start each step with its header so progress is visible. Example: "**Triage:** Simple, 2 files" / "**Plan:** 1) Fix X 2) Update Y" etc.
 
-**Default behavior:** For any coding task, follow the `autopilot-workflow` pipeline. It integrates the other three skills automatically.
+### Step 1: Triage
+- Classify: **Simple** (1-2 files) / **Medium** (3-4 files) / **Complex** (4+ files, architectural)
+- Complex tasks → escalate to Opus via `autopilot-opus` subagent
+- For tasks expected to take >5 min: create `/recheckin` cron FIRST, include job ID in message
 
-**Session splitting rule:** After 20-25 coding turns, proactively suggest a fresh session with `/new`. Write progress to `memory/YYYY-MM-DD.md` first.
+### Step 2: Plan
+- Write a short plan (3-10 lines) before implementing
+- Identify files to change, dependencies, and risk areas
 
-**`/recheckin` enforcement:** For any task expected to take >5 minutes, create a `/recheckin` cron job BEFORE starting implementation. Include the cron job ID in your message (or state the CLI did not return one).'
+### Step 3: Implement
+- Read before writing. Follow existing patterns. Smallest change possible.
+- Quality: SOLID, DRY, KISS, Separation of Concerns
+- For each edit: Reason → Act → Observe (re-read file after editing) → Repeat if mismatch
+
+### Step 4: Verify
+- Re-read EVERY changed file after editing
+- Run build command from TOOLS.md
+- Run test command from TOOLS.md
+- 4+ files changed → run self-review checklist (missed edge cases, naming, error handling)
+
+### Step 5: Commit
+- Conventional format: `type(scope): description`
+- Feature branch only. Never commit untested code.
+- NEVER include `Co-Authored-By` in commit messages.
+
+### Step 6: Report
+- What changed (bullets), files modified, test results, status
+
+### Session Health
+- After 20-25 coding turns: write checkpoint to `memory/YYYY-MM-DD.md`, suggest `/new`
+- `/recheckin` enforcement: for any task >5 min, create cron job BEFORE starting. Include job ID or state CLI did not return one.
+
+For detailed reference, read the skill files: `autopilot-workflow`, `quality-gates`, `model-router`, `session-hygiene`'
 
     # Inject before "## Safety" or append at end
     if grep -q "^## Safety" "$AGENTS_FILE" 2>/dev/null; then
