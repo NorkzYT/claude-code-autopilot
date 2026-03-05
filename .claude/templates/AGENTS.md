@@ -14,9 +14,19 @@ Store in `.claude/context/<task-name>/` directory.
 
 ## Autopilot Workflow (Mandatory for All Coding Tasks)
 
-**IMPORTANT: Follow this pipeline automatically for EVERY coding task. Do not wait for the user to ask.**
+**YOUR FIRST LINE FOR ANY CODING TASK MUST BE:**
+```
+**Triage:** Simple/Medium/Complex, <file count> files -- <brief description>
+```
 
-**Output format:** Start each step with its header so progress is visible. Example: "**Triage:** Simple, 2 files -- Go parser + React component" / "**Plan:** 1) Remove /10 division 2) Fix falsy check" etc.
+**Then output each subsequent step header before executing it:**
+- **Plan:** <numbered list>
+- **Implement:** <as you code>
+- **Verify:** <build/test results>
+- **Commit:** <commit hash>
+- **Report:** <summary>
+
+**IMPORTANT: This is NOT optional guidance. You MUST output these headers. Follow this pipeline automatically for EVERY coding task. Do not wait for the user to ask.**
 
 ### Step 1: Triage
 - Classify: **Simple** (1-2 files) / **Medium** (3-4 files) / **Complex** (4+ files, architectural)
