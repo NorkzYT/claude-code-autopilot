@@ -539,8 +539,10 @@ if [[ "$OPENCLAW_AUTO_REGISTER" == "1" ]]; then
   if [[ -f "$ADD_AGENT_SCRIPT" ]]; then
     AUTO_AGENT_NAME="${OPENCLAW_AGENT_NAME:-$(basename "$PROJECT_DIR")}"
     AUTO_AGENT_NAME="$(sanitize_agent_name "$AUTO_AGENT_NAME")"
+    FORCE_FLAG=""
+    [[ "${OPENCLAW_FORCE:-}" == "1" ]] && FORCE_FLAG="--force"
     log "Auto-registering OpenClaw agent '$AUTO_AGENT_NAME' for $PROJECT_DIR ..."
-    bash "$ADD_AGENT_SCRIPT" "$AUTO_AGENT_NAME" "$PROJECT_DIR" || warn "Automatic agent registration failed."
+    bash "$ADD_AGENT_SCRIPT" "$AUTO_AGENT_NAME" "$PROJECT_DIR" $FORCE_FLAG || warn "Automatic agent registration failed."
   else
     warn "add_openclaw_agent.sh not found at $ADD_AGENT_SCRIPT"
   fi

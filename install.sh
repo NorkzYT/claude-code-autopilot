@@ -638,6 +638,7 @@ STACK_SCRIPTS=(
   "$DEST_CLAUDE/bootstrap/openclaw_setup.sh"
   "$DEST_CLAUDE/bootstrap/crewai_setup.sh"
 )
+[[ "$FORCE" == "1" ]] && export OPENCLAW_FORCE=1
 STACK_ENVS=("OPENCLAW_AUTO_REGISTER=1" "")
 
 for idx in "${!STACK_NAMES[@]}"; do

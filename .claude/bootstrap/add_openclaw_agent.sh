@@ -10,6 +10,7 @@ set -euo pipefail
 # Options:
 #   --name <display-name>     Display name (default: capitalized agent-name)
 #   --emoji <emoji>           Agent emoji (default: 🔧)
+#   --force                   Overwrite existing persona .md files with latest templates
 #   --skip-persona            Don't create persona files
 #   --skip-skills             Don't create skills/ directory
 #   --skip-codex              Don't create Codex compatibility files
@@ -35,6 +36,7 @@ SKIP_PERSONA=false
 SKIP_SKILLS=false
 SKIP_CODEX=false
 NO_RESTART=false
+FORCE_OVERWRITE="${OPENCLAW_FORCE:-false}"
 
 # ─── Helpers ────────────────────────────────────────────────
 log()  { echo "  [+] $*"; }
@@ -118,6 +120,7 @@ usage() {
   echo "Options:"
   echo "  --name <display-name>     Display name (default: capitalized agent-name)"
   echo "  --emoji <emoji>           Agent emoji (default: 🔧)"
+  echo "  --force                   Overwrite existing persona .md files with latest templates"
   echo "  --skip-persona            Don't create persona files"
   echo "  --skip-skills             Don't create skills/ directory"
   echo "  --skip-codex              Don't create Codex compatibility files"
@@ -144,6 +147,7 @@ while [[ $# -gt 0 ]]; do
     --skip-skills)  SKIP_SKILLS=true; shift ;;
     --skip-codex)   SKIP_CODEX=true; shift ;;
     --no-restart)   NO_RESTART=true; shift ;;
+    --force)        FORCE_OVERWRITE=1; shift ;;
     -h|--help)    usage ;;
     *)            err "Unknown option: $1" ;;
   esac
@@ -344,7 +348,7 @@ if [[ "$SKIP_PERSONA" == "false" ]]; then
     esac
     target="$WORKSPACE_PATH/$filename"
 
-    if [[ -f "$target" ]]; then
+    if [[ -f "$target" ]] && [[ "$FORCE_OVERWRITE" != "1" ]]; then
       skip "$filename"
       continue
     fi
@@ -355,7 +359,11 @@ if [[ "$SKIP_PERSONA" == "false" ]]; then
       -e "s|{{WORKSPACE_PATH}}|$WORKSPACE_PATH|g" \
       -e "s|{{EMOJI}}|$EMOJI|g" \
       "$tmpl" > "$target"
-    log "Created $filename"
+    if [[ "$FORCE_OVERWRITE" == "1" ]]; then
+      log "Updated $filename (--force)"
+    else
+      log "Created $filename"
+    fi
   done
   # Inject autopilot skills section into existing AGENTS.md if missing.
   # This ensures existing workspaces get the pipeline on re-runs.
