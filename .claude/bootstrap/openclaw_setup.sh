@@ -267,8 +267,12 @@ if has openclaw; then
   openclaw config set cron.enabled true 2>/dev/null || true
   openclaw config set browser.downloads.directory "$OPENCLAW_HOME/downloads" 2>/dev/null || true
   # Agent defaults: model routing with fallbacks
-  openclaw config set agents.defaults.model.primary "anthropic/claude-sonnet-4-6" 2>/dev/null || true
-  openclaw config set agents.defaults.model.fallbacks '["anthropic/claude-opus-4-6","openai-codex/gpt-5.3-codex"]' --json 2>/dev/null || true
+  openclaw config set agents.defaults.model.primary "anthropic/claude-opus-4-6" 2>/dev/null || true
+  openclaw config unset agents.defaults.model.fallbacks 2>/dev/null || true
+  # Disable model allowlist (allow any authenticated model)
+  openclaw config unset agents.defaults.models 2>/dev/null || true
+  # Set thinking to low (testing low vs medium for usage optimization)
+  openclaw config set agents.defaults.thinkingDefault "low" 2>/dev/null || true
   # Agent defaults: context pruning + history limits (prevent context rot)
   openclaw config set agents.defaults.contextPruning.mode cache-ttl 2>/dev/null || true
   openclaw config set agents.defaults.contextPruning.ttl 30m 2>/dev/null || true
