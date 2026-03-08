@@ -72,6 +72,7 @@ import json, os, sys
 from datetime import datetime, timezone
 
 cfg_path, guild_id, user_id, require_mention, max_concurrent, lanes_json = sys.argv[1:]
+require_mention_bool = (require_mention.lower() == "true")
 
 if os.path.exists(cfg_path):
     with open(cfg_path, "r", encoding="utf-8") as f:
@@ -119,7 +120,6 @@ if not isinstance(guild_channels, dict):
 guild_cfg["channels"] = guild_channels
 
 lanes = json.loads(lanes_json)
-require_mention_bool = (require_mention.lower() == "true")
 
 for lane in lanes:
     ch = str(lane.get("channelId", "")).strip()
