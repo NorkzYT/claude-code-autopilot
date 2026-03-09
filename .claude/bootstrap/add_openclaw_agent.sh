@@ -15,6 +15,7 @@ set -euo pipefail
 #   --skip-skills             Don't create skills/ directory
 #   --skip-codex              Don't create Codex compatibility files
 #   --no-restart              Don't restart the gateway
+#   --tool-access <mode>      Tool access profile: minimal|coding|messaging|full|inherit (default: full)
 #
 # Example:
 #   bash .claude/bootstrap/add_openclaw_agent.sh myproject /opt/github/MyProject --name "My Project" --emoji "🔧"
@@ -37,6 +38,8 @@ SKIP_SKILLS=false
 SKIP_CODEX=false
 NO_RESTART=false
 FORCE_OVERWRITE="${OPENCLAW_FORCE:-false}"
+TOOL_ACCESS_PROFILE="${OPENCLAW_TOOL_ACCESS:-full}"
+TOOL_ACCESS_PROFILE_SPECIFIED=false
 
 # ─── Helpers ────────────────────────────────────────────────
 log()  { echo "  [+] $*"; }
@@ -125,6 +128,7 @@ usage() {
   echo "  --skip-skills             Don't create skills/ directory"
   echo "  --skip-codex              Don't create Codex compatibility files"
   echo "  --no-restart              Don't restart the gateway"
+  echo "  --tool-access <mode>      Tool access profile: minimal|coding|messaging|full|inherit (default: full)"
   exit 1
 }
 
@@ -147,11 +151,26 @@ while [[ $# -gt 0 ]]; do
     --skip-skills)  SKIP_SKILLS=true; shift ;;
     --skip-codex)   SKIP_CODEX=true; shift ;;
     --no-restart)   NO_RESTART=true; shift ;;
+    --tool-access)
+      TOOL_ACCESS_PROFILE="$2"
+      TOOL_ACCESS_PROFILE_SPECIFIED=true
+      shift 2
+      ;;
     --force)        FORCE_OVERWRITE=1; shift ;;
     -h|--help)    usage ;;
     *)            err "Unknown option: $1" ;;
   esac
 done
+
+if [[ "$TOOL_ACCESS_PROFILE_SPECIFIED" == "false" ]] && [[ -t 0 ]]; then
+  read -rp "Tool access profile [minimal/coding/messaging/full/inherit] (default: full): " TOOL_ACCESS_ANS
+  TOOL_ACCESS_PROFILE="${TOOL_ACCESS_ANS:-$TOOL_ACCESS_PROFILE}"
+fi
+
+case "$TOOL_ACCESS_PROFILE" in
+  minimal|coding|messaging|full|inherit) ;;
+  *) err "Invalid --tool-access value '$TOOL_ACCESS_PROFILE'. Use: minimal|coding|messaging|full|inherit" ;;
+esac
 
 # ─── Section 0: Validation ──────────────────────────────────
 echo ""
@@ -192,6 +211,11 @@ log "Agent name:    $AGENT_NAME"
 log "Display name:  $DISPLAY_NAME"
 log "Workspace:     $WORKSPACE_PATH"
 log "Emoji:         $EMOJI"
+if [[ "$TOOL_ACCESS_PROFILE" == "inherit" ]]; then
+  log "Tool access:   inherit (no per-agent override)"
+else
+  log "Tool access:   $TOOL_ACCESS_PROFILE (per-agent override)"
+fi
 echo ""
 
 # ─── Section 1: Register Agent ──────────────────────────────
@@ -266,12 +290,12 @@ for config_path in "${CONFIG_PATHS[@]}"; do
   fi
 
   # Ensure current OpenClaw config schema and the agent entry exist.
-  config_result="$(python3 - "$config_path" "$AGENT_NAME" "$DISPLAY_NAME" "$WORKSPACE_PATH" "$EMOJI" <<'PY' 2>/dev/null
+  config_result="$(python3 - "$config_path" "$AGENT_NAME" "$DISPLAY_NAME" "$WORKSPACE_PATH" "$EMOJI" "$TOOL_ACCESS_PROFILE" <<'PY' 2>/dev/null
 import json
 import sys
 from pathlib import Path
 
-config_path, agent_name, display_name, workspace_path, emoji = sys.argv[1:]
+config_path, agent_name, display_name, workspace_path, emoji, tool_access_profile = sys.argv[1:]
 p = Path(config_path)
 
 try:
@@ -291,6 +315,23 @@ if not isinstance(agent_list, list):
     agent_list = []
 
 exists = False
+
+def apply_tool_access(entry: dict) -> None:
+    if tool_access_profile == "inherit":
+        tools = entry.get("tools")
+        if isinstance(tools, dict):
+            tools.pop("profile", None)
+            if not tools:
+                entry.pop("tools", None)
+        else:
+            entry.pop("tools", None)
+        return
+    tools = entry.get("tools")
+    if not isinstance(tools, dict):
+        tools = {}
+    tools["profile"] = tool_access_profile
+    entry["tools"] = tools
+
 for entry in agent_list:
     if not isinstance(entry, dict):
         continue
@@ -298,21 +339,27 @@ for entry in agent_list:
     entry.pop("emoji", None)
     if entry.get("name") == agent_name or entry.get("id") == agent_name:
         exists = True
+        apply_tool_access(entry)
 
 if not exists:
     config_root = p.parent
-    agent_list.append({
+    new_entry = {
         "id": agent_name,
         "name": agent_name,
         "workspace": workspace_path,
         "agentDir": str(config_root / "agents" / agent_name / "agent")
-    })
+    }
+    apply_tool_access(new_entry)
+    agent_list.append(new_entry)
 
 agents["list"] = agent_list
 data["agents"] = agents
 
 p.write_text(json.dumps(data, indent=2) + "\n")
-print("exists" if exists else "added")
+if exists:
+    print("exists")
+else:
+    print("added")
 PY
 )"
 
@@ -327,6 +374,12 @@ PY
       warn "Failed to update $config_path"
       ;;
   esac
+
+  if [[ "$TOOL_ACCESS_PROFILE" == "inherit" ]]; then
+    log "Agent tool access in $(basename "$config_path"): inherit (uses global tools.profile)"
+  else
+    log "Agent tool access in $(basename "$config_path"): $TOOL_ACCESS_PROFILE"
+  fi
 done
 
 # ─── Section 4: Create Persona Files ────────────────────────
