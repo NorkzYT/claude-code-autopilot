@@ -49,16 +49,6 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw --with-crewai
 ```
 
-## Project `llms.txt`
-
-This repo includes a template for `llms.txt`.
-
-```bash
-cp .claude/docs/llms-txt-template.md ./llms.txt
-```
-
-Then edit it for your project.
-
 ## Git Hygiene
 
 Add these to your project `.gitignore` if needed:

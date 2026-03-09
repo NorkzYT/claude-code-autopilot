@@ -8,7 +8,7 @@ set -euo pipefail
 #   bash analyze_repo.sh <workspace-path> [--deep]
 #
 # Phase A (default): Static parsing of config files
-#   Outputs: TOOLS.md, HEARTBEAT.md, llms.txt
+#   Outputs: TOOLS.md, HEARTBEAT.md
 #
 # Phase B (--deep): Claude-powered deep codebase scan
 #   Outputs: PROJECT.md
@@ -929,61 +929,10 @@ if sections:
     log "Created: $HEARTBEAT_FILE"
   fi
 
-  # ─── Generate llms.txt ──────────────────────────────────────
-  LLMS_FILE="$WORKSPACE/llms.txt"
-
-  if is_custom "$LLMS_FILE"; then
-    skip "llms.txt has custom content, not overwriting"
-  else
-    log "  Writing llms.txt..."
-    {
-      echo "# $PROJECT_NAME"
-      echo ""
-      if [[ -n "$PROJECT_DESC" ]]; then
-        echo "> $PROJECT_DESC"
-        echo ""
-      fi
-      echo "## File Structure"
-      echo ""
-      # List top-level directories
-      for item in "$WORKSPACE"/*/; do
-        [[ ! -d "$item" ]] && continue
-        name="$(basename "$item")"
-        # Skip hidden and common non-essential dirs
-        case "$name" in
-          node_modules|.git|.next|.cache|dist|build|__pycache__|.venv|venv|target|vendor) continue ;;
-        esac
-        echo "- \`$name/\`"
-      done
-      echo ""
-      echo "## Build & Test"
-      echo ""
-      [[ -n "$BUILD_CMD" ]] && echo "- Build: \`$BUILD_CMD\`"
-      [[ -n "$TEST_CMD" ]] && echo "- Test: \`$TEST_CMD\`"
-      [[ -n "$LINT_CMD" ]] && echo "- Lint: \`$LINT_CMD\`"
-      [[ -n "$DEV_CMD" ]] && echo "- Dev: \`$DEV_CMD\`"
-      echo ""
-      echo "## Key Patterns"
-      echo ""
-      # Detect tech stack
-      [[ -f "$WORKSPACE/package.json" ]] && echo "- Node.js / npm"
-      [[ -f "$WORKSPACE/tsconfig.json" ]] && echo "- TypeScript"
-      [[ -f "$WORKSPACE/pyproject.toml" ]] && echo "- Python"
-      [[ -f "$WORKSPACE/go.mod" ]] && echo "- Go"
-      [[ -f "$WORKSPACE/Cargo.toml" ]] && echo "- Rust"
-      [[ -f "$WORKSPACE/pom.xml" ]] && echo "- Java (Maven)"
-      [[ -f "$WORKSPACE/build.gradle" ]] && echo "- Java/Kotlin (Gradle)"
-      [[ -f "$WORKSPACE/turbo.json" ]] && echo "- Turborepo monorepo"
-      [[ -n "$WORKSPACES" ]] && echo "- Monorepo workspaces: $WORKSPACES"
-    } > "$LLMS_FILE"
-    log "Created: $LLMS_FILE"
-  fi
-
   log "Phase A complete."
   echo "  Generated files:"
   echo "    - $TOOLS_FILE"
   echo "    - $HEARTBEAT_FILE"
-  echo "    - $LLMS_FILE"
   if [[ ! -s "$WORKSPACE/PROJECT.md" ]]; then
     echo ""
     echo "  Note: PROJECT.md is generated only in deep mode."

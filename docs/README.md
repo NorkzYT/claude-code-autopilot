@@ -4,7 +4,7 @@ Use these docs when you need details that do not belong in the quick-start READM
 
 ## Guides
 
-- `docs/install.md` — install modes, updates, installer flags, gitignore, `llms.txt`
+- `docs/install.md` — install modes, updates, installer flags, gitignore
 - `docs/workflow.md` — session persistence, notifications, guardrails, customization, plan-mode workflow
 - `docs/editor.md` — external editor (`Ctrl+G`) setup and VS Code remote notes
 - `docs/troubleshooting.md` — common issues and validation commands

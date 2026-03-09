@@ -226,7 +226,7 @@ The README is the fast path. Detailed guides live in `docs/*.md` and `.claude/do
 ### Core docs (`docs/*.md`)
 
 - `docs/README.md` — documentation index
-- `docs/install.md` — install modes, updates, flags, `llms.txt`, git hygiene
+- `docs/install.md` — install modes, updates, flags, git hygiene
 - `docs/workflow.md` — session persistence, notifications, guardrails, customization, plan mode
 - `docs/editor.md` — external editor (`Ctrl+G`) and VS Code remote setup
 - `docs/troubleshooting.md` — common issues and validation commands
