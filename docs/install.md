@@ -11,8 +11,6 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux
 ```
 
-This installs the kit and common dev tools used by the bootstrap scripts.
-
 ### Kit only
 
 ```bash
@@ -24,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 
 Run the same install command with `--force`.
 
-Use `--with-openclaw` only when you want to rerun OpenClaw setup and regenerate `.openclaw/*` files.
+Use `--with-openclaw` to configure the Docker-only OpenClaw stack and wrapper.
 Use `--with-crewai` when you want to scaffold or refresh `.crewai/*` assets.
 
 ## Installer Flags
@@ -37,17 +35,24 @@ Use `--with-crewai` when you want to scaffold or refresh `.crewai/*` assets.
 | `--force` | Overwrite existing `.claude/` (preserves logs) |
 | `--bootstrap-linux` | Full bootstrap (devtools + extras) |
 | `--no-extras` | Skip wshobson agents/commands |
-| `--with-openclaw` | Run OpenClaw setup and agent bootstrap |
+| `--with-openclaw` | Configure Docker-only OpenClaw and install the host wrapper |
 | `--open-claw` | Alias for `--with-openclaw` |
 | `--with-crewai` | Run CrewAI setup and scaffold `.crewai/` |
 | `--crewAI` | Alias for `--with-crewai` |
 
-You can combine flags in one run:
+## OpenClaw Environment File
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
-  | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw --with-crewai
-```
+The OpenClaw Docker stack uses `.env.example` as the canonical reference. Copy it to `.env` if you need to set:
+
+- `HOST_REPOS_DIR`
+- gateway and viewer ports
+- git author and committer identity
+- `OPENCLAW_MODEL_PRIMARY=anthropic/claude-sonnet-4-6`
+- `OPENCLAW_THINKING_DEFAULT=high`
+- `OPENCLAW_ANTHROPIC_SETUP_TOKEN`
+- `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`
+- Discord token placeholders
+- browser width and downloads directory
 
 ## Git Hygiene
 
@@ -58,20 +63,4 @@ Add these to your project `.gitignore` if needed:
 .claude/context/*
 !.claude/context/templates/
 .claude/vendor/
-```
-
-The OpenClaw bootstrap also auto-adds local runtime files and generated root OpenClaw files.
-
-## Optional Extras (wshobson)
-
-When installed with `--bootstrap-linux`, the kit can install curated agents and commands from:
-
-- `wshobson/commands`
-- `wshobson/agents`
-
-Manage extras:
-
-```bash
-./.claude/extras/install-extras.sh
-./.claude/extras/install-extras.sh --update
 ```

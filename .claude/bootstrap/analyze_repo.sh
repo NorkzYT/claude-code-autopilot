@@ -96,6 +96,40 @@ PY
 ) "$AUTO_GEN_MARKER"
 }
 
+file_sha256() {
+  local file="$1"
+  if [[ ! -f "$file" ]]; then
+    return 1
+  fi
+  sha256sum "$file" 2>/dev/null | awk '{print $1}'
+}
+
+project_file_is_placeholder() {
+  local file="$1"
+  [[ -f "$file" ]] || return 1
+  grep -q "Deep scan did not complete\\|Pending deep scan output\\|Deep scan failed and placeholder generation did not complete" "$file" 2>/dev/null
+}
+
+recover_project_output_from_file() {
+  local file="$1"
+  local previous_sha="${2:-}"
+  local current_sha=""
+  local recovered=""
+
+  [[ -s "$file" ]] || return 1
+  current_sha="$(file_sha256 "$file" || true)"
+  [[ -n "$current_sha" ]] || return 1
+  [[ "$current_sha" != "$previous_sha" ]] || return 1
+  project_file_is_placeholder "$file" && return 1
+
+  recovered="$(cat "$file" 2>/dev/null || true)"
+  [[ -n "$recovered" ]] || return 1
+  recovered="$(printf '%s' "$recovered" | sanitize_project_output)"
+  [[ -n "$recovered" ]] || return 1
+
+  printf '%s' "$recovered"
+}
+
 estimate_repo_deep_scan_size() {
   local workspace="$1"
 
@@ -947,6 +981,7 @@ else
   log "Phase B: Deep codebase understanding..."
 
   PROJECT_FILE="$WORKSPACE/PROJECT.md"
+  PROJECT_FILE_PRE_SHA="$(file_sha256 "$PROJECT_FILE" || true)"
 
   if [[ -s "$PROJECT_FILE" ]]; then
     if is_custom "$PROJECT_FILE"; then
@@ -1074,6 +1109,17 @@ else
     CLAUDE_LAST_OUT_LOG="$out_log"
     CLAUDE_LAST_ERR_LOG="$err_log"
     CLAUDE_OUTPUT="$(cat "$out_log" 2>/dev/null || true)"
+
+    if [[ -z "$CLAUDE_OUTPUT" ]]; then
+      local recovered_output=""
+      recovered_output="$(recover_project_output_from_file "$PROJECT_FILE" "$PROJECT_FILE_PRE_SHA" || true)"
+      if [[ -n "$recovered_output" ]]; then
+        CLAUDE_OUTPUT="$recovered_output"
+        rc=0
+        CLAUDE_LAST_RC=0
+        warn "Detected PROJECT.md written directly during deep scan attempt ${attempt}; preserving generated file"
+      fi
+    fi
 
     {
       echo "attempt=$attempt"

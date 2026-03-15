@@ -4,12 +4,16 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     bash \
     ca-certificates \
+    chromium \
     curl \
+    fluxbox \
     git \
     jq \
     openssh-client \
     procps \
     python3 \
+    x11vnc \
+    xvfb \
   && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g openclaw@latest
@@ -22,7 +26,9 @@ RUN chmod +x /usr/local/bin/openclaw-entrypoint
 USER openclaw
 WORKDIR /home/openclaw
 
-ENV OPENCLAW_STATE_DIR=/home/openclaw/.openclaw
+ENV OPENCLAW_STATE_DIR=/home/openclaw/.openclaw \
+    DISPLAY=:99 \
+    OPENCLAW_BROWSER_DOWNLOADS_DIR=/home/openclaw/.openclaw/downloads
 
 ENTRYPOINT ["openclaw-entrypoint"]
 CMD ["gateway"]

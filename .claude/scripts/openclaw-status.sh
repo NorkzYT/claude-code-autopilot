@@ -6,6 +6,14 @@ set -euo pipefail
 
 has() { command -v "$1" >/dev/null 2>&1; }
 
+run_openclaw() {
+  if has openclaw; then
+    openclaw "$@"
+    return $?
+  fi
+  return 127
+}
+
 # Colors
 GREEN='\033[32m'
 RED='\033[31m'
@@ -28,19 +36,19 @@ echo ""
 if ! has openclaw; then
   fail "NOT INSTALLED"
   echo ""
-  echo "  OpenClaw is not installed."
+  echo "  OpenClaw wrapper is not installed."
   echo "  Run: install.sh --with-openclaw"
   echo ""
   exit 0
 fi
 
-VERSION="$(openclaw --version 2>/dev/null || echo 'unknown')"
+VERSION="$(run_openclaw --version 2>/dev/null || echo 'unknown')"
 printf "  Version:    %s\n" "$VERSION"
 echo ""
 
 # --- Gateway Status ---
 printf "${BOLD}Gateway${RESET}\n"
-GATEWAY_STATUS="$(openclaw gateway status --json 2>/dev/null || echo '{}')"
+GATEWAY_STATUS="$(run_openclaw gateway status --json 2>/dev/null || echo '{}')"
 if echo "$GATEWAY_STATUS" | grep -q '"running":true' 2>/dev/null; then
   ok "RUNNING"
   PORT="$(echo "$GATEWAY_STATUS" | grep -oP '"port":\s*\K[0-9]+' 2>/dev/null || echo '18789')"
@@ -48,13 +56,13 @@ if echo "$GATEWAY_STATUS" | grep -q '"running":true' 2>/dev/null; then
   printf "  Port: %s  Uptime: %s\n" "$PORT" "$UPTIME"
 else
   fail "STOPPED"
-  printf "  Start with: openclaw gateway start\n"
+  printf "  Start with: openclaw up\n"
 fi
 echo ""
 
 # --- Discord Status ---
 printf "${BOLD}Discord${RESET}\n"
-DISCORD_STATUS="$(openclaw channels status discord --json 2>/dev/null || echo '{}')"
+DISCORD_STATUS="$(run_openclaw channels status discord --json 2>/dev/null || echo '{}')"
 if echo "$DISCORD_STATUS" | grep -q '"connected":true' 2>/dev/null; then
   ok "CONNECTED"
   SERVER="$(echo "$DISCORD_STATUS" | grep -oP '"server":\s*"\K[^"]+' 2>/dev/null || echo 'unknown')"
@@ -68,7 +76,7 @@ echo ""
 
 # --- Token Usage ---
 printf "${BOLD}Token Usage${RESET}\n"
-USAGE="$(openclaw status --usage --json 2>/dev/null || echo '{}')"
+USAGE="$(run_openclaw status --usage --json 2>/dev/null || echo '{}')"
 TODAY_IN="$(echo "$USAGE" | grep -oP '"input_tokens":\s*\K[0-9]+' 2>/dev/null || echo '0')"
 TODAY_OUT="$(echo "$USAGE" | grep -oP '"output_tokens":\s*\K[0-9]+' 2>/dev/null || echo '0')"
 CACHE="$(echo "$USAGE" | grep -oP '"cache_read_tokens":\s*\K[0-9]+' 2>/dev/null || echo '0')"
@@ -87,12 +95,12 @@ echo ""
 
 # --- Cron Jobs ---
 printf "${BOLD}Cron Jobs${RESET}\n"
-CRON_LIST="$(openclaw cron list --json 2>/dev/null || echo '[]')"
+CRON_LIST="$(run_openclaw cron list --json 2>/dev/null || echo '[]')"
 ACTIVE_COUNT="$(echo "$CRON_LIST" | grep -c '"enabled":true' 2>/dev/null || echo '0')"
 TOTAL_COUNT="$(echo "$CRON_LIST" | grep -c '"name"' 2>/dev/null || echo '0')"
 printf "  Active: %s / %s\n" "$ACTIVE_COUNT" "$TOTAL_COUNT"
 
-LAST_RUN="$(openclaw cron runs --last --json 2>/dev/null || echo '{}')"
+LAST_RUN="$(run_openclaw cron runs --last --json 2>/dev/null || echo '{}')"
 LAST_NAME="$(echo "$LAST_RUN" | grep -oP '"name":\s*"\K[^"]+' 2>/dev/null || echo 'none')"
 LAST_STATUS="$(echo "$LAST_RUN" | grep -oP '"status":\s*"\K[^"]+' 2>/dev/null || echo 'none')"
 if [[ "$LAST_STATUS" == "success" ]]; then
@@ -122,7 +130,7 @@ echo ""
 
 # --- Memory/RAG ---
 printf "${BOLD}Memory${RESET}\n"
-MEMORY_STATUS="$(openclaw memory status --json 2>/dev/null || echo '{}')"
+MEMORY_STATUS="$(run_openclaw memory status --json 2>/dev/null || echo '{}')"
 DOC_COUNT="$(echo "$MEMORY_STATUS" | grep -oP '"document_count":\s*\K[0-9]+' 2>/dev/null || echo '0')"
 INDEX_SIZE="$(echo "$MEMORY_STATUS" | grep -oP '"index_size":\s*"\K[^"]+' 2>/dev/null || echo 'unknown')"
 printf "  Documents:  %s\n" "$DOC_COUNT"

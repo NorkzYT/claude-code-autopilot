@@ -37,6 +37,80 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw
 ```
 
+### OpenClaw Docker Quickstart
+
+For a new user who wants Docker-only OpenClaw with access to repos under `/opt/repos`:
+
+1. Install with `--with-openclaw`
+2. Copy the env template:
+
+```bash
+cp .env.example .env
+```
+
+3. Edit `.env` and set:
+   - `HOST_REPOS_DIR=/opt/repos`
+   - `GIT_AUTHOR_NAME`
+   - `GIT_AUTHOR_EMAIL`
+   - `GIT_COMMITTER_NAME`
+   - `GIT_COMMITTER_EMAIL`
+
+Recommended defaults:
+   - `OPENCLAW_MODEL_PRIMARY=anthropic/claude-sonnet-4-6`
+   - `OPENCLAW_THINKING_DEFAULT=high`
+
+Optional auth envs:
+   - `ANTHROPIC_API_KEY`
+   - `OPENAI_API_KEY`
+   - `OPENCLAW_ANTHROPIC_SETUP_TOKEN`
+
+4. Put the repos you want OpenClaw to access under `/opt/repos`
+5. Start the Docker stack:
+
+```bash
+openclaw up
+```
+
+6. Authenticate providers inside the container wrapper:
+
+Anthropic subscription:
+
+```bash
+claude setup-token
+openclaw models auth paste-token --provider anthropic
+```
+
+OpenAI subscription:
+
+```bash
+openclaw models auth login --provider openai-codex
+```
+
+7. Verify the stack:
+
+```bash
+openclaw status
+openclaw logs
+```
+
+8. Open the browser viewer when manual login or 2FA is needed:
+
+```bash
+openclaw viewer-url
+```
+
+9. Register mounted repos as agents when needed:
+
+```bash
+openclaw agents add my-app --workspace /opt/repos/my-app --non-interactive
+```
+
+What this means:
+- OpenClaw runs in Docker, not on the host
+- the host `openclaw` command is a wrapper into the container
+- `/opt/repos` is mounted read/write into the gateway container
+- browser state, auth, cookies, and downloads persist in Docker volumes
+
 ### Install With CrewAI (marketing/research/ops crews)
 
 ```bash
