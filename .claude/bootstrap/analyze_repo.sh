@@ -1025,23 +1025,40 @@ else
   GITIGNORE_CONTEXT="$(gitignore_prompt_context "$WORKSPACE" || true)"
   TOOLLESS_MODE=false
   REPO_SNAPSHOT=""
+  SNAPSHOT_SIZE=0
+  SHOULD_PRECOMPUTE_SNAPSHOT=false
+  SHOULD_DEFAULT_TOOLLESS=false
+
   if [[ "$DEEP_TIER" == "large" || "$DEEP_TIER" == "xlarge" ]]; then
-    log "Building pre-computed repo snapshot for tool-less mode (${DEEP_TIER} repo)..."
+    SHOULD_PRECOMPUTE_SNAPSHOT=true
+    SHOULD_DEFAULT_TOOLLESS=true
+  elif (( DEEP_FILE_COUNT <= 1200 )) && (( DEEP_SIZE_MB <= 25 )); then
+    # Small/medium repos are often better handled by a bounded snapshot than by
+    # letting Claude recursively inspect the tree, which can get killed (rc=137)
+    # before it emits any PROJECT.md output.
+    SHOULD_PRECOMPUTE_SNAPSHOT=true
+    SHOULD_DEFAULT_TOOLLESS=true
+  fi
+
+  if [[ "$SHOULD_PRECOMPUTE_SNAPSHOT" == "true" ]]; then
+    log "Building pre-computed repo snapshot for deep scan (${DEEP_TIER} repo)..."
     REPO_SNAPSHOT="$(build_repo_snapshot "$WORKSPACE" 2>/dev/null || true)"
     if [[ -n "$REPO_SNAPSHOT" ]]; then
-      TOOLLESS_MODE=true
       SNAPSHOT_SIZE="${#REPO_SNAPSHOT}"
       if [[ "$DEBUG" == "true" ]]; then
         echo "    [DEBUG] Snapshot size: ${SNAPSHOT_SIZE} chars"
       fi
-      log "Using tool-less mode with pre-computed snapshot (${SNAPSHOT_SIZE} chars)"
-      # Reduce timeouts — no exploration phase needed
-      if [[ "$DEEP_TIER" == "large" ]]; then
-        CLAUDE_DEEP_TIMEOUT=300
-        CLAUDE_DEEP_RETRY_TIMEOUT=0
-      else
-        CLAUDE_DEEP_TIMEOUT=420
-        CLAUDE_DEEP_RETRY_TIMEOUT=0
+      if [[ "$SHOULD_DEFAULT_TOOLLESS" == "true" ]]; then
+        TOOLLESS_MODE=true
+        log "Using tool-less mode with pre-computed snapshot (${SNAPSHOT_SIZE} chars)"
+        # Snapshot mode avoids extra exploration work, so shorter bounds are enough.
+        if [[ "$DEEP_TIER" == "large" || "$DEEP_TIER" == "xlarge" ]]; then
+          CLAUDE_DEEP_TIMEOUT=300
+          CLAUDE_DEEP_RETRY_TIMEOUT=0
+        else
+          CLAUDE_DEEP_TIMEOUT=240
+          CLAUDE_DEEP_RETRY_TIMEOUT=480
+        fi
       fi
     else
       warn "Snapshot generation failed; falling back to tool-enabled mode"
