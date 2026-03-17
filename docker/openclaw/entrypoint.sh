@@ -18,7 +18,7 @@ OPENCLAW_MODEL_FALLBACKS="${OPENCLAW_MODEL_FALLBACKS:-[\"openai/gpt-5.3-codex\",
 OPENCLAW_MODEL_PRIMARY="${OPENCLAW_MODEL_PRIMARY:-anthropic/claude-opus-4-6}"
 
 mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /opt/repos
-chown node:node "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /opt/repos
+chown -R node:node "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /opt/repos
 touch /home/node/.gitconfig
 chown node:node /home/node/.gitconfig
 
@@ -38,31 +38,6 @@ start_display_stack() {
   x11vnc -display :99 -forever -shared -rfbport "$OPENCLAW_VNC_PORT" -nopw >/tmp/x11vnc.log 2>&1 &
 }
 
-configure_openclaw() {
-  local thinking_default="${OPENCLAW_THINKING_DEFAULT:-}"
-
-  if [[ -z "$thinking_default" && "$OPENCLAW_MODEL_PRIMARY" == "anthropic/claude-sonnet-4-6" ]]; then
-    thinking_default="high"
-  fi
-
-  # Clean stale plugin paths that reference host-only directories
-  gosu node openclaw doctor --fix >/dev/null 2>&1 || true
-
-  gosu node openclaw config set gateway.mode local >/dev/null 2>&1 || true
-  gosu node openclaw config set gateway.port "${OPENCLAW_GATEWAY_PORT:-18789}" >/dev/null 2>&1 || true
-  gosu node openclaw config set gateway.bind "${OPENCLAW_GATEWAY_BIND:-all}" >/dev/null 2>&1 || true
-  gosu node openclaw config set browser.enabled true >/dev/null 2>&1 || true
-  gosu node openclaw config set browser.headless "$OPENCLAW_BROWSER_HEADLESS" >/dev/null 2>&1 || true
-  gosu node openclaw config set browser.noSandbox true >/dev/null 2>&1 || true
-  gosu node openclaw config set browser.executablePath "$CHROME_BIN" >/dev/null 2>&1 || true
-  gosu node openclaw config set browser.downloads.directory "$OPENCLAW_BROWSER_DOWNLOADS_DIR" >/dev/null 2>&1 || true
-  gosu node openclaw config set agents.defaults.model.primary "$OPENCLAW_MODEL_PRIMARY" >/dev/null 2>&1 || true
-  gosu node openclaw config set agents.defaults.model.fallbacks "$OPENCLAW_MODEL_FALLBACKS" --json >/dev/null 2>&1 || true
-  if [[ -n "$thinking_default" ]]; then
-    gosu node openclaw config set agents.defaults.thinkingDefault "$thinking_default" >/dev/null 2>&1 || true
-  fi
-}
-
 seed_auth_if_present() {
   local anthropic_setup_token="${OPENCLAW_ANTHROPIC_SETUP_TOKEN:-}"
 
@@ -74,19 +49,16 @@ seed_auth_if_present() {
 case "$mode" in
   gateway)
     start_display_stack
-    configure_openclaw
     seed_auth_if_present
     exec gosu node openclaw gateway
     ;;
   shell)
     start_display_stack
-    configure_openclaw
     seed_auth_if_present
     exec gosu node /bin/bash "$@"
     ;;
   *)
     start_display_stack
-    configure_openclaw
     seed_auth_if_present
     exec gosu node "$mode" "$@"
     ;;
