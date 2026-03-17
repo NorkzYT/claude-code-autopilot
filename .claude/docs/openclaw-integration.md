@@ -142,7 +142,7 @@ openclaw agents add <agent-name> --workspace /opt/repos/<repo-name> --non-intera
 | Issue | Solution |
 |------|----------|
 | `openclaw: command not found` | Open a new shell or ensure `~/.local/bin` is on `PATH` |
-| `openclaw` still points to a deleted fnm/npm path | Run `hash -r` or start a new shell; the old command path is usually just cached by the current shell |
+| `openclaw` still points to a deleted fnm/npm path | Run `hash -r` or start a new shell; the old command path is usually cached by the current shell |
 | Install finished before I could edit `.env` | Current setup should no longer auto-start before `.env` is ready; if needed, set `OPENCLAW_AUTO_START=no` to force skip |
 | Stack not starting | `docker compose -f docker-compose.openclaw.yml logs` |
 | Browser viewer blank | Check `openclaw logs` and confirm `openclaw-browser-viewer` is running |

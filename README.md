@@ -204,7 +204,7 @@ If you install with CrewAI, it also:
 
 ## Usage Guide
 
-### Just Ask Naturally
+### Ask Naturally
 
 For most tasks, simply describe what you want:
 
