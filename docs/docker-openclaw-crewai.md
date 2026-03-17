@@ -64,7 +64,7 @@ openclaw down
 
 The OpenClaw stack binds:
 
-- `${OPENCLAW_HOST_STATE_DIR:-$HOME/.openclaw}` (host) -> `/home/openclaw/.openclaw` (container)
+- `${OPENCLAW_HOST_STATE_DIR:-$HOME/.openclaw}` (host) -> `/home/node/.openclaw` (container)
 - `/opt/repos` (host) -> `/opt/repos` (container)
 
 Override host path:

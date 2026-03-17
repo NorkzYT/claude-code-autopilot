@@ -1,6 +1,6 @@
-FROM node:22-bookworm-slim
+FROM ghcr.io/openclaw/openclaw:latest
 
-ARG OPENCLAW_GIT_REF=main
+USER root
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -18,41 +18,14 @@ RUN apt-get update \
     xvfb \
   && rm -rf /var/lib/apt/lists/*
 
-RUN set -eux; \
-    corepack enable; \
-    corepack prepare pnpm@latest --activate; \
-    git clone --depth=1 --branch "$OPENCLAW_GIT_REF" https://github.com/openclaw/openclaw.git /tmp/openclaw-src; \
-    cd /tmp/openclaw-src; \
-    export SHARP_IGNORE_GLOBAL_LIBVIPS=1; \
-    pnpm install; \
-    pnpm ui:build; \
-    pnpm build; \
-    npm install -g .; \
-    rm -rf /tmp/openclaw-src
-
-RUN set -eux; \
-    if getent passwd 1000 >/dev/null; then \
-      existing_user="$(getent passwd 1000 | cut -d: -f1)"; \
-      existing_group="$(id -gn "$existing_user")"; \
-      if [ "$existing_group" != "openclaw" ]; then \
-        groupmod -n openclaw "$existing_group"; \
-      fi; \
-      if [ "$existing_user" != "openclaw" ]; then \
-        usermod -l openclaw -d /home/openclaw -m -s /bin/bash "$existing_user"; \
-      else \
-        usermod -d /home/openclaw -m -s /bin/bash openclaw; \
-      fi; \
-    else \
-      useradd -m -u 1000 -s /bin/bash openclaw; \
-    fi
-
 COPY docker/openclaw/entrypoint.sh /usr/local/bin/openclaw-entrypoint
 RUN chmod +x /usr/local/bin/openclaw-entrypoint
 
-USER openclaw
-WORKDIR /home/openclaw
+USER node
+WORKDIR /home/node
 
 ENV OPENCLAW_STATE_DIR=/home/openclaw/.openclaw \
+
     DISPLAY=:99 \
     OPENCLAW_BROWSER_DOWNLOADS_DIR=/home/openclaw/.openclaw/downloads
 
