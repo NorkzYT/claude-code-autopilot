@@ -65,7 +65,7 @@ Optional auth envs:
    - `OPENCLAW_ANTHROPIC_SETUP_TOKEN`
 
 4. Put the repos you want OpenClaw to access under `/opt/repos`
-5. Start the Docker stack:
+5. Start the Docker stack after `.env` is ready:
 
 ```bash
 openclaw up

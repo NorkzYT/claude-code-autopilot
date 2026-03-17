@@ -21,12 +21,13 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 Then:
 
 1. Optional overrides: `cp .env.example .env`
-2. Start or restart the Docker stack: `openclaw up`
-3. Authenticate Anthropic subscription inside the container: `claude setup-token && openclaw models auth paste-token --provider anthropic`
-4. Authenticate OpenAI subscription inside the container when needed: `openclaw models auth login --provider openai-codex`
-5. Open the browser viewer: `openclaw viewer-url`
-6. Run Discord setup if needed: `bash .claude/bootstrap/openclaw_discord_setup.sh`
-7. Register extra repos under `/opt/repos` if needed: `openclaw agents add <agent-id> --workspace /opt/repos/<repo-name> --non-interactive`
+2. Edit `.env` before first startup
+3. Start or restart the Docker stack: `openclaw up`
+4. Authenticate Anthropic subscription inside the container: `claude setup-token && openclaw models auth paste-token --provider anthropic`
+5. Authenticate OpenAI subscription inside the container when needed: `openclaw models auth login --provider openai-codex`
+6. Open the browser viewer: `openclaw viewer-url`
+7. Run Discord setup if needed: `bash .claude/bootstrap/openclaw_discord_setup.sh`
+8. Register extra repos under `/opt/repos` if needed: `openclaw agents add <agent-id> --workspace /opt/repos/<repo-name> --non-interactive`
 
 Important:
 - Default repo mount is `${HOST_REPOS_DIR:-/opt/repos}` on the host to `/opt/repos` in the container.
@@ -35,6 +36,7 @@ Important:
 - Use `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `.env` for direct API-key auth. Use in-container auth commands for subscription-backed auth.
 - Host OpenClaw state automatically defaults to `~/.openclaw`, bind-mounted into the container. Only set `OPENCLAW_HOST_STATE_DIR` if you want a non-default path.
 - Host services are reachable from the container at `http://host.docker.internal:<port>`. For example, a host dev server on port `8080` should be accessed as `http://host.docker.internal:8080` from OpenClaw.
+- Control UI pairing: `127.0.0.1` is auto-approved. Same-host Tailnet access may also count as local, but other Tailnet/LAN clients still require explicit device approval.
 - `PROJECT.md` is generated only by deep analysis.
 
 ## Browser Login and Takeover

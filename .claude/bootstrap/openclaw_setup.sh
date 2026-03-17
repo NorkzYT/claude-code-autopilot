@@ -13,6 +13,7 @@ HOST_OPENCLAW_STATE_DIR="${OPENCLAW_HOST_STATE_DIR:-$HOME/.openclaw}"
 PROJECT_ENV_EXAMPLE="$PROJECT_DIR/.env.example"
 PROJECT_ENV_FILE="$PROJECT_DIR/.env"
 COMPOSE_FILE="$PROJECT_DIR/docker-compose.openclaw.yml"
+OPENCLAW_AUTO_START="${OPENCLAW_AUTO_START:-ask}"
 
 if ! has docker; then
   warn "Docker is required for the Docker-only OpenClaw setup."
@@ -147,15 +148,40 @@ else
   log "Using defaults from $PROJECT_ENV_EXAMPLE until you create $PROJECT_ENV_FILE"
 fi
 
-log "Starting Docker OpenClaw stack..."
 compose_args=()
 if [[ -f "$PROJECT_ENV_FILE" ]]; then
   compose_args+=(--env-file "$PROJECT_ENV_FILE")
 fi
-"${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" "${compose_args[@]}" up -d openclaw-gateway openclaw-browser-viewer
 
-VIEWER_PORT="$("${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" "${compose_args[@]}" port openclaw-browser-viewer 6080 2>/dev/null | sed -n 's/.*://p' | head -n1 || true)"
-GATEWAY_PORT="$("${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" "${compose_args[@]}" port openclaw-gateway 18789 2>/dev/null | sed -n 's/.*://p' | head -n1 || true)"
+START_STACK=false
+if [[ "$OPENCLAW_AUTO_START" == "1" || "$OPENCLAW_AUTO_START" == "true" || "$OPENCLAW_AUTO_START" == "yes" ]]; then
+  START_STACK=true
+elif [[ "$OPENCLAW_AUTO_START" == "0" || "$OPENCLAW_AUTO_START" == "false" || "$OPENCLAW_AUTO_START" == "no" ]]; then
+  START_STACK=false
+elif [[ -f "$PROJECT_ENV_FILE" ]]; then
+  if [[ -t 0 && -t 1 ]]; then
+    read -r -p "Start the Docker OpenClaw stack now? [y/N]: " start_now
+    case "${start_now,,}" in
+      y|yes) START_STACK=true ;;
+      *) START_STACK=false ;;
+    esac
+  fi
+else
+  warn "Skipping automatic startup because .env does not exist yet."
+  warn "Create and edit $PROJECT_ENV_FILE first, then run: openclaw up"
+fi
+
+if [[ "$START_STACK" == "true" ]]; then
+  log "Starting Docker OpenClaw stack..."
+  "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" "${compose_args[@]}" up -d openclaw-gateway openclaw-browser-viewer
+fi
+
+VIEWER_PORT=""
+GATEWAY_PORT=""
+if [[ "$START_STACK" == "true" ]]; then
+  VIEWER_PORT="$("${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" "${compose_args[@]}" port openclaw-browser-viewer 6080 2>/dev/null | sed -n 's/.*://p' | head -n1 || true)"
+  GATEWAY_PORT="$("${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" "${compose_args[@]}" port openclaw-gateway 18789 2>/dev/null | sed -n 's/.*://p' | head -n1 || true)"
+fi
 
 cat <<EOF_SUMMARY
 
@@ -170,7 +196,7 @@ cat <<EOF_SUMMARY
     $COMPOSE_FILE
 
   Gateway:
-    ${GATEWAY_PORT:-18789}
+    ${GATEWAY_PORT:-not started}
 
   Browser viewer:
     http://127.0.0.1:${VIEWER_PORT:-6080}/vnc.html
@@ -178,12 +204,14 @@ cat <<EOF_SUMMARY
   Next steps:
     1. Review and copy .env.example to .env if you need custom identity, ports, or tokens.
     2. Re-open your shell so ~/.local/bin is on PATH.
-    3. Authenticate Anthropic subscription if needed:
+    3. Start the stack when ready:
+       openclaw up
+    4. Authenticate Anthropic subscription if needed:
        claude setup-token
        openclaw models auth paste-token --provider anthropic
-    4. Authenticate OpenAI subscription OAuth if needed:
+    5. Authenticate OpenAI subscription OAuth if needed:
        openclaw models auth login --provider openai-codex
-    5. Use the viewer URL for manual browser login and takeover when needed.
+    6. Use the viewer URL for manual browser login and takeover when needed.
 
   Docker-only notes:
     - No host OpenClaw CLI is required.

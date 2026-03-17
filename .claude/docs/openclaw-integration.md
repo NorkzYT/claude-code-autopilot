@@ -22,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 
 - installs Docker-based OpenClaw assets into the repo
 - installs a lightweight host wrapper at `~/.local/bin/openclaw`
-- starts the `openclaw-gateway` and `openclaw-browser-viewer` containers
+- prepares the `openclaw-gateway` and `openclaw-browser-viewer` containers
 - mounts `${HOST_REPOS_DIR:-/opt/repos}` into the gateway at `/opt/repos`
 - bind-mounts host OpenClaw state from `~/.openclaw` into the container by default
 - does not install the real OpenClaw CLI on the host
@@ -46,6 +46,8 @@ The example file includes:
 
 `OPENCLAW_HOST_STATE_DIR` is optional. If you do not set it, the Docker stack automatically uses `~/.openclaw` on the host.
 
+The setup script does not force-start the stack before `.env` is ready. In interactive runs it asks first; if `.env` does not exist yet, it skips startup and tells you to run `openclaw up` after editing `.env`.
+
 ## Daily Commands
 
 The host `openclaw` command is a wrapper into the gateway container.
@@ -68,6 +70,11 @@ docker compose -f docker-compose.openclaw.yml up -d
 Host-local services:
 - the gateway container can reach host services at `host.docker.internal`
 - example: a host app running on port `8080` should be accessed from OpenClaw as `http://host.docker.internal:8080`
+
+Control UI pairing:
+- `127.0.0.1` is auto-approved
+- the gateway host's own Tailnet address can count as local in current OpenClaw protocol/security docs
+- other Tailnet peers and LAN clients still require explicit device approval
 
 ## Model Authentication
 
@@ -136,6 +143,7 @@ openclaw agents add <agent-name> --workspace /opt/repos/<repo-name> --non-intera
 |------|----------|
 | `openclaw: command not found` | Open a new shell or ensure `~/.local/bin` is on `PATH` |
 | `openclaw` still points to a deleted fnm/npm path | Run `hash -r` or start a new shell; the old command path is usually just cached by the current shell |
+| Install finished before I could edit `.env` | Current setup should no longer auto-start before `.env` is ready; if needed, set `OPENCLAW_AUTO_START=no` to force skip |
 | Stack not starting | `docker compose -f docker-compose.openclaw.yml logs` |
 | Browser viewer blank | Check `openclaw logs` and confirm `openclaw-browser-viewer` is running |
 | Gateway cannot see repos | Verify `HOST_REPOS_DIR` and that the repos exist under the mounted path |
