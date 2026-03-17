@@ -23,6 +23,7 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 Run the same install command with `--force`.
 
 Use `--with-openclaw` to configure the Docker-only OpenClaw stack and wrapper.
+If you omit `--dest`, the OpenClaw install defaults to `/opt/openclaw-home`.
 Use `--with-crewai` when you want to scaffold or refresh `.crewai/*` assets.
 
 ## Installer Flags
@@ -31,7 +32,7 @@ Use `--with-crewai` when you want to scaffold or refresh `.crewai/*` assets.
 |--------|-------------|
 | `--repo <owner/repo>` | Source repo (required) |
 | `--ref <branch\|tag\|sha>` | Git ref (default: `main`) |
-| `--dest <path>` | Destination (default: current directory) |
+| `--dest <path>` | Destination (default: current directory, or `/opt/openclaw-home` with `--with-openclaw`) |
 | `--force` | Overwrite existing `.claude/` (preserves logs) |
 | `--bootstrap-linux` | Full bootstrap (devtools + extras) |
 | `--no-extras` | Skip wshobson agents/commands |
@@ -55,6 +56,14 @@ The OpenClaw Docker stack uses `.env.example` as the canonical reference. Copy i
 - browser width and downloads directory
 
 By default, the stack automatically uses `~/.openclaw` on the host. Only set `OPENCLAW_HOST_STATE_DIR` if you want to override that default.
+
+If you use the default Docker/OpenClaw install path, the files live under `/opt/openclaw-home`:
+
+```bash
+cp /opt/openclaw-home/.env.example /opt/openclaw-home/.env
+cd /opt/openclaw-home
+openclaw up
+```
 
 ## Git Hygiene
 

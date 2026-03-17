@@ -18,6 +18,8 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw
 ```
 
+If you do not pass `--dest`, this installs the Docker/OpenClaw control files into `/opt/openclaw-home`.
+
 ### What this does
 
 - installs Docker-based OpenClaw assets into the repo
@@ -32,7 +34,7 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 Copy `.env.example` to `.env` if you need overrides:
 
 ```bash
-cp .env.example .env
+cp /opt/openclaw-home/.env.example /opt/openclaw-home/.env
 ```
 
 The example file includes:
@@ -123,8 +125,8 @@ When `OPENCLAW_MODEL_PRIMARY=anthropic/claude-sonnet-4-6`, the container sets `a
 Run the existing setup scripts after the stack is up:
 
 ```bash
-bash .claude/bootstrap/openclaw_discord_setup.sh
-bash .claude/bootstrap/openclaw_discord_scale_setup.sh
+bash /opt/openclaw-home/.claude/bootstrap/openclaw_discord_setup.sh
+bash /opt/openclaw-home/.claude/bootstrap/openclaw_discord_scale_setup.sh
 ```
 
 These scripts now work through the Docker-backed `openclaw` wrapper.

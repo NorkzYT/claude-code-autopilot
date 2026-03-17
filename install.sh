@@ -12,7 +12,7 @@ fi
 
 usage() {
   cat <<'EOF'
-Install .claude/ into the current repo (or --dest) without git clone.
+Install .claude/ into a target directory without git clone.
 
 Usage:
   curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/<ref>/install.sh | bash -s -- [options]
@@ -20,7 +20,9 @@ Usage:
 Options:
   --repo <owner/repo>       Source repo (required)
   --ref <branch|tag|sha>    Git ref (default: main)
-  --dest <path>             Destination directory (default: current directory)
+  --dest <path>             Destination directory
+                            Default: current directory
+                            With --with-openclaw and no --dest: /opt/openclaw-home
   --force                   Overwrite existing .claude/ (preserves .claude/logs/)
   --bootstrap-linux         Linux-only: run full bootstrap (devtools + extras)
                             Includes: linux_devtools.sh, install-extras.sh (wshobson agents/commands)
@@ -35,6 +37,7 @@ EOF
 REPO=""
 REF="main"
 DEST="."
+DEST_EXPLICIT="0"
 FORCE="0"
 BOOTSTRAP_LINUX="0"
 NO_EXTRAS="0"
@@ -45,7 +48,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo)   REPO="${2:-}"; shift 2;;
     --ref)    REF="${2:-}"; shift 2;;
-    --dest)   DEST="${2:-}"; shift 2;;
+    --dest)   DEST="${2:-}"; DEST_EXPLICIT="1"; shift 2;;
     --force)  FORCE="1"; shift 1;;
     --bootstrap-linux) BOOTSTRAP_LINUX="1"; shift 1;;
     --no-extras) NO_EXTRAS="1"; shift 1;;
@@ -189,6 +192,38 @@ if [[ -z "${REPO}" ]]; then
   echo "ERROR: --repo is required. Example: --repo NorkzYT/claude-code-autopilot" >&2
   exit 1
 fi
+
+if [[ "$INSTALL_OPENCLAW" == "1" && "$DEST_EXPLICIT" != "1" ]]; then
+  DEST="/opt/openclaw-home"
+fi
+
+ensure_destination_dir() {
+  local target_dir="$1"
+  local target_user="${SUDO_USER:-$(id -un)}"
+  local target_group
+  target_group="$(id -gn "$target_user" 2>/dev/null || true)"
+
+  if mkdir -p "$target_dir" 2>/dev/null; then
+    return 0
+  fi
+
+  if [[ "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
+    echo "Creating destination with sudo: $target_dir"
+    sudo mkdir -p "$target_dir"
+    if [[ -n "$target_group" ]]; then
+      sudo chown "$target_user:$target_group" "$target_dir" || true
+    else
+      sudo chown "$target_user" "$target_dir" || true
+    fi
+    return 0
+  fi
+
+  echo "ERROR: Could not create destination directory: $target_dir" >&2
+  echo "Pass --dest <path> to use a writable location." >&2
+  exit 1
+}
+
+ensure_destination_dir "$DEST"
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
@@ -844,15 +879,15 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
   echo "    # then open /vnc.html in your browser for manual login/takeover"
   echo ""
   echo "  Setup Discord:"
-  echo "    bash .claude/bootstrap/openclaw_discord_setup.sh"
-  echo "    bash .claude/bootstrap/openclaw_discord_scale_setup.sh   # lanes + thread parallelism"
+  echo "    bash ${DEST_ABS}/.claude/bootstrap/openclaw_discord_setup.sh"
+  echo "    bash ${DEST_ABS}/.claude/bootstrap/openclaw_discord_scale_setup.sh   # lanes + thread parallelism"
   echo "    (or: openclaw channels add --channel discord --token <your-bot-token>)"
   echo ""
   echo "  Environment file:"
-  echo "    cp .env.example .env   # optional, for identity/tokens/port overrides"
+  echo "    cp ${DEST_ABS}/.env.example ${DEST_ABS}/.env   # optional, for identity/tokens/port overrides"
   echo ""
   echo "  Quick reference:"
-  echo "    .claude/README-openclaw.md   # bootstrap scripts + common commands"
+  echo "    ${DEST_ABS}/.claude/README-openclaw.md   # bootstrap scripts + common commands"
   echo ""
   echo "=============================================="
   echo ""
@@ -866,8 +901,8 @@ if [[ "$INSTALL_CREWAI" == "1" ]]; then
   echo "    .crewai/"
   echo ""
   echo "  Quick start:"
-  echo "    cd .crewai"
-  echo "    cp .env.example .env"
+  echo "    cd ${DEST_ABS}/.crewai"
+  echo "    cp ${DEST_ABS}/.crewai/.env.example ${DEST_ABS}/.crewai/.env"
   echo "    # add your LLM provider keys/config"
   echo "    uv sync"
   echo "    uv run crewai run"
@@ -881,7 +916,7 @@ if [[ "$INSTALL_CREWAI" == "1" ]]; then
   echo "    # management UI (if enabled): http://127.0.0.1:8085"
   echo ""
   echo "  Guide:"
-  echo "    docs/crewai.md"
+  echo "    ${DEST_ABS}/docs/crewai.md"
   echo ""
   echo "=============================================="
   echo ""

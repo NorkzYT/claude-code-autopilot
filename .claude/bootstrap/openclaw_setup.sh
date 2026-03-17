@@ -202,7 +202,7 @@ cat <<EOF_SUMMARY
     http://127.0.0.1:${VIEWER_PORT:-6080}/vnc.html
 
   Next steps:
-    1. Review and copy .env.example to .env if you need custom identity, ports, or tokens.
+    1. Review and copy $PROJECT_ENV_EXAMPLE to $PROJECT_ENV_FILE if you need custom identity, ports, or tokens.
     2. Re-open your shell so ~/.local/bin is on PATH.
     3. Start the stack when ready:
        openclaw up

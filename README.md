@@ -37,6 +37,8 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
   | bash -s -- --repo NorkzYT/claude-code-autopilot --ref main --force --bootstrap-linux --with-openclaw
 ```
 
+This Docker/OpenClaw install defaults to `/opt/openclaw-home` when `--dest` is omitted, regardless of the directory where you ran the command.
+
 ### OpenClaw Docker Quickstart
 
 For a new user who wants Docker-only OpenClaw with access to repos under `/opt/repos`:
@@ -45,7 +47,7 @@ For a new user who wants Docker-only OpenClaw with access to repos under `/opt/r
 2. Copy the env template:
 
 ```bash
-cp .env.example .env
+cp /opt/openclaw-home/.env.example /opt/openclaw-home/.env
 ```
 
 3. Edit `.env` and set:
@@ -68,6 +70,7 @@ Optional auth envs:
 5. Start the Docker stack after `.env` is ready:
 
 ```bash
+cd /opt/openclaw-home
 openclaw up
 ```
 
@@ -108,6 +111,7 @@ openclaw agents add my-app --workspace /opt/repos/my-app --non-interactive
 What this means:
 - OpenClaw runs in Docker, not on the host
 - the host `openclaw` command is a wrapper into the container
+- the default control directory is `/opt/openclaw-home` unless you override it with `--dest`
 - `/opt/repos` is mounted read/write into the gateway container
 - `~/.openclaw` on the host is bind-mounted into the container and reused for state
 - if you ever need a different host state path, set `OPENCLAW_HOST_STATE_DIR` explicitly

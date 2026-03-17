@@ -20,13 +20,15 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 
 Then:
 
-1. Optional overrides: `cp .env.example .env`
-2. Edit `.env` before first startup
-3. Start or restart the Docker stack: `openclaw up`
+The Docker/OpenClaw install defaults to `/opt/openclaw-home` when `--dest` is omitted.
+
+1. Optional overrides: `cp /opt/openclaw-home/.env.example /opt/openclaw-home/.env`
+2. Edit `/opt/openclaw-home/.env` before first startup
+3. Start or restart the Docker stack from `/opt/openclaw-home`: `openclaw up`
 4. Authenticate Anthropic subscription inside the container: `claude setup-token && openclaw models auth paste-token --provider anthropic`
 5. Authenticate OpenAI subscription inside the container when needed: `openclaw models auth login --provider openai-codex`
 6. Open the browser viewer: `openclaw viewer-url`
-7. Run Discord setup if needed: `bash .claude/bootstrap/openclaw_discord_setup.sh`
+7. Run Discord setup if needed: `bash /opt/openclaw-home/.claude/bootstrap/openclaw_discord_setup.sh`
 8. Register extra repos under `/opt/repos` if needed: `openclaw agents add <agent-id> --workspace /opt/repos/<repo-name> --non-interactive`
 
 Important:
