@@ -24,10 +24,9 @@ RUN chmod +x /usr/local/bin/openclaw-entrypoint
 USER node
 WORKDIR /home/node
 
-ENV OPENCLAW_STATE_DIR=/home/openclaw/.openclaw \
-
+ENV OPENCLAW_STATE_DIR=/home/node/.openclaw \
     DISPLAY=:99 \
-    OPENCLAW_BROWSER_DOWNLOADS_DIR=/home/openclaw/.openclaw/downloads
+    OPENCLAW_BROWSER_DOWNLOADS_DIR=/home/node/.openclaw/downloads
 
 ENTRYPOINT ["openclaw-entrypoint"]
 CMD ["gateway"]
