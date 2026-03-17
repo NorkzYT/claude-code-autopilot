@@ -37,9 +37,7 @@ Use `--with-crewai` when you want to scaffold or refresh `.crewai/*` assets.
 | `--bootstrap-linux` | Full bootstrap (devtools + extras) |
 | `--no-extras` | Skip wshobson agents/commands |
 | `--with-openclaw` | Configure Docker-only OpenClaw and install the host wrapper |
-| `--open-claw` | Alias for `--with-openclaw` |
 | `--with-crewai` | Run CrewAI setup and scaffold `.crewai/` |
-| `--crewAI` | Alias for `--with-crewai` |
 
 ## OpenClaw Environment File
 

@@ -28,9 +28,7 @@ Options:
                             Includes: linux_devtools.sh, install-extras.sh (wshobson agents/commands)
   --no-extras               Skip installing extras (wshobson agents/commands/skills)
   --with-openclaw           Install and configure OpenClaw integration
-  --open-claw               Alias for --with-openclaw
   --with-crewai             Install and configure CrewAI integration
-  --crewAI                  Alias for --with-crewai
 EOF
 }
 
@@ -52,8 +50,8 @@ while [[ $# -gt 0 ]]; do
     --force)  FORCE="1"; shift 1;;
     --bootstrap-linux) BOOTSTRAP_LINUX="1"; shift 1;;
     --no-extras) NO_EXTRAS="1"; shift 1;;
-    --with-openclaw|--open-claw) INSTALL_OPENCLAW="1"; shift 1;;
-    --with-crewai|--crewAI|--crewai) INSTALL_CREWAI="1"; shift 1;;
+    --with-openclaw) INSTALL_OPENCLAW="1"; shift 1;;
+    --with-crewai) INSTALL_CREWAI="1"; shift 1;;
     -h|--help) usage; exit 0;;
     *) echo "Unknown arg: $1" >&2; usage; exit 2;;
   esac
