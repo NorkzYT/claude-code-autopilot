@@ -64,8 +64,28 @@ compose() {
   "\${COMPOSE_CMD[@]}" -f "\$COMPOSE_FILE" "\${args[@]}" "\$@"
 }
 
+env_value() {
+  local key="\$1"
+  local default_value="\$2"
+  local value=""
+
+  if [[ -f "\$ENV_FILE" ]]; then
+    value="\$(sed -n "s/^\\\${key}=//p" "\$ENV_FILE" | tail -n1)"
+  fi
+
+  if [[ -n "\$value" ]]; then
+    printf '%s\n' "\$value"
+  else
+    printf '%s\n' "\$default_value"
+  fi
+}
+
+service_running() {
+  compose ps --status running --services 2>/dev/null | grep -qx "\$1"
+}
+
 ensure_started() {
-  if ! compose ps --status running --services 2>/dev/null | grep -qx "\$SERVICE"; then
+  if ! service_running "\$SERVICE"; then
     compose up -d "\$SERVICE" "\$VIEWER_SERVICE" >/dev/null
   fi
 }
@@ -104,10 +124,25 @@ case "\$1" in
     ;;
   viewer-url)
     port="$(compose port "\$VIEWER_SERVICE" 6080 2>/dev/null | sed -n 's/.*://p' | head -n1)"
+    if [[ -z "\${port:-}" ]] && service_running "\$VIEWER_SERVICE"; then
+      port="\$(env_value OPENCLAW_VIEWER_PORT 6080)"
+    fi
     if [[ -n "\${port:-}" ]]; then
       printf 'http://127.0.0.1:%s/vnc.html\n' "\$port"
     else
       echo "Viewer is not running." >&2
+      exit 1
+    fi
+    ;;
+  dashboard-url)
+    port="$(compose port "\$SERVICE" 18789 2>/dev/null | sed -n 's/.*://p' | head -n1)"
+    if [[ -z "\${port:-}" ]] && service_running "\$SERVICE"; then
+      port="\$(env_value OPENCLAW_GATEWAY_PORT 18789)"
+    fi
+    if [[ -n "\${port:-}" ]]; then
+      printf 'http://127.0.0.1:%s/\n' "\$port"
+    else
+      echo "Gateway is not running." >&2
       exit 1
     fi
     ;;

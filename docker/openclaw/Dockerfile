@@ -19,6 +19,13 @@ RUN apt-get update \
 RUN npm install -g openclaw@latest
 
 RUN set -eux; \
+    corepack enable; \
+    corepack prepare pnpm@latest --activate; \
+    OPENCLAW_PKG_DIR="$(npm root -g)/openclaw"; \
+    cd "$OPENCLAW_PKG_DIR"; \
+    pnpm ui:build
+
+RUN set -eux; \
     if getent passwd 1000 >/dev/null; then \
       existing_user="$(getent passwd 1000 | cut -d: -f1)"; \
       existing_group="$(id -gn "$existing_user")"; \
