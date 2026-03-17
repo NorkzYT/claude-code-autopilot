@@ -1,5 +1,7 @@
 FROM node:22-bookworm-slim
 
+ARG OPENCLAW_GIT_REF=main
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     bash \
@@ -16,14 +18,17 @@ RUN apt-get update \
     xvfb \
   && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g openclaw@latest
-
 RUN set -eux; \
     corepack enable; \
     corepack prepare pnpm@latest --activate; \
-    OPENCLAW_PKG_DIR="$(npm root -g)/openclaw"; \
-    cd "$OPENCLAW_PKG_DIR"; \
-    pnpm ui:build
+    git clone --depth=1 --branch "$OPENCLAW_GIT_REF" https://github.com/openclaw/openclaw.git /tmp/openclaw-src; \
+    cd /tmp/openclaw-src; \
+    export SHARP_IGNORE_GLOBAL_LIBVIPS=1; \
+    pnpm install; \
+    pnpm ui:build; \
+    pnpm build; \
+    npm install -g .; \
+    rm -rf /tmp/openclaw-src
 
 RUN set -eux; \
     if getent passwd 1000 >/dev/null; then \
