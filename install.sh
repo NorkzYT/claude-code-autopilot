@@ -241,8 +241,28 @@ else
   wget -qO "$archive" "$TARBALL_URL"
 fi
 
-echo "Extracting .claude/ and .vscode/settings.json ..."
-tar -xzf "$archive" -C "$extract_dir" --wildcards '*/.claude/*' '*/.vscode/settings.json' >/dev/null 2>&1 || true
+extract_patterns=('*/.claude/*' '*/.vscode/settings.json')
+
+if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
+  extract_patterns+=(
+    '*/.env.example'
+    '*/docker-compose.openclaw.yml'
+    '*/docker/openclaw/*'
+    '*/docker/browser-viewer/*'
+    '*/docs/install.md'
+    '*/docs/openclaw.md'
+    '*/docs/docker-openclaw-crewai.md'
+  )
+fi
+
+if [[ "$INSTALL_CREWAI" == "1" ]]; then
+  extract_patterns+=(
+    '*/docs/crewai.md'
+  )
+fi
+
+echo "Extracting install assets ..."
+tar -xzf "$archive" -C "$extract_dir" --wildcards "${extract_patterns[@]}" >/dev/null 2>&1 || true
 
 # Find .claude directory
 CLAUDE_SRC="$(find "$extract_dir" -type d -name ".claude" -maxdepth 6 | head -n 1 || true)"
@@ -257,6 +277,25 @@ DEST_CLAUDE="${DEST_ABS}/.claude"
 DEST_LOGS="${DEST_CLAUDE}/logs"
 SRC_ROOT="$(cd "$CLAUDE_SRC/.." && pwd)"
 SRC_VSCODE_SETTINGS="${SRC_ROOT}/.vscode/settings.json"
+INSTALLED_ASSETS=()
+
+install_repo_asset() {
+  local rel_path="$1"
+  local src_path="${SRC_ROOT}/${rel_path}"
+  local dest_path="${DEST_ABS}/${rel_path}"
+
+  [[ -e "$src_path" ]] || return 0
+
+  mkdir -p "$(dirname "$dest_path")"
+  if [[ -d "$src_path" ]]; then
+    rm -rf "$dest_path"
+    cp -a "$src_path" "$dest_path"
+  else
+    cp -af "$src_path" "$dest_path"
+  fi
+
+  INSTALLED_ASSETS+=("$dest_path")
+}
 
 ensure_local_agent_gitignore() {
   local gitignore_file="$1/.gitignore"
@@ -475,6 +514,20 @@ else
   mkdir -p "$DEST_LOGS"
 fi
 
+if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
+  install_repo_asset ".env.example"
+  install_repo_asset "docker-compose.openclaw.yml"
+  install_repo_asset "docker/openclaw"
+  install_repo_asset "docker/browser-viewer"
+  install_repo_asset "docs/install.md"
+  install_repo_asset "docs/openclaw.md"
+  install_repo_asset "docs/docker-openclaw-crewai.md"
+fi
+
+if [[ "$INSTALL_CREWAI" == "1" ]]; then
+  install_repo_asset "docs/crewai.md"
+fi
+
 # Keep local agent state out of project commits by default.
 ensure_local_agent_gitignore "$DEST_ABS"
 
@@ -491,10 +544,16 @@ if [[ "$(id -u)" -eq 0 ]]; then
     echo "Setting ownership of .claude to ${TARGET_USER}:${TARGET_GROUP} ..."
     chown -R "${TARGET_USER}:${TARGET_GROUP}" "$DEST_CLAUDE" || true
     [[ -d "${DEST_ABS}/.vscode" ]] && chown -R "${TARGET_USER}:${TARGET_GROUP}" "${DEST_ABS}/.vscode" || true
+    for asset_path in "${INSTALLED_ASSETS[@]}"; do
+      [[ -e "$asset_path" ]] && chown -R "${TARGET_USER}:${TARGET_GROUP}" "$asset_path" || true
+    done
   else
     echo "Setting ownership of .claude to ${TARGET_USER} ..."
     chown -R "${TARGET_USER}" "$DEST_CLAUDE" || true
     [[ -d "${DEST_ABS}/.vscode" ]] && chown -R "${TARGET_USER}" "${DEST_ABS}/.vscode" || true
+    for asset_path in "${INSTALLED_ASSETS[@]}"; do
+      [[ -e "$asset_path" ]] && chown -R "${TARGET_USER}" "$asset_path" || true
+    done
   fi
 fi
 
