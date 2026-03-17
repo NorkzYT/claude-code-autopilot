@@ -19,6 +19,7 @@ OpenClaw and CrewAI are intentionally split into separate compose files so users
 
 - Docker + Docker Compose plugin
 - Host repos under `/opt/repos` (or set `HOST_REPOS_DIR`)
+- Host OpenClaw state under `~/.openclaw` by default
 - Optional: copy `.env.example` to `.env` for git identity, auth tokens, and port overrides
 - For `anthropic/claude-sonnet-4-6`, keep `OPENCLAW_THINKING_DEFAULT=high` unless you intentionally want a lower reasoning budget
 
@@ -63,6 +64,7 @@ openclaw down
 
 The OpenClaw stack binds:
 
+- `${OPENCLAW_HOST_STATE_DIR:-$HOME/.openclaw}` (host) -> `/home/openclaw/.openclaw` (container)
 - `/opt/repos` (host) -> `/opt/repos` (container)
 
 Override host path:

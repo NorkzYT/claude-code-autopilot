@@ -9,6 +9,7 @@ has()  { command -v "$1" >/dev/null 2>&1; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${1:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 OPENCLAW_WRAPPER_TARGET="${HOME}/.local/bin/openclaw"
+HOST_OPENCLAW_STATE_DIR="${OPENCLAW_HOST_STATE_DIR:-$HOME/.openclaw}"
 PROJECT_ENV_EXAMPLE="$PROJECT_DIR/.env.example"
 PROJECT_ENV_FILE="$PROJECT_DIR/.env"
 COMPOSE_FILE="$PROJECT_DIR/docker-compose.openclaw.yml"
@@ -33,6 +34,7 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
 fi
 
 mkdir -p "$(dirname "$OPENCLAW_WRAPPER_TARGET")"
+mkdir -p "$HOST_OPENCLAW_STATE_DIR"
 
 cat > "$OPENCLAW_WRAPPER_TARGET" <<EOF_WRAPPER
 #!/usr/bin/env bash
@@ -184,8 +186,8 @@ cat <<EOF_SUMMARY
     5. Use the viewer URL for manual browser login and takeover when needed.
 
   Docker-only notes:
-    - No host OpenClaw CLI is installed.
-    - State, cookies, downloads, and auth stay inside Docker volumes.
+    - No host OpenClaw CLI is required.
+    - State, cookies, downloads, and auth are stored in: $HOST_OPENCLAW_STATE_DIR
     - /opt/repos is mounted read-write into the gateway container by default.
 
 EOF_SUMMARY

@@ -30,12 +30,10 @@ services:
       OPENCLAW_MODEL_PRIMARY: ${OPENCLAW_MODEL_PRIMARY:-anthropic/claude-opus-4-6}
       OPENCLAW_MODEL_FALLBACKS: ${OPENCLAW_MODEL_FALLBACKS:-}
       OPENCLAW_DISCORD_TOKEN: ${OPENCLAW_DISCORD_TOKEN:-}
-      OPENCLAW_DISCORD_GUILD_ID: ${OPENCLAW_DISCORD_GUILD_ID:-}
-      OPENCLAW_DISCORD_CHANNEL_ID: ${OPENCLAW_DISCORD_CHANNEL_ID:-}
     ports:
       - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
     volumes:
-      - openclaw_state:/home/openclaw/.openclaw
+      - ${OPENCLAW_HOST_STATE_DIR:-${HOME}/.openclaw}:/home/openclaw/.openclaw
       - ${HOST_REPOS_DIR:-/opt/repos}:/opt/repos:rw
     working_dir: /opt/repos
 
@@ -53,6 +51,3 @@ services:
       VIEWER_PORT: 6080
     ports:
       - "${OPENCLAW_VIEWER_PORT:-6080}:6080"
-
-volumes:
-  openclaw_state:

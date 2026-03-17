@@ -24,7 +24,7 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 - installs a lightweight host wrapper at `~/.local/bin/openclaw`
 - starts the `openclaw-gateway` and `openclaw-browser-viewer` containers
 - mounts `${HOST_REPOS_DIR:-/opt/repos}` into the gateway at `/opt/repos`
-- keeps OpenClaw state, cookies, downloads, and auth in Docker volumes
+- bind-mounts host OpenClaw state from `~/.openclaw` into the container by default
 - does not install the real OpenClaw CLI on the host
 
 ## Environment Configuration
@@ -41,8 +41,10 @@ The example file includes:
 - optional provider env vars (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`)
 - optional Anthropic setup token seed field (`OPENCLAW_ANTHROPIC_SETUP_TOKEN`)
 - `OPENCLAW_THINKING_DEFAULT=high` for `anthropic/claude-sonnet-4-6`
-- Discord token placeholders
+- `OPENCLAW_DISCORD_TOKEN`
 - browser width, height, and viewer settings
+
+`OPENCLAW_HOST_STATE_DIR` is optional. If you do not set it, the Docker stack automatically uses `~/.openclaw` on the host.
 
 ## Daily Commands
 
@@ -101,7 +103,7 @@ Typical flow:
 3. complete login or 2FA in the viewer
 4. return to OpenClaw commands once the session is authenticated
 
-The browser profile persists in the OpenClaw Docker volume, so cookies survive restarts.
+The browser profile persists in the host OpenClaw state directory, so cookies survive restarts and remain visible under `~/.openclaw`.
 
 When `OPENCLAW_MODEL_PRIMARY=anthropic/claude-sonnet-4-6`, the container sets `agents.defaults.thinkingDefault=high` unless you override `OPENCLAW_THINKING_DEFAULT`.
 

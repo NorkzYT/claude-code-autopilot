@@ -33,7 +33,7 @@ Important:
 - OpenClaw is not installed on the host in the default flow. The `openclaw` command is a host wrapper into Docker.
 - `OPENCLAW_THINKING_DEFAULT=high` is the recommended default when `OPENCLAW_MODEL_PRIMARY=anthropic/claude-sonnet-4-6`.
 - Use `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `.env` for direct API-key auth. Use in-container auth commands for subscription-backed auth.
-- Browser state, cookies, downloads, and auth stay in Docker volumes.
+- Host OpenClaw state automatically defaults to `~/.openclaw`, bind-mounted into the container. Only set `OPENCLAW_HOST_STATE_DIR` if you want a non-default path.
 - `PROJECT.md` is generated only by deep analysis.
 
 ## Browser Login and Takeover
@@ -44,7 +44,7 @@ Use the noVNC viewer when you need to watch the browser or log into a site manua
 openclaw viewer-url
 ```
 
-Open the printed URL in your browser, complete the login in the viewer, then return to OpenClaw commands. The browser profile persists across container restarts.
+Open the printed URL in your browser, complete the login in the viewer, then return to OpenClaw commands. The browser profile persists in the host `~/.openclaw` state directory across container restarts.
 
 For OpenAI subscription OAuth inside Docker, run:
 

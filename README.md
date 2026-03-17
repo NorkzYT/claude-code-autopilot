@@ -109,7 +109,8 @@ What this means:
 - OpenClaw runs in Docker, not on the host
 - the host `openclaw` command is a wrapper into the container
 - `/opt/repos` is mounted read/write into the gateway container
-- browser state, auth, cookies, and downloads persist in Docker volumes
+- `~/.openclaw` on the host is bind-mounted into the container and reused for state
+- if you ever need a different host state path, set `OPENCLAW_HOST_STATE_DIR` explicitly
 
 ### Install With CrewAI (marketing/research/ops crews)
 

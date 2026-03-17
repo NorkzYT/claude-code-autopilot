@@ -51,8 +51,10 @@ The OpenClaw Docker stack uses `.env.example` as the canonical reference. Copy i
 - `OPENCLAW_THINKING_DEFAULT=high`
 - `OPENCLAW_ANTHROPIC_SETUP_TOKEN`
 - `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`
-- Discord token placeholders
+- `OPENCLAW_DISCORD_TOKEN`
 - browser width and downloads directory
+
+By default, the stack automatically uses `~/.openclaw` on the host. Only set `OPENCLAW_HOST_STATE_DIR` if you want to override that default.
 
 ## Git Hygiene
 
