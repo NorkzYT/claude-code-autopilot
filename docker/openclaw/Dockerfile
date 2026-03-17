@@ -10,6 +10,7 @@ RUN apt-get update \
     curl \
     fluxbox \
     git \
+    gosu \
     jq \
     openssh-client \
     procps \
@@ -21,7 +22,6 @@ RUN apt-get update \
 COPY docker/openclaw/entrypoint.sh /usr/local/bin/openclaw-entrypoint
 RUN chmod +x /usr/local/bin/openclaw-entrypoint
 
-USER node
 WORKDIR /home/node
 
 ENV OPENCLAW_STATE_DIR=/home/node/.openclaw \
