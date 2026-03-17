@@ -43,8 +43,13 @@ The example file includes:
 - optional provider env vars (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`)
 - optional Anthropic setup token seed field (`OPENCLAW_ANTHROPIC_SETUP_TOKEN`)
 - `OPENCLAW_THINKING_DEFAULT=high` for `anthropic/claude-sonnet-4-6`
-- `OPENCLAW_DISCORD_TOKEN`
 - browser width, height, and viewer settings
+
+Discord bot tokens are configured interactively per bot/channel, not through the global `.env` file. Use:
+
+```bash
+bash /opt/openclaw-home/.claude/bootstrap/openclaw_discord_setup.sh
+```
 
 `OPENCLAW_HOST_STATE_DIR` is optional. If you do not set it, the Docker stack automatically uses `~/.openclaw` on the host.
 

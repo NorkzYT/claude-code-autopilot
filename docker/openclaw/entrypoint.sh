@@ -58,7 +58,7 @@ configure_openclaw() {
 }
 
 seed_auth_if_present() {
-  local anthropic_setup_token="${OPENCLAW_ANTHROPIC_SETUP_TOKEN:-${OPENCLAW_MODEL_TOKEN:-}}"
+  local anthropic_setup_token="${OPENCLAW_ANTHROPIC_SETUP_TOKEN:-}"
 
   if [[ -n "$anthropic_setup_token" ]]; then
     printf '%s\n' "$anthropic_setup_token" | openclaw models auth paste-token --provider anthropic >/dev/null 2>&1 || true
