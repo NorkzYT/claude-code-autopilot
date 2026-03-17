@@ -45,6 +45,9 @@ configure_openclaw() {
     thinking_default="high"
   fi
 
+  # Clean stale plugin paths that reference host-only directories
+  gosu node openclaw doctor --fix >/dev/null 2>&1 || true
+
   gosu node openclaw config set gateway.mode local >/dev/null 2>&1 || true
   gosu node openclaw config set gateway.port "${OPENCLAW_GATEWAY_PORT:-18789}" >/dev/null 2>&1 || true
   gosu node openclaw config set gateway.bind "${OPENCLAW_GATEWAY_BIND:-all}" >/dev/null 2>&1 || true
