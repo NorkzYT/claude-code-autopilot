@@ -70,8 +70,7 @@ case "$mode" in
     start_display_stack
     configure_openclaw
     seed_auth_if_present
-    openclaw gateway start
-    exec openclaw gateway logs --follow
+    exec openclaw gateway
     ;;
   shell)
     start_display_stack

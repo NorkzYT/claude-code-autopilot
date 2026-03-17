@@ -5,6 +5,7 @@ RUN apt-get update \
     bash \
     ca-certificates \
     git \
+    procps \
   && rm -rf /var/lib/apt/lists/* \
   && git clone --depth=1 https://github.com/novnc/noVNC.git /opt/novnc \
   && git clone --depth=1 https://github.com/novnc/websockify.git /opt/novnc/utils/websockify
