@@ -8,6 +8,14 @@
 - Browser feature enabled in `~/.openclaw/openclaw.json`: `"browser": {"enabled": true}`
 - Chromium/Chrome available (OpenClaw auto-manages via CDP)
 
+## Docker Host Access
+
+When OpenClaw runs in Docker, host-local services are not available at `localhost` from inside the browser container context.
+
+- If the human says `http://localhost:<port>` for a host dev server, translate it to `http://host.docker.internal:<port>` before navigating.
+- Example: host app at `http://localhost:8080` should be opened as `http://host.docker.internal:8080` from OpenClaw.
+- Only keep `localhost` unchanged when the service is actually running inside the same container namespace.
+
 ## Capabilities
 
 ### Visual Regression Testing
@@ -62,7 +70,7 @@ For projects with a dev server:
 exec npm run dev &
 
 # Navigate and analyze
-openclaw browser navigate "http://localhost:3000"
+openclaw browser navigate "http://host.docker.internal:3000"
 openclaw browser screenshot --name "preview"
 openclaw browser analyze  # Vision model analyzes the UI
 ```

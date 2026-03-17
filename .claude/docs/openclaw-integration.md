@@ -65,6 +65,10 @@ Raw compose form:
 docker compose -f docker-compose.openclaw.yml up -d
 ```
 
+Host-local services:
+- the gateway container can reach host services at `host.docker.internal`
+- example: a host app running on port `8080` should be accessed from OpenClaw as `http://host.docker.internal:8080`
+
 ## Model Authentication
 
 Authenticate from inside the container through the wrapper.
@@ -131,7 +135,9 @@ openclaw agents add <agent-name> --workspace /opt/repos/<repo-name> --non-intera
 | Issue | Solution |
 |------|----------|
 | `openclaw: command not found` | Open a new shell or ensure `~/.local/bin` is on `PATH` |
+| `openclaw` still points to a deleted fnm/npm path | Run `hash -r` or start a new shell; the old command path is usually just cached by the current shell |
 | Stack not starting | `docker compose -f docker-compose.openclaw.yml logs` |
 | Browser viewer blank | Check `openclaw logs` and confirm `openclaw-browser-viewer` is running |
 | Gateway cannot see repos | Verify `HOST_REPOS_DIR` and that the repos exist under the mounted path |
+| Gateway cannot reach a host dev server | Use `http://host.docker.internal:<port>` instead of `http://localhost:<port>` |
 | Git commits use wrong identity | Set `GIT_AUTHOR_*` and `GIT_COMMITTER_*` in `.env`, then restart with `openclaw up` |
