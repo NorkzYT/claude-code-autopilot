@@ -23,6 +23,11 @@ RUN apt-get update \
 RUN echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox --disable-setuid-sandbox"' \
     > /etc/chromium.d/docker
 
+# Disable fluxbox wallpaper to avoid fbsetbg xmessage error (no image viewer installed)
+RUN mkdir -p /home/node/.fluxbox \
+    && echo 'session.screen0.rootCommand:' > /home/node/.fluxbox/overlay \
+    && chown -R node:node /home/node/.fluxbox
+
 COPY docker/openclaw/entrypoint.sh /usr/local/bin/openclaw-entrypoint
 RUN chmod +x /usr/local/bin/openclaw-entrypoint
 
