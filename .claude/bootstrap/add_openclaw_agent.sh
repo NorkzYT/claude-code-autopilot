@@ -968,11 +968,6 @@ else
   log "Section 7b: Skipping Codex compatibility (--skip-codex)"
 fi
 
-# ─── Section 7c: Install OpenClaw Workflow Plugin (DISABLED) ───
-# NOTE: local-workflow-wrapper plugin has been removed as it was not working correctly.
-# Workflow commands (/localflow, /workflowcheck, /recheckin) are no longer available.
-log "Section 7c: Skipping local workflow plugin (deprecated)"
-
 # ─── Section 8: Restart Gateway ─────────────────────────────
 if [[ "$NO_RESTART" == "false" ]]; then
   log "Section 8: Restarting gateway..."

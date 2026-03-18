@@ -120,20 +120,6 @@ Notes:
 - `analyze_repo.sh` detects build, test, local run, and confirm/smoke-check commands from common files (Makefile, package.json, pyproject, go.mod, Cargo.toml, docker-compose).
 - `--deep` generates `PROJECT.md` and now uses a timeout if `timeout` is available.
 
-Run the local workflow wrapper (recommended final verification step):
-
-```bash
-bash .claude/scripts/openclaw-local-workflow.sh --repo /path/to/repo
-```
-
-Or from Discord / OpenClaw chat (after agent bootstrap installed the plugin):
-
-```text
-/localflow
-/workflowcheck
-/recheckin 5m Re-check the logs and report back in this channel.
-```
-
 ## Discord Notes (OpenClaw 2026.2.x)
 
 - Prefer slash commands in Discord: `/status`, `/help`, `/new`
