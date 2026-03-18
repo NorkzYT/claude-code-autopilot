@@ -244,6 +244,7 @@ extract_patterns=('*/.claude/*' '*/.vscode/settings.json')
 if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
   extract_patterns+=(
     '*/.env.example'
+    '*/Makefile.openclaw'
     '*/docker-compose.openclaw.yml'
     '*/docker/openclaw/*'
     '*/docker/browser-viewer/*'
@@ -520,6 +521,13 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
   install_repo_asset "docs/install.md"
   install_repo_asset "docs/openclaw.md"
   install_repo_asset "docs/docker-openclaw-crewai.md"
+
+  # Install Makefile for OpenClaw management
+  if [[ -f "${SRC_ROOT}/Makefile.openclaw" ]]; then
+    cp -f "${SRC_ROOT}/Makefile.openclaw" "${DEST_ABS}/Makefile"
+    INSTALLED_ASSETS+=("${DEST_ABS}/Makefile")
+    echo "  Installed OpenClaw Makefile: ${DEST_ABS}/Makefile"
+  fi
 fi
 
 if [[ "$INSTALL_CREWAI" == "1" ]]; then
@@ -917,10 +925,15 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
   echo ""
   echo "  OpenClaw has been configured for this workspace in Docker-only mode."
   echo ""
-  echo "  Start the Docker stack:"
-  echo "    openclaw up"
+  echo "  Quick commands (via Makefile):"
+  echo "    cd ${DEST_ABS}"
+  echo "    make help          # Show all available commands"
+  echo "    make update        # Update OpenClaw (pull + rebuild + restart)"
+  echo "    make status        # Check container status"
+  echo "    make add-origins   # Configure allowed origins"
   echo ""
-  echo "  Gateway status:"
+  echo "  Or use openclaw CLI directly:"
+  echo "    openclaw up"
   echo "    openclaw status"
   echo "    openclaw logs"
   echo ""

@@ -1,0 +1,125 @@
+.PHONY: help update build start stop restart logs status shell clean add-origins
+
+COMPOSE_FILE := docker-compose.openclaw.yml
+GATEWAY_CONTAINER := openclaw-gateway
+VIEWER_CONTAINER := openclaw-browser-viewer
+
+# Default target - show available commands
+help:
+	@echo "OpenClaw Docker Management Commands"
+	@echo "===================================="
+	@echo ""
+	@echo "  make update        - Pull latest image, rebuild, and restart"
+	@echo "  make build         - Rebuild the gateway image"
+	@echo "  make start         - Start all containers"
+	@echo "  make stop          - Stop all containers"
+	@echo "  make restart       - Restart all containers"
+	@echo "  make logs          - Show gateway logs (follow)"
+	@echo "  make logs-viewer   - Show browser viewer logs (follow)"
+	@echo "  make status        - Show container status"
+	@echo "  make shell         - Open shell in gateway container"
+	@echo "  make clean         - Stop and remove containers, networks, volumes"
+	@echo "  make add-origins   - Configure allowed origins for Tailscale access"
+	@echo "  make verify-vnc    - Verify VNC server is running"
+	@echo "  make config-get    - Show current gateway config"
+	@echo ""
+
+# Update OpenClaw: pull latest image, rebuild, restart
+update:
+	@echo "Updating OpenClaw..."
+	docker compose -f $(COMPOSE_FILE) pull openclaw-gateway
+	docker compose -f $(COMPOSE_FILE) build openclaw-gateway
+	docker compose -f $(COMPOSE_FILE) restart openclaw-gateway
+	@echo "✅ Update complete!"
+	@echo ""
+	@make status
+
+# Build the gateway image
+build:
+	@echo "Building gateway image..."
+	docker compose -f $(COMPOSE_FILE) build openclaw-gateway
+	@echo "✅ Build complete!"
+
+# Start containers
+start:
+	@echo "Starting OpenClaw containers..."
+	docker compose -f $(COMPOSE_FILE) up -d
+	@echo "✅ Containers started!"
+	@sleep 5
+	@make status
+
+# Stop containers
+stop:
+	@echo "Stopping OpenClaw containers..."
+	docker compose -f $(COMPOSE_FILE) stop
+	@echo "✅ Containers stopped!"
+
+# Restart containers
+restart:
+	@echo "Restarting OpenClaw containers..."
+	docker compose -f $(COMPOSE_FILE) restart
+	@echo "Waiting for startup..."
+	@sleep 10
+	@make status
+
+# Show gateway logs
+logs:
+	docker compose -f $(COMPOSE_FILE) logs -f $(GATEWAY_CONTAINER)
+
+# Show browser viewer logs
+logs-viewer:
+	docker compose -f $(COMPOSE_FILE) logs -f $(VIEWER_CONTAINER)
+
+# Show container status
+status:
+	@echo "OpenClaw Container Status:"
+	@echo "=========================="
+	@docker ps --filter "name=openclaw" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+	@echo ""
+	@echo "VNC Processes:"
+	@echo "=============="
+	@docker exec $(GATEWAY_CONTAINER) ps aux | grep -E "Xvfb|x11vnc|fluxbox" | grep -v grep || echo "⚠️  VNC processes not running"
+
+# Open shell in gateway container
+shell:
+	docker exec -it $(GATEWAY_CONTAINER) gosu node bash
+
+# Clean up everything
+clean:
+	@echo "⚠️  This will stop and remove all OpenClaw containers, networks, and volumes!"
+	@read -p "Continue? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		docker compose -f $(COMPOSE_FILE) down -v; \
+		echo "✅ Cleanup complete!"; \
+	else \
+		echo "Cancelled."; \
+	fi
+
+# Configure allowed origins (Tailscale + local)
+add-origins:
+	@echo "Configuring allowed origins..."
+	@openclaw config set gateway.controlUi.allowedOrigins \
+		'["http://localhost:18789","http://127.0.0.1:18789","https://vps-dialga.tail63ecc.ts.net","http://100.102.87.11:18789","https://100.102.87.11:18789"]' \
+		--json
+	@docker exec $(GATEWAY_CONTAINER) chown node:node /home/node/.openclaw/openclaw.json 2>/dev/null || true
+	@echo "✅ Origins configured!"
+	@echo ""
+	@echo "Current origins:"
+	@docker exec $(GATEWAY_CONTAINER) gosu node openclaw config get gateway.controlUi.allowedOrigins
+
+# Verify VNC server is running
+verify-vnc:
+	@echo "VNC Server Status:"
+	@echo "=================="
+	@docker exec $(GATEWAY_CONTAINER) ps aux | grep -E "Xvfb|x11vnc|fluxbox" | grep -v grep || echo "❌ VNC processes not running"
+	@echo ""
+	@echo "x11vnc Log (last 10 lines):"
+	@echo "==========================="
+	@docker exec $(GATEWAY_CONTAINER) tail -10 /tmp/x11vnc.log 2>/dev/null || echo "No x11vnc log found"
+
+# Show current gateway config
+config-get:
+	@echo "Current Gateway Configuration:"
+	@echo "=============================="
+	@docker exec $(GATEWAY_CONTAINER) gosu node openclaw config get gateway
