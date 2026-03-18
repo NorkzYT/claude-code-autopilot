@@ -33,7 +33,17 @@ export GIT_COMMITTER_EMAIL="${GIT_COMMITTER_EMAIL:-${GIT_AUTHOR_EMAIL:-}}"
 
 start_display_stack() {
   export DISPLAY=:99
+
+  # Clean up stale X server lock files from previous runs
+  rm -f /tmp/.X99-lock /tmp/.X11-unix/X99
+
+  # Start virtual X server
   Xvfb :99 -screen 0 "${OPENCLAW_BROWSER_WIDTH}x${OPENCLAW_BROWSER_HEIGHT}x24" -ac -nolisten tcp >/tmp/xvfb.log 2>&1 &
+
+  # Wait for Xvfb to fully initialize before starting dependent services
+  sleep 2
+
+  # Start window manager and VNC server (both depend on Xvfb being ready)
   fluxbox >/tmp/fluxbox.log 2>&1 &
   x11vnc -display :99 -forever -shared -rfbport "$OPENCLAW_VNC_PORT" -nopw >/tmp/x11vnc.log 2>&1 &
 }
