@@ -1,4 +1,4 @@
-.PHONY: help update build start stop restart logs status shell clean add-origins
+.PHONY: help update build rebuild start stop restart logs status shell clean add-origins
 
 COMPOSE_FILE := docker-compose.openclaw.yml
 GATEWAY_CONTAINER := openclaw-gateway
@@ -11,6 +11,7 @@ help:
 	@echo ""
 	@echo "  make update        - Pull latest image, rebuild, and restart"
 	@echo "  make build         - Rebuild the gateway image"
+	@echo "  make rebuild       - Force rebuild (no cache) and recreate container"
 	@echo "  make start         - Start all containers"
 	@echo "  make stop          - Stop all containers"
 	@echo "  make restart       - Restart all containers"
@@ -39,6 +40,16 @@ build:
 	@echo "Building gateway image..."
 	docker compose -f $(COMPOSE_FILE) build openclaw-gateway
 	@echo "✅ Build complete!"
+
+# Force rebuild without cache and recreate container
+rebuild:
+	@echo "Force rebuilding gateway (no cache)..."
+	docker compose -f $(COMPOSE_FILE) build --no-cache openclaw-gateway
+	@echo "Recreating container with new image..."
+	docker compose -f $(COMPOSE_FILE) up -d --force-recreate openclaw-gateway
+	@echo "✅ Rebuild and recreate complete!"
+	@sleep 10
+	@make status
 
 # Start containers
 start:
