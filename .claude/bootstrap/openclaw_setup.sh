@@ -281,14 +281,16 @@ cat <<EOF_SUMMARY
        make start
     4. Configure allowed origins (for Tailscale/LAN access):
        make add-origins
-    5. Approve the pending device (if connecting from a new browser/client):
+    5. Get the dashboard URL with auth token:
+       make dashboard-url
+    6. Approve the pending device (open dashboard first, then approve):
        make approve-device
-    6. Authenticate providers if needed:
+    7. Authenticate providers if needed:
        make auth-anthropic
        make auth-openai
-    7. Verify everything is running:
+    8. Verify everything is running:
        make status
-    8. See all available commands:
+    9. See all available commands:
        make help
 
   Docker-only notes:
