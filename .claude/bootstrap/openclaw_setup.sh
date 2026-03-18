@@ -90,13 +90,19 @@ ensure_started() {
   fi
 }
 
-if [[ $# -eq 0 ]]; then
-  ensure_started
+# Run a command inside the container with umask 0022 to prevent 600 file perms.
+# compose exec skips login shells, so /etc/profile.d/umask.sh is never sourced.
+oc_exec() {
   if [[ -t 0 && -t 1 ]]; then
-    compose exec "\$SERVICE" openclaw
+    compose exec "\$SERVICE" gosu node bash -c 'umask 0022 && "\$@"' -- "\$@"
   else
-    compose exec -T "\$SERVICE" openclaw
+    compose exec -T "\$SERVICE" gosu node bash -c 'umask 0022 && "\$@"' -- "\$@"
   fi
+}
+
+if [[ \$# -eq 0 ]]; then
+  ensure_started
+  oc_exec openclaw
   exit \$?
 fi
 
@@ -153,11 +159,7 @@ case "\$1" in
     ;;
   status)
     if service_running "\$SERVICE"; then
-      if [[ -t 0 && -t 1 ]]; then
-        compose exec "\$SERVICE" openclaw "\$@"
-      else
-        compose exec -T "\$SERVICE" openclaw "\$@"
-      fi
+      oc_exec openclaw "\$@"
     else
       echo "OpenClaw is not running. Start with: openclaw up" >&2
       exit 1
@@ -166,11 +168,7 @@ case "\$1" in
     ;;
   *)
     ensure_started
-    if [[ -t 0 && -t 1 ]]; then
-      compose exec "\$SERVICE" openclaw "\$@"
-    else
-      compose exec -T "\$SERVICE" openclaw "\$@"
-    fi
+    oc_exec openclaw "\$@"
     exit \$?
     ;;
 esac

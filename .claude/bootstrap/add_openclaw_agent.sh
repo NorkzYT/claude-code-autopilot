@@ -63,7 +63,7 @@ restart_openclaw_gateway() {
     done
 
     if [[ -n "$compose_file" ]]; then
-      docker compose -f "$compose_file" restart openclaw-gateway 2>&1
+      docker compose -f "$compose_file" up -d --force-recreate openclaw-gateway 2>&1
       return $?
     else
       warn "Docker container found but docker-compose.openclaw.yml not found. Trying standard restart..."
