@@ -9,8 +9,8 @@ SHELL := /bin/bash
 COMPOSE_FILE := docker-compose.openclaw.yml
 GATEWAY_CONTAINER := openclaw-gateway
 VIEWER_CONTAINER := openclaw-browser-viewer
-EXEC := docker exec -it $(GATEWAY_CONTAINER) gosu node
-EXEC_T := docker exec $(GATEWAY_CONTAINER) gosu node
+EXEC := docker exec -it $(GATEWAY_CONTAINER) gosu node bash -c 'umask 0022 && exec "$$@"' --
+EXEC_T := docker exec $(GATEWAY_CONTAINER) gosu node bash -c 'umask 0022 && exec "$$@"' --
 BOOTSTRAP_DIR := .claude/bootstrap
 
 # Default target - show available commands

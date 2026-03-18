@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Ensure files created by the node user (including openclaw.json) are
+# world-readable (644 for files, 755 for dirs). Without this, OpenClaw's
+# config writes use the default 077 umask, creating 600 files that break
+# on subsequent reads after container recreation or host-side access.
+umask 0022
+
 mode="${1:-gateway}"
 if [[ $# -gt 0 ]]; then
   shift
