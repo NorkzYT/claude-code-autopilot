@@ -136,7 +136,7 @@ add-origins:
 	ORIGINS='["http://localhost:'$$PORT'","http://127.0.0.1:'$$PORT'"'; \
 	if [ -n "$(OPENCLAW_EXTRA_ORIGINS)" ]; then \
 		IFS=',' ; for origin in $(OPENCLAW_EXTRA_ORIGINS); do \
-			ORIGINS="$$ORIGINS,\"$$origin:$$PORT\""; \
+			ORIGINS="$$ORIGINS,\"$$origin\""; \
 		done; \
 	fi; \
 	ORIGINS="$$ORIGINS]"; \
