@@ -11,8 +11,42 @@ has()  { command -v "$1" >/dev/null 2>&1; }
 
 cfg_path() {
   local state_home
-  state_home="${OPENCLAW_STATE_DIR:-${OPENCLAW_HOME:-$HOME/.openclaw}}"
+
+  # If openclaw-gateway container is running, use host mount path
+  if has docker && docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^openclaw-gateway$'; then
+    state_home="${OPENCLAW_HOST_STATE_DIR:-${HOME}/.openclaw}"
+  else
+    state_home="${OPENCLAW_STATE_DIR:-${OPENCLAW_HOME:-$HOME/.openclaw}}"
+  fi
+
   printf "%s/openclaw.json" "$state_home"
+}
+
+restart_openclaw_gateway() {
+  # Check if openclaw-gateway container is running (Docker setup)
+  if has docker && docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^openclaw-gateway$'; then
+    log "Detected Docker setup - restarting via docker compose..."
+
+    # Find docker-compose file (check common locations)
+    local compose_file=""
+    if [[ -f "docker-compose.openclaw.yml" ]]; then
+      compose_file="docker-compose.openclaw.yml"
+    elif [[ -f "../docker-compose.openclaw.yml" ]]; then
+      compose_file="../docker-compose.openclaw.yml"
+    elif [[ -f "../../docker-compose.openclaw.yml" ]]; then
+      compose_file="../../docker-compose.openclaw.yml"
+    fi
+
+    if [[ -n "$compose_file" ]]; then
+      docker compose -f "$compose_file" restart openclaw-gateway
+      return $?
+    else
+      warn "Docker container found but docker-compose.openclaw.yml not found. Trying standard restart..."
+    fi
+  fi
+
+  # Fallback to standard restart methods
+  openclaw gateway restart 2>/dev/null || systemctl --user restart openclaw-gateway.service 2>/dev/null || true
 }
 
 list_agents() {
@@ -330,7 +364,7 @@ done
 upsert_discord_scale_config "$CONFIG_FILE" "$GUILD_ID" "$USER_ID" "$REQUIRE_MENTION" "$MAX_CONCURRENT" "$LANES_JSON"
 log "Updated Discord scaling config at $CONFIG_FILE"
 
-openclaw gateway start 2>/dev/null || systemctl --user restart openclaw-gateway.service 2>/dev/null || true
+restart_openclaw_gateway
 log "Gateway restarted to apply changes"
 
 echo ""

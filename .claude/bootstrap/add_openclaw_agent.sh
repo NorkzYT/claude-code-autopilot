@@ -46,6 +46,33 @@ log()  { echo "  [+] $*"; }
 warn() { echo "  [!] $*" >&2; }
 err()  { echo "  [ERROR] $*" >&2; exit 1; }
 skip() { echo "  [~] $* (already exists, skipping)"; }
+has()  { command -v "$1" >/dev/null 2>&1; }
+
+restart_openclaw_gateway() {
+  # Check if openclaw-gateway container is running (Docker setup)
+  if has docker && docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^openclaw-gateway$'; then
+    log "Detected Docker setup - restarting via docker compose..."
+
+    # Find docker-compose file (check common locations)
+    local compose_file=""
+    for dir in "." ".." "../.." "../../.." "../../../.."; do
+      if [[ -f "$dir/docker-compose.openclaw.yml" ]]; then
+        compose_file="$dir/docker-compose.openclaw.yml"
+        break
+      fi
+    done
+
+    if [[ -n "$compose_file" ]]; then
+      docker compose -f "$compose_file" restart openclaw-gateway 2>&1
+      return $?
+    else
+      warn "Docker container found but docker-compose.openclaw.yml not found. Trying standard restart..."
+    fi
+  fi
+
+  # Fallback to standard restart methods
+  openclaw gateway restart 2>&1
+}
 
 gateway_status_ready() {
   local out
@@ -991,7 +1018,7 @@ fi
 if [[ "$NO_RESTART" == "false" ]]; then
   log "Section 8: Restarting gateway..."
   restart_out=""
-  if restart_out="$(openclaw gateway restart 2>&1)"; then
+  if restart_out="$(restart_openclaw_gateway)"; then
     if wait_for_gateway_ready 20; then
       log "Gateway restarted"
     else
