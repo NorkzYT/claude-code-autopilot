@@ -279,12 +279,14 @@ cat <<EOF_SUMMARY
     2. Re-open your shell so ~/.local/bin is on PATH.
     3. Start the stack:
        make start
-    4. Authenticate providers if needed:
+    4. Approve the pending device (if connecting from a new browser/client):
+       make approve-device
+    5. Authenticate providers if needed:
        make auth-anthropic
        make auth-openai
-    5. Verify everything is running:
+    6. Verify everything is running:
        make status
-    6. See all available commands:
+    7. See all available commands:
        make help
 
   Docker-only notes:
