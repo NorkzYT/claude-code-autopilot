@@ -3,6 +3,7 @@
        auth-anthropic auth-openai models dashboard-url config-set doctor \
        add-agent setup-discord setup-discord-scale
 
+SHELL := /bin/bash
 -include .env
 
 COMPOSE_FILE := docker-compose.openclaw.yml
