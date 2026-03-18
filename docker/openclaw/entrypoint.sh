@@ -41,6 +41,8 @@ find "$OPENCLAW_STATE_DIR/browser" -name 'SingletonCookie' -delete 2>/dev/null |
 mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /opt/repos
 # Only chown container-internal dirs — NOT bind-mounted /opt/repos
 chown -R node:node "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /home/node
+# Ensure config is readable even if written by a host user with a different UID
+chmod 644 "$OPENCLAW_STATE_DIR/openclaw.json" 2>/dev/null || true
 touch /home/node/.gitconfig
 chown node:node /home/node/.gitconfig
 

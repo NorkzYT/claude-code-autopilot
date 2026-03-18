@@ -399,6 +399,9 @@ else:
 PY
 )"
 
+  # Ensure config is readable inside Docker regardless of host UID
+  chmod 644 "$config_path" 2>/dev/null || true
+
   case "$config_result" in
     exists)
       skip "Agent already in $(basename "$(dirname "$config_path")")/$(basename "$config_path")"
