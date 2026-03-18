@@ -23,10 +23,10 @@ RUN apt-get update \
 RUN echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox --disable-setuid-sandbox"' \
     > /etc/chromium.d/docker
 
-# Disable fluxbox wallpaper to avoid fbsetbg xmessage error (no image viewer installed)
-RUN mkdir -p /home/node/.fluxbox \
-    && echo 'session.screen0.rootCommand:' > /home/node/.fluxbox/overlay \
-    && chown -R node:node /home/node/.fluxbox
+# Replace fbsetbg with a no-op — wallpapers are unnecessary in a headless
+# container and the default Debian theme triggers fbsetbg which fails
+# without an image viewer, producing an xmessage error dialog.
+RUN printf '#!/bin/sh\nexit 0\n' > /usr/bin/fbsetbg
 
 COPY docker/openclaw/entrypoint.sh /usr/local/bin/openclaw-entrypoint
 RUN chmod +x /usr/local/bin/openclaw-entrypoint

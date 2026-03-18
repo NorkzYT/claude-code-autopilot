@@ -50,7 +50,7 @@ update:
 	@echo "Updating OpenClaw..."
 	docker compose -f $(COMPOSE_FILE) pull openclaw-gateway
 	docker compose -f $(COMPOSE_FILE) build openclaw-gateway
-	docker compose -f $(COMPOSE_FILE) restart openclaw-gateway
+	docker compose -f $(COMPOSE_FILE) up -d --force-recreate openclaw-gateway
 	@echo "✅ Update complete!"
 	@echo ""
 	@make status
@@ -85,10 +85,10 @@ stop:
 	docker compose -f $(COMPOSE_FILE) stop
 	@echo "✅ Containers stopped!"
 
-# Restart containers
+# Restart containers (recreate to pick up new images after build)
 restart:
 	@echo "Restarting OpenClaw containers..."
-	docker compose -f $(COMPOSE_FILE) restart
+	docker compose -f $(COMPOSE_FILE) up -d --force-recreate
 	@echo "Waiting for startup..."
 	@sleep 10
 	@make status
