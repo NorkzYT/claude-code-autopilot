@@ -8,6 +8,7 @@ RUN apt-get update \
     ca-certificates \
     chromium \
     curl \
+    dbus \
     fluxbox \
     git \
     gosu \
@@ -18,6 +19,9 @@ RUN apt-get update \
     x11vnc \
     xvfb \
   && rm -rf /var/lib/apt/lists/*
+
+RUN echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox --disable-setuid-sandbox"' \
+    > /etc/chromium.d/docker
 
 COPY docker/openclaw/entrypoint.sh /usr/local/bin/openclaw-entrypoint
 RUN chmod +x /usr/local/bin/openclaw-entrypoint
