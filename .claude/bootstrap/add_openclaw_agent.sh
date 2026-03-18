@@ -275,9 +275,16 @@ log "Section 2: Copying authentication..."
 AGENT_DIR="$OPENCLAW_HOME/agents/$AGENT_NAME"
 mkdir -p "$AGENT_DIR"
 
-# Find a source agent directory with auth files
+# Find a source for auth files: check root state dir first, then other agents
 AUTH_SOURCE=""
-if [[ -d "$OPENCLAW_HOME/agents" ]]; then
+
+# 1. Check root-level auth (from gateway-level authentication)
+if [[ -f "$OPENCLAW_HOME/auth.json" ]]; then
+  AUTH_SOURCE="$OPENCLAW_HOME"
+fi
+
+# 2. Fall back to copying from another agent's auth
+if [[ -z "$AUTH_SOURCE" ]] && [[ -d "$OPENCLAW_HOME/agents" ]]; then
   for dir in "$OPENCLAW_HOME/agents"/*/; do
     [[ "$(basename "$dir")" == "$AGENT_NAME" ]] && continue
     if [[ -f "${dir}auth.json" ]]; then
@@ -296,9 +303,11 @@ if [[ -n "$AUTH_SOURCE" ]]; then
       skip "$auth_file already exists in agent directory"
     fi
   done
+elif [[ -n "${ANTHROPIC_API_KEY:-}" ]] || [[ -n "${OPENAI_API_KEY:-}" ]]; then
+  log "Auth provided via environment variables (no per-agent auth files needed)"
 else
-  warn "No existing agent with auth files found. You'll need to authenticate manually:"
-  warn "  openclaw models auth paste-token --provider anthropic --agent $AGENT_NAME"
+  warn "No auth files found. Authenticate via:"
+  warn "  make auth-anthropic    # or set ANTHROPIC_API_KEY in .env"
 fi
 
 # ─── Section 3: Config Sync ─────────────────────────────────
