@@ -71,6 +71,11 @@ seed_auth_if_present() {
   fi
 }
 
+# Auto-configure gateway.mode=local on fresh install (no openclaw.json yet)
+if [[ ! -f "$OPENCLAW_STATE_DIR/openclaw.json" ]]; then
+  gosu node openclaw config set gateway.mode local 2>/dev/null || true
+fi
+
 case "$mode" in
   gateway)
     start_display_stack
