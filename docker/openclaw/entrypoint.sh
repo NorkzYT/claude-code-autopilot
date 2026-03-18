@@ -63,33 +63,23 @@ start_display_stack() {
   x11vnc -display :99 -forever -shared -rfbport "$OPENCLAW_VNC_PORT" -nopw >/tmp/x11vnc.log 2>&1 &
 }
 
-seed_auth_if_present() {
-  local anthropic_setup_token="${OPENCLAW_ANTHROPIC_SETUP_TOKEN:-}"
-
-  if [[ -n "$anthropic_setup_token" ]]; then
-    printf '%s\n' "$anthropic_setup_token" | gosu node openclaw models auth paste-token --provider anthropic >/dev/null 2>&1 || true
-  fi
-}
-
-# Auto-configure gateway.mode=local on fresh install (no openclaw.json yet)
+# Auto-configure on fresh install (no openclaw.json yet)
 if [[ ! -f "$OPENCLAW_STATE_DIR/openclaw.json" ]]; then
   gosu node openclaw config set gateway.mode local 2>/dev/null || true
+  gosu node openclaw config set gateway.bind lan 2>/dev/null || true
 fi
 
 case "$mode" in
   gateway)
     start_display_stack
-    seed_auth_if_present
     exec gosu node openclaw gateway
     ;;
   shell)
     start_display_stack
-    seed_auth_if_present
     exec gosu node /bin/bash "$@"
     ;;
   *)
     start_display_stack
-    seed_auth_if_present
     exec gosu node "$mode" "$@"
     ;;
 esac

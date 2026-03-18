@@ -1,8 +1,14 @@
-.PHONY: help update build rebuild start stop restart logs status shell clean add-origins
+.PHONY: help update build rebuild start stop restart logs logs-viewer status shell clean \
+       add-origins verify-vnc config-get \
+       auth-anthropic auth-openai models dashboard-url config-set doctor \
+       add-agent setup-discord setup-discord-scale
 
 COMPOSE_FILE := docker-compose.openclaw.yml
 GATEWAY_CONTAINER := openclaw-gateway
 VIEWER_CONTAINER := openclaw-browser-viewer
+EXEC := docker exec -it $(GATEWAY_CONTAINER) gosu node
+EXEC_T := docker exec $(GATEWAY_CONTAINER) gosu node
+BOOTSTRAP_DIR := .claude/bootstrap
 
 # Default target - show available commands
 help:
@@ -23,6 +29,19 @@ help:
 	@echo "  make add-origins   - Configure allowed origins for Tailscale access"
 	@echo "  make verify-vnc    - Verify VNC server is running"
 	@echo "  make config-get    - Show current gateway config"
+	@echo ""
+	@echo "OpenClaw CLI (via docker exec):"
+	@echo "  make auth-anthropic      - Authenticate Anthropic provider (interactive)"
+	@echo "  make auth-openai         - Authenticate OpenAI Codex provider (interactive)"
+	@echo "  make models              - List available models"
+	@echo "  make dashboard-url       - Print dashboard URL with token"
+	@echo "  make config-set          - Set config key (usage: make config-set KEY=... VALUE=...)"
+	@echo "  make doctor              - Run openclaw doctor"
+	@echo ""
+	@echo "Bootstrap:"
+	@echo "  make add-agent           - Register agent (usage: make add-agent AGENT=... REPO=...)"
+	@echo "  make setup-discord       - Set up Discord bot channel (interactive)"
+	@echo "  make setup-discord-scale - Set up Discord scaling/lanes (interactive)"
 	@echo ""
 
 # Update OpenClaw: pull latest image, rebuild, restart
@@ -107,11 +126,11 @@ clean:
 		echo "Cancelled."; \
 	fi
 
-# Configure allowed origins (Tailscale + local)
+# Configure allowed origins (localhost only - add Tailscale/LAN origins as needed)
 add-origins:
 	@echo "Configuring allowed origins..."
-	@openclaw config set gateway.controlUi.allowedOrigins \
-		'["http://localhost:18789","http://127.0.0.1:18789","https://vps-dialga.tail63ecc.ts.net","http://100.102.87.11:18789","https://100.102.87.11:18789"]' \
+	@$(EXEC_T) openclaw config set gateway.controlUi.allowedOrigins \
+		'["http://localhost:18789","http://127.0.0.1:18789"]' \
 		--json
 	@docker exec $(GATEWAY_CONTAINER) chown node:node /home/node/.openclaw/openclaw.json 2>/dev/null || true
 	@echo "✅ Origins configured!"
@@ -133,4 +152,40 @@ verify-vnc:
 config-get:
 	@echo "Current Gateway Configuration:"
 	@echo "=============================="
-	@docker exec $(GATEWAY_CONTAINER) gosu node openclaw config get gateway
+	@$(EXEC_T) openclaw config get gateway
+
+# Authenticate Anthropic provider (interactive)
+auth-anthropic:
+	$(EXEC) openclaw models auth paste-token --provider anthropic
+
+# Authenticate OpenAI Codex provider (interactive)
+auth-openai:
+	$(EXEC) openclaw models auth login --provider openai-codex
+
+# List available models
+models:
+	@$(EXEC_T) openclaw models list
+
+# Print dashboard URL with token
+dashboard-url:
+	@$(EXEC_T) openclaw dashboard
+
+# Set a config key: make config-set KEY=gateway.bind VALUE=lan
+config-set:
+	@$(EXEC_T) openclaw config set $(KEY) $(VALUE)
+
+# Run openclaw doctor
+doctor:
+	@$(EXEC_T) openclaw doctor
+
+# Register an agent: make add-agent AGENT=myproject REPO=/path/to/project
+add-agent:
+	bash $(BOOTSTRAP_DIR)/add_openclaw_agent.sh $(AGENT) $(REPO) $(AGENT_OPTS)
+
+# Set up Discord bot channel (interactive)
+setup-discord:
+	bash $(BOOTSTRAP_DIR)/openclaw_discord_setup.sh
+
+# Set up Discord scaling/lanes (interactive)
+setup-discord-scale:
+	bash $(BOOTSTRAP_DIR)/openclaw_discord_scale_setup.sh

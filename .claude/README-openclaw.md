@@ -4,31 +4,44 @@ This repo is OpenClaw-first. These are the most useful commands and scripts afte
 
 ## Core Commands
 
+All commands are available as `make` targets (run from repo root with `-f Makefile.openclaw`).
+
 Start / restart gateway:
 
 ```bash
-openclaw gateway start
+make restart            # or: make start
 ```
 
 Check status:
 
 ```bash
-openclaw status
-openclaw dashboard
+make status             # container status + VNC processes
+make dashboard-url      # print dashboard URL with token
 ```
 
 Authenticate Anthropic (Claude Max / token):
 
 ```bash
-claude setup-token
-openclaw models auth paste-token --provider anthropic
+make auth-anthropic     # interactive paste-token prompt
 ```
 
 Set model (example: Sonnet-first):
 
 ```bash
-openclaw models set anthropic/claude-sonnet-4-6
-openclaw gateway start
+make config-set KEY=models.default VALUE=anthropic/claude-sonnet-4-6
+make restart
+```
+
+List models:
+
+```bash
+make models
+```
+
+Run diagnostics:
+
+```bash
+make doctor
 ```
 
 ## Bootstrap Scripts (`.claude/bootstrap/`)
@@ -36,26 +49,21 @@ openclaw gateway start
 Register a repo as an OpenClaw agent (most important):
 
 ```bash
-bash .claude/bootstrap/add_openclaw_agent.sh <agent-id> <repo-path>
-```
-
-Example:
-
-```bash
-bash .claude/bootstrap/add_openclaw_agent.sh myproject /path/to/project
+make add-agent AGENT=myproject REPO=/path/to/project
+# raw: bash .claude/bootstrap/add_openclaw_agent.sh <agent-id> <repo-path>
 ```
 
 Pin one agent to one Discord channel (recommended runbook):
 
 ```bash
 # 1) Register agent
-bash .claude/bootstrap/add_openclaw_agent.sh <agent-id> <repo-path>
+make add-agent AGENT=<agent-id> REPO=<repo-path>
 
 # 2) Ensure Discord bot/channel is connected
-bash .claude/bootstrap/openclaw_discord_setup.sh
+make setup-discord
 
 # 3) Bind channel -> agent lane
-bash .claude/bootstrap/openclaw_discord_scale_setup.sh
+make setup-discord-scale
 ```
 
 After step 3:
@@ -84,13 +92,15 @@ Useful flags:
 Set up Discord bot channel:
 
 ```bash
-bash .claude/bootstrap/openclaw_discord_setup.sh
+make setup-discord
+# raw: bash .claude/bootstrap/openclaw_discord_setup.sh
 ```
 
 Set up Discord scaling (parallel threads + channel->agent lanes):
 
 ```bash
-bash .claude/bootstrap/openclaw_discord_scale_setup.sh
+make setup-discord-scale
+# raw: bash .claude/bootstrap/openclaw_discord_scale_setup.sh
 ```
 
 What it does:
@@ -156,11 +166,12 @@ sudo tailscale set --operator=$USER
 tailscale serve --bg http://127.0.0.1:18789
 ```
 
-- First secure UI connect may require device pairing:
+- First secure UI connect may require device pairing (run inside container):
 
 ```bash
-openclaw devices list
-openclaw devices approve <requestId>
+make shell
+# then: openclaw devices list
+# then: openclaw devices approve <requestId>
 ```
 
 ## Updating Existing Repos
@@ -196,7 +207,7 @@ TOOLS.md, HEARTBEAT.md, PROJECT.md are NOT overwritten (they are auto-generated 
 **Step 2: Restart the gateway:**
 
 ```bash
-openclaw gateway restart
+make restart
 ```
 
 **Step 3: Start a new session** (`/new` in Discord).
@@ -223,7 +234,7 @@ bash .claude/bootstrap/add_openclaw_agent.sh <agent-id> <repo-path> --force
 CLAUDE_DEEP_WAIT_FOR_COMPLETION=1 bash .claude/bootstrap/analyze_repo.sh <repo-path> --deep
 
 # 4. Restart gateway + new session
-openclaw gateway restart
+make restart
 # Then /new in Discord
 ```
 
