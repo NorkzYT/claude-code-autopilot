@@ -151,6 +151,19 @@ case "\$1" in
     compose "\$@"
     exit \$?
     ;;
+  status)
+    if service_running "\$SERVICE"; then
+      if [[ -t 0 && -t 1 ]]; then
+        compose exec "\$SERVICE" openclaw "\$@"
+      else
+        compose exec -T "\$SERVICE" openclaw "\$@"
+      fi
+    else
+      echo "OpenClaw is not running. Start with: openclaw up" >&2
+      exit 1
+    fi
+    exit \$?
+    ;;
   *)
     ensure_started
     if [[ -t 0 && -t 1 ]]; then
@@ -180,7 +193,31 @@ done
 if [[ -f "$PROJECT_ENV_FILE" ]]; then
   skip "Existing .env detected at $PROJECT_ENV_FILE"
 else
-  log "Using defaults from $PROJECT_ENV_EXAMPLE until you create $PROJECT_ENV_FILE"
+  if [[ -f "$PROJECT_ENV_EXAMPLE" ]]; then
+    cp "$PROJECT_ENV_EXAMPLE" "$PROJECT_ENV_FILE"
+    log "Created .env from .env.example"
+  else
+    log "Using defaults from $PROJECT_ENV_EXAMPLE until you create $PROJECT_ENV_FILE"
+  fi
+fi
+
+# Auto-populate OPENCLAW_HOST_STATE_DIR and PUID/PGID if not already set
+real_user="${SUDO_USER:-$(id -un)}"
+real_home="$(eval echo "~$real_user")"
+real_uid="$(id -u "$real_user")"
+real_gid="$(id -g "$real_user")"
+
+if [[ -f "$PROJECT_ENV_FILE" ]]; then
+  if ! grep -q '^OPENCLAW_HOST_STATE_DIR=' "$PROJECT_ENV_FILE"; then
+    sed -i "s|^# OPENCLAW_HOST_STATE_DIR=.*|OPENCLAW_HOST_STATE_DIR=${real_home}/.openclaw|" "$PROJECT_ENV_FILE" \
+      || echo "OPENCLAW_HOST_STATE_DIR=${real_home}/.openclaw" >> "$PROJECT_ENV_FILE"
+    log "Set OPENCLAW_HOST_STATE_DIR=${real_home}/.openclaw"
+  fi
+  if ! grep -q '^PUID=' "$PROJECT_ENV_FILE"; then
+    echo "PUID=${real_uid}" >> "$PROJECT_ENV_FILE"
+    echo "PGID=${real_gid}" >> "$PROJECT_ENV_FILE"
+    log "Set PUID=${real_uid}, PGID=${real_gid}"
+  fi
 fi
 
 compose_args=()
