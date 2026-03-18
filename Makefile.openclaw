@@ -39,7 +39,8 @@ help:
 	@echo "  make doctor              - Run openclaw doctor"
 	@echo ""
 	@echo "Bootstrap:"
-	@echo "  make add-agent           - Register agent (usage: make add-agent AGENT=... REPO=...)"
+	@echo "  make add-agent           - Register agent"
+	@echo "                             Usage: make add-agent AGENT=name REPO=/path/to/repo"
 	@echo "  make setup-discord       - Set up Discord bot channel (interactive)"
 	@echo "  make setup-discord-scale - Set up Discord scaling/lanes (interactive)"
 	@echo ""
@@ -172,6 +173,12 @@ dashboard-url:
 
 # Set a config key: make config-set KEY=gateway.bind VALUE=lan
 config-set:
+	@if [ -z "$(KEY)" ] || [ -z "$(VALUE)" ]; then \
+		echo "Error: Missing required variables"; \
+		echo "Usage: make config-set KEY=<key> VALUE=<value>"; \
+		echo "Example: make config-set KEY=gateway.bind VALUE=lan"; \
+		exit 1; \
+	fi
 	@$(EXEC_T) openclaw config set $(KEY) $(VALUE)
 
 # Run openclaw doctor
@@ -180,6 +187,13 @@ doctor:
 
 # Register an agent: make add-agent AGENT=myproject REPO=/path/to/project
 add-agent:
+	@if [ -z "$(AGENT)" ] || [ -z "$(REPO)" ]; then \
+		echo "Error: Missing required variables"; \
+		echo "Usage: make add-agent AGENT=<agent-name> REPO=<path>"; \
+		echo "Example: make add-agent AGENT=myproject REPO=/path/to/project"; \
+		echo "Optional: AGENT_OPTS='--force --emoji 🚀'"; \
+		exit 1; \
+	fi
 	bash $(BOOTSTRAP_DIR)/add_openclaw_agent.sh $(AGENT) $(REPO) $(AGENT_OPTS)
 
 # Set up Discord bot channel (interactive)
