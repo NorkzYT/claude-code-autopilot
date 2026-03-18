@@ -292,7 +292,13 @@ cat <<EOF_SUMMARY
        make auth-openai
     9. Verify everything is running:
        make status
-   10. See all available commands:
+   10. Register an agent for your project:
+       make add-agent AGENT=my-project REPO=/opt/repos/my-project
+   11. (Optional) Set up Discord bot channel:
+       make setup-discord
+   12. (Optional) Set up Discord scaling/lanes:
+       make setup-discord-scale
+   13. See all available commands:
        make help
 
   Docker-only notes:
