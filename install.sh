@@ -973,4 +973,4 @@ if [[ "$INSTALL_CREWAI" == "1" ]]; then
   echo "=============================================="
   echo ""
 fi
-echo "Restart Claude Code to re-index agents/skills/commands."
+echo "Open a new shell session to re-index agents/skills/commands."

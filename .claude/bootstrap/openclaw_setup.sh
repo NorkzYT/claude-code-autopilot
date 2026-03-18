@@ -273,17 +273,19 @@ cat <<EOF_SUMMARY
   Browser viewer:
     http://127.0.0.1:${VIEWER_PORT:-6080}/vnc.html
 
-  Next steps:
-    1. Review and copy $PROJECT_ENV_EXAMPLE to $PROJECT_ENV_FILE if you need custom identity, ports, or tokens.
+  Next steps (run from $PROJECT_DIR):
+    1. Edit .env if you need custom identity, ports, or API keys:
+       cp $PROJECT_ENV_EXAMPLE $PROJECT_ENV_FILE   # if not already created
     2. Re-open your shell so ~/.local/bin is on PATH.
-    3. Start the stack when ready:
-       openclaw up
-    4. Authenticate Anthropic subscription if needed:
-       claude setup-token
-       openclaw models auth paste-token --provider anthropic
-    5. Authenticate OpenAI subscription OAuth if needed:
-       openclaw models auth login --provider openai-codex
-    6. Use the viewer URL for manual browser login and takeover when needed.
+    3. Start the stack:
+       make start
+    4. Authenticate providers if needed:
+       make auth-anthropic
+       make auth-openai
+    5. Verify everything is running:
+       make status
+    6. See all available commands:
+       make help
 
   Docker-only notes:
     - No host OpenClaw CLI is required.
