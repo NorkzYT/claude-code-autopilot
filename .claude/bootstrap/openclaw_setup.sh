@@ -279,18 +279,20 @@ cat <<EOF_SUMMARY
     2. Re-open your shell so ~/.local/bin is on PATH.
     3. Start the stack (first start takes ~30s to initialize):
        make start
-    4. Configure allowed origins (for Tailscale/LAN access):
+    4. Expose the gateway via Tailscale HTTPS (for remote access):
+       sudo tailscale serve --bg https+insecure://localhost:18789
+    5. Configure allowed origins (add your Tailscale hostname to .env first):
        make add-origins
-    5. Get the dashboard URL with auth token:
+    6. Get the dashboard URL with auth token:
        make dashboard-url
-    6. Approve the pending device (open dashboard first, then approve):
+    7. Approve the pending device (open dashboard first, then approve):
        make approve-device
-    7. Authenticate providers if needed:
+    8. Authenticate providers if needed:
        make auth-anthropic
        make auth-openai
-    8. Verify everything is running:
+    9. Verify everything is running:
        make status
-    9. See all available commands:
+   10. See all available commands:
        make help
 
   Docker-only notes:
