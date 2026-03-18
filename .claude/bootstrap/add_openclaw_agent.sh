@@ -678,12 +678,31 @@ install_commit_msg_hook "$WORKSPACE_PATH" || true
 
 # Create settings.local.json with hook config
 SETTINGS_TARGET="$WORKSPACE_CLAUDE_DIR/settings.local.json"
-if [[ -f "$SETTINGS_TARGET" ]]; then
+# Get model and thinking from environment or use defaults
+MODEL_SETTING="${OPENCLAW_MODEL_PRIMARY:-anthropic/claude-sonnet-4-6}"
+THINKING_SETTING="${OPENCLAW_THINKING_DEFAULT:-high}"
+
+if [[ -f "$SETTINGS_TARGET" ]] && [[ "$FORCE_OVERWRITE" == "true" ]]; then
+  # Update model and thinking in existing settings without regenerating hooks
+  if has python3; then
+    python3 - "$SETTINGS_TARGET" "$MODEL_SETTING" "$THINKING_SETTING" <<'PYUPDATE'
+import json, sys
+path, model, thinking = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path, "r") as f:
+    data = json.load(f)
+data["model"] = model
+data["thinking"] = thinking
+with open(path, "w") as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+PYUPDATE
+    log "Updated model=$MODEL_SETTING thinking=$THINKING_SETTING in settings.local.json"
+  else
+    warn "python3 not found; cannot update settings.local.json model/thinking"
+  fi
+elif [[ -f "$SETTINGS_TARGET" ]]; then
   skip "settings.local.json (hooks config)"
 else
-  # Get model and thinking from environment or use defaults
-  local model_setting="${OPENCLAW_MODEL_PRIMARY:-anthropic/claude-sonnet-4-6}"
-  local thinking_setting="${OPENCLAW_THINKING_DEFAULT:-high}"
 
   cat > "$SETTINGS_TARGET" << SETTINGSJSON
 {
@@ -1025,9 +1044,4 @@ fi
 echo "  To add skills, create SKILL.md files in:"
 echo "    $WORKSPACE_PATH/.openclaw/skills/<skill-name>/SKILL.md"
 echo "  (Include YAML frontmatter with 'name' and 'description')"
-echo ""
-echo "  Local workflow commands (via OpenClaw plugin):"
-echo "    /localflow       # run build -> run-local -> test -> confirm"
-echo "    /workflowcheck   # show latest local workflow report"
-echo "    /recheckin 5m <task>  # create a real timed follow-up via OpenClaw cron"
 echo ""
