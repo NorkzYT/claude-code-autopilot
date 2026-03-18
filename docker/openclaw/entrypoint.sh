@@ -31,6 +31,13 @@ CHROME_BIN="${CHROME_BIN:-/usr/bin/chromium}"
 OPENCLAW_MODEL_FALLBACKS="${OPENCLAW_MODEL_FALLBACKS:-[\"openai/gpt-5.3-codex\",\"openai/gpt-5.4\"]}"
 OPENCLAW_MODEL_PRIMARY="${OPENCLAW_MODEL_PRIMARY:-anthropic/claude-opus-4-6}"
 
+# Clean up stale Chromium profile locks from previous container runs.
+# force-recreate gives the container a new hostname, so Chromium sees the
+# old lock as belonging to "another computer" and refuses to start.
+find "$OPENCLAW_STATE_DIR/browser" -name 'SingletonLock' -delete 2>/dev/null || true
+find "$OPENCLAW_STATE_DIR/browser" -name 'SingletonSocket' -delete 2>/dev/null || true
+find "$OPENCLAW_STATE_DIR/browser" -name 'SingletonCookie' -delete 2>/dev/null || true
+
 mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /opt/repos
 # Only chown container-internal dirs — NOT bind-mounted /opt/repos
 chown -R node:node "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /home/node
