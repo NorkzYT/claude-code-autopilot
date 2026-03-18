@@ -681,9 +681,14 @@ SETTINGS_TARGET="$WORKSPACE_CLAUDE_DIR/settings.local.json"
 if [[ -f "$SETTINGS_TARGET" ]]; then
   skip "settings.local.json (hooks config)"
 else
-  cat > "$SETTINGS_TARGET" << 'SETTINGSJSON'
+  # Get model and thinking from environment or use defaults
+  local model_setting="${OPENCLAW_MODEL_PRIMARY:-anthropic/claude-sonnet-4-6}"
+  local thinking_setting="${OPENCLAW_THINKING_DEFAULT:-high}"
+
+  cat > "$SETTINGS_TARGET" << SETTINGSJSON
 {
-  "model": "sonnet",
+  "model": "$model_setting",
+  "thinking": "$thinking_setting",
   "hooks": {
     "PreToolUse": [
       {
@@ -963,56 +968,10 @@ else
   log "Section 7b: Skipping Codex compatibility (--skip-codex)"
 fi
 
-# ─── Section 7c: Install OpenClaw Workflow Plugin ──────────
-log "Section 7c: Installing OpenClaw local workflow plugin..."
-
-LOCAL_WORKFLOW_PLUGIN_ID="local-workflow-wrapper"
-LOCAL_WORKFLOW_PLUGIN_SRC_WORKSPACE="$WORKSPACE_PATH/.claude/openclaw-plugins/$LOCAL_WORKFLOW_PLUGIN_ID"
-LOCAL_WORKFLOW_PLUGIN_SRC_SCRIPT_REPO="$SCRIPT_DIR/../openclaw-plugins/$LOCAL_WORKFLOW_PLUGIN_ID"
-LOCAL_WORKFLOW_PLUGIN_SRC=""
-
-if [[ -d "$LOCAL_WORKFLOW_PLUGIN_SRC_WORKSPACE" ]]; then
-  LOCAL_WORKFLOW_PLUGIN_SRC="$LOCAL_WORKFLOW_PLUGIN_SRC_WORKSPACE"
-elif [[ -d "$LOCAL_WORKFLOW_PLUGIN_SRC_SCRIPT_REPO" ]]; then
-  LOCAL_WORKFLOW_PLUGIN_SRC="$LOCAL_WORKFLOW_PLUGIN_SRC_SCRIPT_REPO"
-fi
-
-if [[ -n "$LOCAL_WORKFLOW_PLUGIN_SRC" ]]; then
-  plugin_ready=false
-  plugin_install_out=""
-  if plugin_install_out="$(openclaw plugins install -l "$LOCAL_WORKFLOW_PLUGIN_SRC" 2>&1)"; then
-    log "Installed plugin: $LOCAL_WORKFLOW_PLUGIN_ID"
-    plugin_ready=true
-  else
-    if echo "$plugin_install_out" | grep -Eqi 'already (installed|exists)|is already'; then
-      skip "Plugin $LOCAL_WORKFLOW_PLUGIN_ID"
-      plugin_ready=true
-    else
-      warn "Failed to install plugin $LOCAL_WORKFLOW_PLUGIN_ID"
-      warn "$plugin_install_out"
-    fi
-  fi
-
-  if [[ "$plugin_ready" == "true" ]]; then
-    plugin_enable_out=""
-    if plugin_enable_out="$(openclaw plugins enable "$LOCAL_WORKFLOW_PLUGIN_ID" 2>&1)"; then
-      log "Enabled plugin: $LOCAL_WORKFLOW_PLUGIN_ID"
-    else
-      if echo "$plugin_enable_out" | grep -Eqi 'already enabled|is enabled'; then
-        skip "Plugin $LOCAL_WORKFLOW_PLUGIN_ID enabled"
-      else
-        warn "Failed to enable plugin $LOCAL_WORKFLOW_PLUGIN_ID"
-        warn "$plugin_enable_out"
-      fi
-    fi
-  else
-    warn "Skipping plugin enable because install failed"
-  fi
-else
-  warn "Plugin source not found in either location:"
-  warn "  - $LOCAL_WORKFLOW_PLUGIN_SRC_WORKSPACE"
-  warn "  - $LOCAL_WORKFLOW_PLUGIN_SRC_SCRIPT_REPO"
-fi
+# ─── Section 7c: Install OpenClaw Workflow Plugin (DISABLED) ───
+# NOTE: local-workflow-wrapper plugin has been removed as it was not working correctly.
+# Workflow commands (/localflow, /workflowcheck, /recheckin) are no longer available.
+log "Section 7c: Skipping local workflow plugin (deprecated)"
 
 # ─── Section 8: Restart Gateway ─────────────────────────────
 if [[ "$NO_RESTART" == "false" ]]; then
