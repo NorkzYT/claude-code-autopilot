@@ -6,6 +6,20 @@ if [[ $# -gt 0 ]]; then
   shift
 fi
 
+# Align container node user UID/GID with host user (avoids permission conflicts on bind mounts)
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
+
+current_uid=$(id -u node)
+current_gid=$(id -g node)
+
+if [[ "$PGID" != "$current_gid" ]]; then
+  groupmod -o -g "$PGID" node 2>/dev/null || true
+fi
+if [[ "$PUID" != "$current_uid" ]]; then
+  usermod -o -u "$PUID" node 2>/dev/null || true
+fi
+
 OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}"
 OPENCLAW_BROWSER_DOWNLOADS_DIR="${OPENCLAW_BROWSER_DOWNLOADS_DIR:-$OPENCLAW_STATE_DIR/downloads}"
 OPENCLAW_BROWSER_WIDTH="${OPENCLAW_BROWSER_WIDTH:-1920}"
@@ -18,7 +32,8 @@ OPENCLAW_MODEL_FALLBACKS="${OPENCLAW_MODEL_FALLBACKS:-[\"openai/gpt-5.3-codex\",
 OPENCLAW_MODEL_PRIMARY="${OPENCLAW_MODEL_PRIMARY:-anthropic/claude-opus-4-6}"
 
 mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /opt/repos
-chown -R node:node "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /opt/repos
+# Only chown container-internal dirs — NOT bind-mounted /opt/repos
+chown -R node:node "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /home/node
 touch /home/node/.gitconfig
 chown node:node /home/node/.gitconfig
 

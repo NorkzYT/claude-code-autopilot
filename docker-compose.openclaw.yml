@@ -8,6 +8,8 @@ services:
     container_name: openclaw-gateway
     restart: unless-stopped
     environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
       OPENCLAW_STATE_DIR: /home/node/.openclaw
       OPENCLAW_GATEWAY_PORT: ${OPENCLAW_GATEWAY_PORT:-18789}
       OPENCLAW_GATEWAY_BIND: ${OPENCLAW_GATEWAY_BIND:-all}
