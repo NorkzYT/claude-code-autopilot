@@ -277,16 +277,18 @@ cat <<EOF_SUMMARY
     1. Edit .env if you need custom identity, ports, or API keys:
        cp $PROJECT_ENV_EXAMPLE $PROJECT_ENV_FILE   # if not already created
     2. Re-open your shell so ~/.local/bin is on PATH.
-    3. Start the stack:
+    3. Start the stack (first start takes ~30s to initialize):
        make start
-    4. Approve the pending device (if connecting from a new browser/client):
+    4. Configure allowed origins (for Tailscale/LAN access):
+       make add-origins
+    5. Approve the pending device (if connecting from a new browser/client):
        make approve-device
-    5. Authenticate providers if needed:
+    6. Authenticate providers if needed:
        make auth-anthropic
        make auth-openai
-    6. Verify everything is running:
+    7. Verify everything is running:
        make status
-    7. See all available commands:
+    8. See all available commands:
        make help
 
   Docker-only notes:
