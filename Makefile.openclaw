@@ -3,6 +3,8 @@
        auth-anthropic auth-openai models dashboard-url config-set doctor \
        add-agent setup-discord setup-discord-scale
 
+-include .env
+
 COMPOSE_FILE := docker-compose.openclaw.yml
 GATEWAY_CONTAINER := openclaw-gateway
 VIEWER_CONTAINER := openclaw-browser-viewer
@@ -127,12 +129,19 @@ clean:
 		echo "Cancelled."; \
 	fi
 
-# Configure allowed origins (localhost only - add Tailscale/LAN origins as needed)
+# Configure allowed origins (localhost + OPENCLAW_EXTRA_ORIGINS from .env)
 add-origins:
 	@echo "Configuring allowed origins..."
-	@$(EXEC_T) openclaw config set gateway.controlUi.allowedOrigins \
-		'["http://localhost:18789","http://127.0.0.1:18789"]' \
-		--json
+	@PORT=$(OPENCLAW_GATEWAY_PORT); PORT=$${PORT:-18789}; \
+	ORIGINS='["http://localhost:'$$PORT'","http://127.0.0.1:'$$PORT'"'; \
+	if [ -n "$(OPENCLAW_EXTRA_ORIGINS)" ]; then \
+		IFS=',' ; for origin in $(OPENCLAW_EXTRA_ORIGINS); do \
+			ORIGINS="$$ORIGINS,\"$$origin:$$PORT\""; \
+		done; \
+	fi; \
+	ORIGINS="$$ORIGINS]"; \
+	echo "  Origins: $$ORIGINS"; \
+	$(EXEC_T) openclaw config set gateway.controlUi.allowedOrigins "$$ORIGINS" --json
 	@docker exec $(GATEWAY_CONTAINER) chown node:node /home/node/.openclaw/openclaw.json 2>/dev/null || true
 	@echo "✅ Origins configured!"
 	@echo ""
