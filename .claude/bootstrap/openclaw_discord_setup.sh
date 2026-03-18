@@ -36,7 +36,7 @@ restart_openclaw_gateway() {
     fi
 
     if [[ -n "$compose_file" ]]; then
-      docker compose -f "$compose_file" restart openclaw-gateway
+      docker compose -f "$compose_file" up -d --force-recreate openclaw-gateway
       return $?
     else
       warn "Docker container found but docker-compose.openclaw.yml not found. Trying standard restart..."
@@ -346,8 +346,6 @@ echo "  Test from Discord (standalone messages):"
 echo "    /help"
 echo "    /status"
 echo "    /new"
-echo "    /localflow      (after repo agent bootstrap installs the local-workflow-wrapper plugin)"
-echo "    /workflowcheck  (shows latest local workflow report)"
 echo "    /recheckin 5m Re-check service health and report back in this channel."
 echo "    (If channel is bound to an agent, start a new session after setup: /new)"
 echo ""

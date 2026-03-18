@@ -26,7 +26,7 @@ This means local developer workflows only. It does not mean staging or productio
 - Sonnet-first routing and explicit Opus escalation path
 - Commit trailer blocking (`Co-Authored-By`)
 - Real local workflow wrapper script (`.claude/scripts/openclaw-local-workflow.sh`)
-- Real OpenClaw plugin commands (`/localflow`, `/workflowcheck`) + `command:new` cleanup hook
+- Real local workflow wrapper script for build/test/confirm automation
 
 ## Gaps (Not Fully Enforced Yet)
 
@@ -41,7 +41,7 @@ This means local developer workflows only. It does not mean staging or productio
 Use plugin hooks to:
 
 - reject completion/reporting when required workflow evidence is missing
-- require a fresh `workflow-report.local.json` (from `/localflow`) before a "done" response pattern is allowed
+- require a fresh `workflow-report.local.json` before a "done" response pattern is allowed
 - optionally require all four steps to be `passed`
 
 The wrapper and plugin commands already exist. The missing piece is strict gating.
@@ -63,7 +63,7 @@ Keep `analyze_repo.sh` detection as the default and support project overrides in
 
 ### 4) Add higher-level workflow commands (optional)
 
-The core wrapper is implemented (`/localflow`). Add task-oriented wrappers only if needed, for example:
+The core wrapper is implemented. Add task-oriented wrappers only if needed, for example:
 
 - `/localfix`
 - `/verify-local`

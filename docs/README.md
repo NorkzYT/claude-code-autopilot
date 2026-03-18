@@ -25,6 +25,5 @@ These are the OpenClaw-specific references used by the bootstrap scripts:
 
 ## Examples
 
-- `docs/examples/openclaw-local-workflow-wrapper.sh` — sample local workflow wrapper (build → run-local → test → confirm)
 - `docs/examples/openclaw-workflow-report-check.sh` — report checker for wrapper output
 - `docs/examples/openclaw-workflow-enforcer-plugin/` — OpenClaw plugin hook skeleton (design example)

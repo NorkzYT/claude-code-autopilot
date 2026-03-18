@@ -81,7 +81,7 @@ Then call that wrapper from:
 - a Discord-triggered workflow command
 - a cron job (for repeatable verification tasks)
 
-## Real Wrapper and Plugin (Included)
+## Local Workflow Wrapper (Included)
 
 A supported repo-local wrapper script is included here:
 
@@ -89,44 +89,13 @@ A supported repo-local wrapper script is included here:
 
 It reads commands from `TOOLS.md` and runs a local workflow in a predictable order.
 
-This repo also includes a real OpenClaw plugin:
-
-- `.claude/openclaw-plugins/local-workflow-wrapper/`
-
-It registers:
-
-- `/localflow` — run build -> run-local -> test -> confirm
-- `/workflowcheck` — read the latest `.openclaw/workflow-report.local.json`
-
-And a plugin hook:
-
-- `command:new` — clears stale workflow report files when a new session starts
-
-## How to Wire It (Design)
-
-### Option A: Manual shell use (fastest)
+### Manual shell use
 
 ```bash
 bash .claude/scripts/openclaw-local-workflow.sh --repo /path/to/repo
 ```
 
-### Option B: OpenClaw custom command wrapper (recommended, implemented)
-
-Use the bundled plugin commands after agent bootstrap installs/enables the plugin:
-
-```text
-/localflow
-/workflowcheck
-```
-
-They resolve the workspace from the bound agent/session when possible and accept overrides:
-
-```text
-/localflow --agent <agent-id>
-/localflow --repo /path/to/repo
-```
-
-### Option C: Plugin hook + wrapper (strict mode)
+### Plugin hook + wrapper (strict mode)
 
 Use a plugin or plugin-managed hook to require a report schema before marking work complete.
 
