@@ -409,6 +409,24 @@ PY
   fi
 done
 
+# ─── Section 3b: Set OpenClaw model and thinking defaults ────
+OC_MODEL="${OPENCLAW_MODEL_PRIMARY:-}"
+OC_THINKING="${OPENCLAW_THINKING_DEFAULT:-high}"
+
+if [[ -n "$OC_MODEL" ]]; then
+  if openclaw models set "$OC_MODEL" 2>/dev/null; then
+    log "OpenClaw default model: $OC_MODEL"
+  else
+    warn "Failed to set OpenClaw model to $OC_MODEL"
+  fi
+fi
+
+if openclaw config set agents.defaults.thinkingDefault "$OC_THINKING" 2>/dev/null; then
+  log "OpenClaw thinking default: $OC_THINKING"
+else
+  warn "Failed to set OpenClaw thinkingDefault to $OC_THINKING"
+fi
+
 # ─── Section 4: Create Persona Files ────────────────────────
 if [[ "$SKIP_PERSONA" == "false" ]]; then
   log "Section 4: Creating persona files..."
@@ -676,38 +694,14 @@ fi
 log "Section 4c: Installing git commit-msg guard..."
 install_commit_msg_hook "$WORKSPACE_PATH" || true
 
-# Create settings.local.json with hook config
+# Create settings.local.json with hook config (Claude Code only — model/thinking are set via OpenClaw CLI)
 SETTINGS_TARGET="$WORKSPACE_CLAUDE_DIR/settings.local.json"
-# Get model and thinking from environment or use defaults
-MODEL_SETTING="${OPENCLAW_MODEL_PRIMARY:-anthropic/claude-sonnet-4-6}"
-THINKING_SETTING="${OPENCLAW_THINKING_DEFAULT:-high}"
-
-if [[ -f "$SETTINGS_TARGET" ]] && [[ "$FORCE_OVERWRITE" == "true" ]]; then
-  # Update model and thinking in existing settings without regenerating hooks
-  if has python3; then
-    python3 - "$SETTINGS_TARGET" "$MODEL_SETTING" "$THINKING_SETTING" <<'PYUPDATE'
-import json, sys
-path, model, thinking = sys.argv[1], sys.argv[2], sys.argv[3]
-with open(path, "r") as f:
-    data = json.load(f)
-data["model"] = model
-data["thinking"] = thinking
-with open(path, "w") as f:
-    json.dump(data, f, indent=2, ensure_ascii=False)
-    f.write("\n")
-PYUPDATE
-    log "Updated model=$MODEL_SETTING thinking=$THINKING_SETTING in settings.local.json"
-  else
-    warn "python3 not found; cannot update settings.local.json model/thinking"
-  fi
-elif [[ -f "$SETTINGS_TARGET" ]]; then
+if [[ -f "$SETTINGS_TARGET" ]]; then
   skip "settings.local.json (hooks config)"
 else
-
-  cat > "$SETTINGS_TARGET" << SETTINGSJSON
+  cat > "$SETTINGS_TARGET" << 'SETTINGSJSON'
 {
-  "model": "$model_setting",
-  "thinking": "$thinking_setting",
+  "model": "sonnet",
   "hooks": {
     "PreToolUse": [
       {
