@@ -20,6 +20,19 @@ RUN apt-get update \
     xvfb \
   && rm -rf /var/lib/apt/lists/*
 
+# Install Docker CLI (not the daemon) so agents can run docker/compose
+# commands against the host Docker socket mounted at /var/run/docker.sock.
+RUN install -m 0755 -d /etc/apt/keyrings \
+  && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
+  && chmod a+r /etc/apt/keyrings/docker.asc \
+  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" \
+     > /etc/apt/sources.list.d/docker.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends \
+    docker-ce-cli \
+    docker-compose-plugin \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox --disable-setuid-sandbox"' \
     > /etc/chromium.d/docker
 

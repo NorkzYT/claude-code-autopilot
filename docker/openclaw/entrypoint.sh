@@ -26,6 +26,18 @@ if [[ "$PUID" != "$current_uid" ]]; then
   usermod -o -u "$PUID" node 2>/dev/null || true
 fi
 
+# Grant node user access to the host Docker socket (if mounted).
+# The socket GID varies per host, so we detect it at runtime and create
+# a matching group inside the container.
+if [[ -S /var/run/docker.sock ]]; then
+  DOCKER_SOCK_GID="$(stat -c '%g' /var/run/docker.sock)"
+  if ! getent group "$DOCKER_SOCK_GID" >/dev/null 2>&1; then
+    groupadd -g "$DOCKER_SOCK_GID" docker-host 2>/dev/null || true
+  fi
+  DOCKER_GROUP_NAME="$(getent group "$DOCKER_SOCK_GID" | cut -d: -f1)"
+  usermod -aG "$DOCKER_GROUP_NAME" node 2>/dev/null || true
+fi
+
 OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}"
 OPENCLAW_BROWSER_DOWNLOADS_DIR="${OPENCLAW_BROWSER_DOWNLOADS_DIR:-$OPENCLAW_STATE_DIR/downloads}"
 OPENCLAW_BROWSER_WIDTH="${OPENCLAW_BROWSER_WIDTH:-1920}"
