@@ -33,6 +33,10 @@ RUN install -m 0755 -d /etc/apt/keyrings \
     docker-compose-plugin \
   && rm -rf /var/lib/apt/lists/*
 
+# Install Claude Code CLI so analyze_repo.sh --deep can run claude --print
+# for codebase scanning and PROJECT.md generation inside the container.
+RUN npm install -g @anthropic-ai/claude-code && npm cache clean --force
+
 RUN echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox --disable-setuid-sandbox"' \
     > /etc/chromium.d/docker
 
