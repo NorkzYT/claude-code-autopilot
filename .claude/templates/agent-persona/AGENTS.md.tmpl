@@ -130,3 +130,30 @@ Follow the **Autopilot Workflow** above for all coding tasks. Key principles:
 - If scheduling fails, do not promise a timed callback. Ask the user to ping you later or keep monitoring now.
 - Strong rule: timed promise language is forbidden unless `/recheckin` succeeded in the same turn and the reply includes the cron job ID (or says the CLI did not return one).
 - Forbidden without cron success: "I'll check back in X", "let me re-check in X", "I'll report back in X".
+
+### Cron Job Rules for Non-Default Agents
+
+Non-default agents (any agent that is not `main`) **cannot** use `--session main`. OpenClaw enforces `--session isolated` for all non-default agents. This means:
+
+1. **Isolated cron sessions have NO Discord context** — no guild ID, no channel history, no thread awareness.
+2. **Never reference Discord channels by name** in cron prompts (e.g., "post to #milestone-2"). The `message` tool cannot resolve names — it only accepts `channel:<numericId>`.
+3. **Use `--to "channel:<ID>"` for delivery** — get the thread/channel numeric ID and pass it via `--to`. The `announce` delivery mechanism handles routing.
+4. **Keep cron prompts task-focused** — describe WHAT to do, not WHERE to post. The delivery target handles routing.
+
+Correct cron creation example:
+```
+openclaw cron add --name "progress-check" \
+  --agent {{AGENT_NAME}} \
+  --every 30m \
+  --session isolated \
+  --announce \
+  --to "channel:1484349727729258666" \
+  --message "Check what's been committed since your last update. Summarize progress briefly." \
+  --timeout-seconds 120
+```
+
+Wrong (will fail):
+```
+openclaw cron add --session main --agent {{AGENT_NAME}} ...  # ERROR: main only for default agent
+openclaw cron add --message "Post update to #milestone-2" ...  # FAIL: can't resolve channel names
+```

@@ -134,6 +134,18 @@ Write durable insights to `MEMORY.md` in the OpenClaw workspace:
 - Strong rule: timed promise language is forbidden unless `/recheckin` succeeded in the same turn and the reply includes the cron job ID (or says the CLI did not return one).
 - Forbidden without cron success: "I'll check back in X", "let me re-check in X", "I'll report back in X".
 
+### Cron Job Rules for Non-Default Agents
+
+Non-default agents (any agent that is not `main`) **cannot** use `--session main`. OpenClaw enforces `--session isolated` for all non-default agents. Isolated cron sessions have NO Discord context (no guild ID, no channel history). Rules:
+
+1. **Never reference Discord channels by name** in cron prompts (e.g., "post to #milestone-2"). The `message` tool cannot resolve names — only `channel:<numericId>`.
+2. **Use `--to "channel:<ID>"` for delivery** — pass the thread/channel numeric ID. The `announce` delivery handles routing.
+3. **Keep cron prompts task-focused** — describe WHAT to do, not WHERE to post.
+4. **Always use `--session isolated`** for non-default agents (it's the only option).
+
+Correct: `openclaw cron add --agent myagent --session isolated --announce --to "channel:1234567890" --message "Summarize progress."`
+Wrong: `--session main --agent myagent` (ERROR), `--message "Post to #channel-name"` (FAIL: can't resolve names)
+
 ### Error Recovery
 
 - **Session expiry** → Re-authenticate via cookie import
