@@ -19,7 +19,7 @@ This completely eliminates context rot because each iteration has a pristine con
 External bash loop. Fresh `claude -p` session per iteration. No context rot.
 
 ```
-afk-ralph.sh --prd ./PRD.md --iterations 20
+make ralph-afk PRD=./PRD.md ITERATIONS=20
 ```
 
 **When to use:**
@@ -28,9 +28,9 @@ afk-ralph.sh --prd ./PRD.md --iterations 20
 - Tasks requiring many iterations
 - When you've observed context rot in long sessions
 
-**Scripts:**
-- `ralph-once.sh` — Single iteration (HITL mode)
-- `afk-ralph.sh` — Full AFK loop
+**Scripts (also available as Makefile targets):**
+- `ralph-once.sh` — Single iteration (HITL mode) -- `make ralph-once PRD=./PRD.md`
+- `afk-ralph.sh` — Full AFK loop -- `make ralph-afk PRD=./PRD.md ITERATIONS=15`
 - `ralph-docker.sh` — Docker sandbox wrapper
 
 ### Session Ralph (Legacy)
@@ -160,13 +160,15 @@ cp .claude/templates/PRD-template.md ./PRD.md
 ### 2. Run one iteration (HITL)
 
 ```bash
-.claude/scripts/ralph-once.sh . ./PRD.md
+make ralph-once PRD=./PRD.md
+# Or directly: .claude/scripts/ralph-once.sh . ./PRD.md
 ```
 
 ### 3. Run AFK loop
 
 ```bash
-.claude/scripts/afk-ralph.sh --prd ./PRD.md --iterations 15
+make ralph-afk PRD=./PRD.md ITERATIONS=15
+# Or directly: .claude/scripts/afk-ralph.sh --prd ./PRD.md --iterations 15
 ```
 
 ### 4. Run in Docker sandbox

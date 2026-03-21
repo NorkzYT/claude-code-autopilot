@@ -47,7 +47,8 @@ uv run crewai run
 Run through wrapper with goal override:
 
 ```bash
-bash .claude/scripts/crewai-local-workflow.sh --goal "Subscriber growth plan"
+make crewai-workflow GOAL="Subscriber growth plan"
+# Or directly: bash .claude/scripts/crewai-local-workflow.sh --goal "Subscriber growth plan"
 ```
 
 Run through wrapper and auto-start local CLIProxyAPI:
@@ -96,7 +97,7 @@ If you want CrewAI to route through local OpenAI-compatible proxy instead of dir
 1. Start local proxy container:
 
 ```bash
-bash .claude/scripts/crewai-cliproxyapi.sh up
+make crewai-proxy-up
 ```
 
 2. In `.crewai/.env`, keep:
@@ -121,9 +122,9 @@ bash .claude/scripts/crewai-local-workflow.sh --with-proxy
 Helper commands:
 
 ```bash
-bash .claude/scripts/crewai-cliproxyapi.sh status
+make crewai-proxy-status
 bash .claude/scripts/crewai-cliproxyapi.sh logs
-bash .claude/scripts/crewai-cliproxyapi.sh down
+make crewai-proxy-down
 ```
 
 Notes:
@@ -160,4 +161,4 @@ docker compose -f docker-compose.crewai.yml --profile proxy up -d cliproxyapi
   - Add a provider key in `.crewai/.env` or run with `--dry-run`.
 - `crewai run` fails
   - Use wrapper fallback:
-    - `bash .claude/scripts/crewai-local-workflow.sh`
+    - `make crewai-workflow GOAL="Your goal"`

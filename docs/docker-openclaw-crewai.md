@@ -28,36 +28,34 @@ OpenClaw and CrewAI are intentionally split into separate compose files so users
 Start:
 
 ```bash
-openclaw up
+make start
 # or: docker compose -f docker-compose.openclaw.yml up -d
 ```
 
 Logs/status:
 
 ```bash
-openclaw logs
-openclaw status
-docker compose -f docker-compose.openclaw.yml ps
+make logs
+make status
 ```
 
 Viewer:
 
 ```bash
-openclaw viewer-url
+make viewer-url
 ```
 
 Subscription auth inside Docker:
 
 ```bash
-claude setup-token
-openclaw models auth paste-token --provider anthropic
-openclaw models auth login --provider openai-codex
+make auth-anthropic
+make auth-openai
 ```
 
 Stop:
 
 ```bash
-openclaw down
+make stop
 ```
 
 ## Mounting Repos

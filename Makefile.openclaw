@@ -1,7 +1,13 @@
 .PHONY: help update build rebuild start stop restart logs logs-viewer status shell clean \
        add-origins verify-vnc config-get approve-device \
        auth-anthropic auth-openai models dashboard-url config-set doctor \
-       add-agent update-agent setup-discord setup-discord-scale
+       add-agent update-agent setup-discord setup-discord-scale \
+       viewer-url models-status channels-status \
+       hooks-list hooks-enable \
+       cron-list cron-runs \
+       memory-search memory-status memory-reindex \
+       crewai-workflow crewai-proxy-up crewai-proxy-down crewai-proxy-status \
+       ralph-once ralph-afk
 
 SHELL := /bin/bash
 -include .env
@@ -49,6 +55,34 @@ help:
 	@echo "                             Usage: make update-agent AGENT=name REPO=/path/to/repo"
 	@echo "  make setup-discord       - Set up Discord bot channel (interactive)"
 	@echo "  make setup-discord-scale - Set up Discord scaling/lanes (interactive)"
+	@echo ""
+	@echo "OpenClaw Status & Info:"
+	@echo "  make viewer-url          - Print browser viewer URL"
+	@echo "  make models-status       - Show model provider status"
+	@echo "  make channels-status     - Show channel connection status"
+	@echo ""
+	@echo "OpenClaw Hooks:"
+	@echo "  make hooks-list          - List available hooks"
+	@echo "  make hooks-enable        - Enable a hook (usage: make hooks-enable HOOK=<name>)"
+	@echo ""
+	@echo "OpenClaw Cron:"
+	@echo "  make cron-list           - List cron jobs"
+	@echo "  make cron-runs           - Show recent cron runs"
+	@echo ""
+	@echo "OpenClaw Memory/RAG:"
+	@echo "  make memory-search       - Search memory (usage: make memory-search QUERY=\"...\")"
+	@echo "  make memory-status       - Show memory/RAG status"
+	@echo "  make memory-reindex      - Reindex memory/RAG"
+	@echo ""
+	@echo "CrewAI (host-side):"
+	@echo "  make crewai-workflow     - Run CrewAI workflow (usage: make crewai-workflow GOAL=\"...\")"
+	@echo "  make crewai-proxy-up     - Start CrewAI CLI proxy"
+	@echo "  make crewai-proxy-down   - Stop CrewAI CLI proxy"
+	@echo "  make crewai-proxy-status - Show CrewAI CLI proxy status"
+	@echo ""
+	@echo "Ralph (multi-session iteration):"
+	@echo "  make ralph-once          - Single Ralph iteration (usage: make ralph-once PRD=./PRD.md)"
+	@echo "  make ralph-afk           - AFK Ralph loop (usage: make ralph-afk PRD=./PRD.md ITERATIONS=15)"
 	@echo ""
 
 # Update OpenClaw: pull latest image, rebuild, restart
@@ -241,3 +275,100 @@ setup-discord:
 # Set up Discord scaling/lanes (interactive)
 setup-discord-scale:
 	bash $(BOOTSTRAP_DIR)/openclaw_discord_scale_setup.sh
+
+# ─── OpenClaw Status & Info ──────────────────────────────────────────
+
+# Print browser viewer URL
+viewer-url:
+	@$(EXEC_T) openclaw viewer-url 2>/dev/null || echo "Viewer not available. Check: make status"
+
+# Show model provider status
+models-status:
+	@$(EXEC_T) openclaw models status
+
+# Show channel connection status
+channels-status:
+	@$(EXEC_T) openclaw channels status
+
+# ─── OpenClaw Hooks ──────────────────────────────────────────────────
+
+# List available hooks
+hooks-list:
+	@$(EXEC_T) openclaw hooks list
+
+# Enable a hook: make hooks-enable HOOK=session-memory
+hooks-enable:
+	@if [ -z "$(HOOK)" ]; then \
+		echo "Usage: make hooks-enable HOOK=<hook-name>"; \
+		echo "Available hooks: make hooks-list"; \
+		exit 1; \
+	fi
+	@$(EXEC_T) openclaw hooks enable $(HOOK)
+
+# ─── OpenClaw Cron ───────────────────────────────────────────────────
+
+# List cron jobs
+cron-list:
+	@$(EXEC_T) openclaw cron list
+
+# Show recent cron runs
+cron-runs:
+	@$(EXEC_T) openclaw cron runs
+
+# ─── OpenClaw Memory/RAG ────────────────────────────────────────────
+
+# Search memory/RAG: make memory-search QUERY="deployment process"
+memory-search:
+	@if [ -z "$(QUERY)" ]; then \
+		echo "Usage: make memory-search QUERY=\"<search query>\""; \
+		exit 1; \
+	fi
+	@$(EXEC_T) openclaw memory search "$(QUERY)"
+
+# Show memory/RAG status
+memory-status:
+	@$(EXEC_T) openclaw memory status
+
+# Reindex memory/RAG
+memory-reindex:
+	@$(EXEC_T) openclaw memory reindex
+
+# ─── CrewAI (host-side) ─────────────────────────────────────────────
+
+# Run CrewAI workflow: make crewai-workflow GOAL="Your goal here"
+crewai-workflow:
+	@if [ -z "$(GOAL)" ]; then \
+		echo "Usage: make crewai-workflow GOAL=\"Your goal here\""; \
+		exit 1; \
+	fi
+	@bash .claude/scripts/crewai-local-workflow.sh --goal "$(GOAL)"
+
+# Start CrewAI CLI proxy
+crewai-proxy-up:
+	@bash .claude/scripts/crewai-cliproxyapi.sh up
+
+# Stop CrewAI CLI proxy
+crewai-proxy-down:
+	@bash .claude/scripts/crewai-cliproxyapi.sh down
+
+# Show CrewAI CLI proxy status
+crewai-proxy-status:
+	@bash .claude/scripts/crewai-cliproxyapi.sh status
+
+# ─── Ralph (multi-session iteration) ────────────────────────────────
+
+# Single Ralph iteration: make ralph-once PRD=./PRD.md
+ralph-once:
+	@if [ -z "$(PRD)" ]; then \
+		echo "Usage: make ralph-once PRD=./path/to/PRD.md"; \
+		exit 1; \
+	fi
+	@bash .claude/scripts/ralph-once.sh . $(PRD)
+
+# Multi-iteration Ralph loop: make ralph-afk PRD=./PRD.md ITERATIONS=15
+ralph-afk:
+	@if [ -z "$(PRD)" ]; then \
+		echo "Usage: make ralph-afk PRD=./PRD.md ITERATIONS=15"; \
+		exit 1; \
+	fi
+	@bash .claude/scripts/afk-ralph.sh --prd $(PRD) --iterations $(or $(ITERATIONS),10)

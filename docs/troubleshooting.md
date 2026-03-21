@@ -28,7 +28,7 @@ Use the OpenClaw docs for gateway, Discord, and browser issues:
 Useful commands:
 
 ```bash
-openclaw status
-openclaw gateway status
-openclaw logs --follow
+make status
+make doctor
+make logs
 ```

@@ -1,6 +1,8 @@
 # OpenClaw Commands Reference
 
 > All Claude Code commands and tools related to the OpenClaw integration.
+>
+> Most commands below have `make` equivalents -- run `make help` to see all available targets.
 
 ## Tool Commands
 
@@ -40,32 +42,32 @@ Notes:
 
 ```bash
 # Gateway management
-openclaw gateway start
-openclaw gateway stop
+openclaw gateway start                          # make start
+openclaw gateway stop                           # make stop
 openclaw gateway status
-openclaw gateway logs
+openclaw gateway logs                           # make logs
 
 # Channel management
 openclaw channels add --channel discord --token <your-bot-token>
-openclaw channels status
+openclaw channels status                        # make channels-status
 openclaw channels remove discord
 
 # Auth management
-openclaw models auth paste-token --provider anthropic
-openclaw models status
+openclaw models auth paste-token --provider anthropic   # make auth-anthropic
+openclaw models status                                  # make models-status
 
 # Cron management
-openclaw cron list
-openclaw cron runs
+openclaw cron list                              # make cron-list
+openclaw cron runs                              # make cron-runs
 openclaw cron add --name <name> --schedule "<cron>" --command "<cmd>"
 openclaw cron enable <name>
 openclaw cron disable <name>
 openclaw cron remove <name>
 
 # Memory/RAG
-openclaw memory search "<query>"
-openclaw memory status
-openclaw memory reindex
+openclaw memory search "<query>"                # make memory-search QUERY="<query>"
+openclaw memory status                          # make memory-status
+openclaw memory reindex                         # make memory-reindex
 openclaw memory prune --older-than 30d
 
 # Browser
@@ -73,9 +75,10 @@ openclaw browser navigate <url>
 openclaw browser screenshot --name <name>
 openclaw browser analyze
 openclaw browser compare <name1> <name2>
+openclaw viewer-url                             # make viewer-url
 
 # Status
-openclaw status
+openclaw status                                 # make status
 openclaw status --usage
 openclaw status --usage --json
 
@@ -90,10 +93,10 @@ openclaw skills install <name>
 openclaw skills list
 
 # Hooks (OpenClaw plugin hooks, separate from .claude/hooks)
-openclaw hooks list
-openclaw hooks enable bootstrap-extra-files
-openclaw hooks enable session-memory
-openclaw hooks enable command-logger
+openclaw hooks list                             # make hooks-list
+openclaw hooks enable bootstrap-extra-files     # make hooks-enable HOOK=bootstrap-extra-files
+openclaw hooks enable session-memory            # make hooks-enable HOOK=session-memory
+openclaw hooks enable command-logger            # make hooks-enable HOOK=command-logger
 ```
 
 Notes:

@@ -24,12 +24,12 @@ The Docker/OpenClaw install defaults to `/opt/openclaw-home` when `--dest` is om
 
 1. Optional overrides: `cp /opt/openclaw-home/.env.example /opt/openclaw-home/.env`
 2. Edit `/opt/openclaw-home/.env` before first startup
-3. Start or restart the Docker stack from `/opt/openclaw-home`: `openclaw up`
-4. Authenticate Anthropic subscription inside the container: `claude setup-token && openclaw models auth paste-token --provider anthropic`
-5. Authenticate OpenAI subscription inside the container when needed: `openclaw models auth login --provider openai-codex`
-6. Open the browser viewer: `openclaw viewer-url`
-7. Run Discord setup if needed: `bash /opt/openclaw-home/.claude/bootstrap/openclaw_discord_setup.sh`
-8. Register extra repos under `/opt/repos` if needed: `openclaw agents add <agent-id> --workspace /opt/repos/<repo-name> --non-interactive`
+3. Start or restart the Docker stack from `/opt/openclaw-home`: `make start`
+4. Authenticate Anthropic subscription inside the container: `make auth-anthropic`
+5. Authenticate OpenAI subscription inside the container when needed: `make auth-openai`
+6. Open the browser viewer: `make viewer-url`
+7. Run Discord setup if needed: `make setup-discord`
+8. Register extra repos under `/opt/repos` if needed: `make add-agent AGENT=<agent-id> REPO=/opt/repos/<repo-name>`
 
 Important:
 - Default repo mount is `${HOST_REPOS_DIR:-/opt/repos}` on the host to `/opt/repos` in the container.
@@ -46,7 +46,7 @@ Important:
 Use the noVNC viewer when you need to watch the browser or log into a site manually:
 
 ```bash
-openclaw viewer-url
+make viewer-url
 ```
 
 Open the printed URL in your browser, complete the login in the viewer, then return to OpenClaw commands. The browser profile persists in the host `~/.openclaw` state directory across container restarts.
@@ -54,7 +54,7 @@ Open the printed URL in your browser, complete the login in the viewer, then ret
 For OpenAI subscription OAuth inside Docker, run:
 
 ```bash
-openclaw models auth login --provider openai-codex
+make auth-openai
 ```
 
 If the callback flow cannot complete automatically, use OpenClaw's printed fallback prompt to paste the redirect URL or code back into the container session.
@@ -62,7 +62,7 @@ If the callback flow cannot complete automatically, use OpenClaw's printed fallb
 ## Add a New Repo Agent
 
 ```bash
-openclaw agents add <agent-id> --workspace <repo-path> --non-interactive
+make add-agent AGENT=<agent-id> REPO=<repo-path>
 ```
 
 ## Docker Stack (OpenClaw + Viewer)
@@ -70,20 +70,20 @@ openclaw agents add <agent-id> --workspace <repo-path> --non-interactive
 Start:
 
 ```bash
-openclaw up
+make start
 ```
 
 Logs:
 
 ```bash
-openclaw logs
-openclaw status
+make logs
+make status
 ```
 
 Stop:
 
 ```bash
-openclaw down
+make stop
 ```
 
 Raw Docker Compose form:

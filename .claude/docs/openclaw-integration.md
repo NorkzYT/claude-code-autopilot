@@ -48,7 +48,7 @@ The example file includes:
 Discord bot tokens are configured interactively per bot/channel, not through the global `.env` file. Use:
 
 ```bash
-bash /opt/openclaw-home/.claude/bootstrap/openclaw_discord_setup.sh
+make setup-discord
 ```
 
 `OPENCLAW_HOST_STATE_DIR` is optional. If you do not set it, the Docker stack automatically uses `~/.openclaw` on the host.
@@ -57,15 +57,15 @@ The setup script does not force-start the stack before `.env` is ready. In inter
 
 ## Daily Commands
 
-The host `openclaw` command is a wrapper into the gateway container.
+Use the Makefile targets for common operations:
 
 ```bash
-openclaw up
-openclaw down
-openclaw logs
-openclaw status
-openclaw shell
-openclaw viewer-url
+make start
+make stop
+make logs
+make status
+make shell
+make viewer-url
 ```
 
 Raw compose form:
@@ -90,15 +90,14 @@ Authenticate from inside the container through the wrapper.
 Anthropic subscription:
 
 ```bash
-claude setup-token
-openclaw models auth paste-token --provider anthropic
-openclaw models status
+make auth-anthropic
+make models-status
 ```
 
 OpenAI subscription OAuth:
 
 ```bash
-openclaw models auth login --provider openai-codex
+make auth-openai
 ```
 
 Direct API-key mode:
@@ -112,11 +111,11 @@ You can also pre-seed Anthropic setup-token auth with `OPENCLAW_ANTHROPIC_SETUP_
 The gateway container runs Chromium on a virtual display. The browser viewer service exposes a noVNC URL so you can watch the session or take over manually.
 
 ```bash
-openclaw viewer-url
+make viewer-url
 ```
 
 Typical flow:
-1. start the stack with `openclaw up`
+1. start the stack with `make start`
 2. open the viewer URL in your desktop browser
 3. complete login or 2FA in the viewer
 4. return to OpenClaw commands once the session is authenticated
@@ -130,8 +129,8 @@ When `OPENCLAW_MODEL_PRIMARY=anthropic/claude-sonnet-4-6`, the container sets `a
 Run the existing setup scripts after the stack is up:
 
 ```bash
-bash /opt/openclaw-home/.claude/bootstrap/openclaw_discord_setup.sh
-bash /opt/openclaw-home/.claude/bootstrap/openclaw_discord_scale_setup.sh
+make setup-discord
+make setup-discord-scale
 ```
 
 These scripts now work through the Docker-backed `openclaw` wrapper.
@@ -141,7 +140,7 @@ These scripts now work through the Docker-backed `openclaw` wrapper.
 Register additional repos mounted under `/opt/repos`:
 
 ```bash
-openclaw agents add <agent-name> --workspace /opt/repos/<repo-name> --non-interactive
+make add-agent AGENT=<agent-name> REPO=/opt/repos/<repo-name>
 ```
 
 ## Troubleshooting
@@ -151,8 +150,8 @@ openclaw agents add <agent-name> --workspace /opt/repos/<repo-name> --non-intera
 | `openclaw: command not found` | Open a new shell or ensure `~/.local/bin` is on `PATH` |
 | `openclaw` still points to a deleted fnm/npm path | Run `hash -r` or start a new shell; the old command path is usually cached by the current shell |
 | Install finished before I could edit `.env` | Current setup should no longer auto-start before `.env` is ready; if needed, set `OPENCLAW_AUTO_START=no` to force skip |
-| Stack not starting | `docker compose -f docker-compose.openclaw.yml logs` |
-| Browser viewer blank | Check `openclaw logs` and confirm `openclaw-browser-viewer` is running |
+| Stack not starting | `make logs` or `docker compose -f docker-compose.openclaw.yml logs` |
+| Browser viewer blank | Check `make logs` and confirm `openclaw-browser-viewer` is running |
 | Gateway cannot see repos | Verify `HOST_REPOS_DIR` and that the repos exist under the mounted path |
 | Gateway cannot reach a host dev server | Use `http://host.docker.internal:<port>` instead of `http://localhost:<port>` |
-| Git commits use wrong identity | Set `GIT_AUTHOR_*` and `GIT_COMMITTER_*` in `.env`, then restart with `openclaw up` |
+| Git commits use wrong identity | Set `GIT_AUTHOR_*` and `GIT_COMMITTER_*` in `.env`, then restart with `make restart` |

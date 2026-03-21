@@ -31,10 +31,10 @@ Use both.
 These can often be enabled directly:
 
 ```bash
-openclaw hooks list
-openclaw hooks enable bootstrap-extra-files
-openclaw hooks enable session-memory
-openclaw hooks enable command-logger
+make hooks-list
+make hooks-enable HOOK=bootstrap-extra-files
+make hooks-enable HOOK=session-memory
+make hooks-enable HOOK=command-logger
 ```
 
 ### Plugin-managed hooks
@@ -47,7 +47,7 @@ These are managed by plugins. You usually:
 - configure the plugin
 - do not enable the `plugin:<id>` hook directly
 
-This matters when reading `openclaw hooks list` output.
+This matters when reading `make hooks-list` output.
 
 ## What We Already Use in This Repo
 
