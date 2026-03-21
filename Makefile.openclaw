@@ -1,7 +1,7 @@
 .PHONY: help update build rebuild start stop restart logs logs-viewer status shell clean \
        add-origins verify-vnc config-get approve-device \
        auth-anthropic auth-openai models dashboard-url config-set doctor \
-       add-agent setup-discord setup-discord-scale
+       add-agent update-agent setup-discord setup-discord-scale
 
 SHELL := /bin/bash
 -include .env
@@ -45,6 +45,8 @@ help:
 	@echo "Bootstrap:"
 	@echo "  make add-agent           - Register agent"
 	@echo "                             Usage: make add-agent AGENT=name REPO=/path/to/repo"
+	@echo "  make update-agent        - Re-provision agent templates (--force)"
+	@echo "                             Usage: make update-agent AGENT=name REPO=/path/to/repo"
 	@echo "  make setup-discord       - Set up Discord bot channel (interactive)"
 	@echo "  make setup-discord-scale - Set up Discord scaling/lanes (interactive)"
 	@echo ""
@@ -221,6 +223,16 @@ add-agent:
 		exit 1; \
 	fi
 	bash $(BOOTSTRAP_DIR)/add_openclaw_agent.sh $(AGENT) $(REPO) $(AGENT_OPTS)
+
+# Re-provision agent persona files after template/prompt changes: make update-agent AGENT=myproject REPO=/path/to/project
+update-agent:
+	@if [ -z "$(AGENT)" ] || [ -z "$(REPO)" ]; then \
+		echo "Error: Missing required variables"; \
+		echo "Usage: make update-agent AGENT=<agent-name> REPO=<path>"; \
+		echo "Example: make update-agent AGENT=myproject REPO=/path/to/project"; \
+		exit 1; \
+	fi
+	bash $(BOOTSTRAP_DIR)/add_openclaw_agent.sh $(AGENT) $(REPO) --force $(AGENT_OPTS)
 
 # Set up Discord bot channel (interactive)
 setup-discord:
