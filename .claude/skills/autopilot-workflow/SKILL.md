@@ -7,6 +7,16 @@ description: Universal task execution pipeline for OpenClaw agents. Mandatory fo
 
 Use this skill for every coding task received via any channel (chat, cron, or direct session). It ensures consistent quality regardless of the agent or model.
 
+## Continuous Execution Rule
+
+**Execute the entire pipeline in one continuous flow.** Do not stop between steps. Do not announce what you're about to do and then wait for the user to say "Continue."
+
+- If you say "Let me fix X:" — fix it immediately in the same response
+- If you hit an error — diagnose and retry immediately, don't announce the retry and stop
+- The only reason to pause is needing a decision that ONLY the user can provide
+- For cron/unattended tasks: no human is watching, so you MUST complete everything autonomously
+- For chat tasks: the user expects E2E execution, not a step-by-step dialogue
+
 ## Pipeline Steps
 
 ### 1. Triage Complexity

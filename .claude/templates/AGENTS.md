@@ -19,14 +19,14 @@ Store in `.claude/context/<task-name>/` directory.
 **Triage:** Simple/Medium/Complex, <file count> files -- <brief description>
 ```
 
-**Then output each subsequent step header before executing it:**
-- **Plan:** <numbered list>
-- **Implement:** <as you code>
-- **Verify:** <build/test results>
-- **Commit:** <commit hash>
-- **Report:** <summary>
+**Output each step header and immediately execute it in the same response — NEVER output a header and stop:**
+- **Plan:** <immediately write the plan>
+- **Implement:** <immediately start editing files>
+- **Verify:** <immediately run build/test>
+- **Commit:** <immediately commit>
+- **Report:** <immediately summarize>
 
-**IMPORTANT: This is NOT optional guidance. You MUST output these headers. Follow this pipeline automatically for EVERY coding task. Do not wait for the user to ask.**
+**CRITICAL: Complete the ENTIRE pipeline in one continuous flow. Do not stop between steps. Do not announce what you're about to do and then wait — just do it.**
 
 ### Step 1: Triage
 - Classify: **Simple** (1-2 files) / **Medium** (3-4 files) / **Complex** (4+ files, architectural)
@@ -61,6 +61,14 @@ Store in `.claude/context/<task-name>/` directory.
 - `/recheckin` enforcement: for any task >5 min, create cron job BEFORE starting. Include job ID or state CLI did not return one.
 
 For detailed reference, read the skill files: `autopilot-workflow`, `quality-gates`, `model-router`, `session-hygiene`
+
+## Never Stop Mid-Task
+
+Execute tasks end-to-end. Never announce an action and then stop — just do it.
+- WRONG: "Let me fix the search:" → [stops]
+- RIGHT: "Fixing the search." → [edits files, tests, reports]
+
+If you say you'll do something, do it immediately in the same response. The only reason to stop is needing a decision only the user can provide.
 
 ## Coding Standards
 

@@ -68,14 +68,14 @@ This workspace is the {{DISPLAY_NAME}} project at `{{WORKSPACE_PATH}}`.
 **Triage:** Simple/Medium/Complex, <file count> files -- <brief description>
 ```
 
-**Then output each subsequent step header before executing it:**
-- **Plan:** <numbered list>
-- **Implement:** <as you code>
-- **Verify:** <build/test results>
-- **Commit:** <commit hash>
-- **Report:** <summary>
+**Output each step header and immediately execute it in the same response — NEVER output a header and stop:**
+- **Plan:** <immediately write the plan>
+- **Implement:** <immediately start editing files>
+- **Verify:** <immediately run build/test>
+- **Commit:** <immediately commit>
+- **Report:** <immediately summarize>
 
-**IMPORTANT: This is NOT optional guidance. You MUST output these headers. Follow this pipeline automatically for EVERY coding task. Do not wait for the user to ask.**
+**CRITICAL: Complete the ENTIRE pipeline in one continuous flow. Do not stop between steps. Do not announce what you're about to do and then wait — just do it.**
 
 ### Step 1: Triage
 - Classify: **Simple** (1-2 files) / **Medium** (3-4 files) / **Complex** (4+ files, architectural)
@@ -110,6 +110,27 @@ This workspace is the {{DISPLAY_NAME}} project at `{{WORKSPACE_PATH}}`.
 - `/recheckin` enforcement: for any task >5 min, create cron job BEFORE starting. Include job ID or state CLI did not return one.
 
 For detailed reference, read the skill files: `autopilot-workflow`, `quality-gates`, `model-router`, `session-hygiene`
+
+## Never Stop Mid-Task (Mandatory)
+
+You MUST execute tasks end-to-end in a single continuous flow. Never announce an action and then stop.
+
+**WRONG (causes the user to manually say "Continue"):**
+- "Let me fix the search to use nodriver's API:" → [stops, waits]
+- "I need to dismiss the error banner and then click Continue:" → [stops, waits]
+- "Now let me update the configuration:" → [stops, waits]
+
+**RIGHT (continuous execution):**
+- "Fixing the search to use nodriver's API." → [immediately edits files, runs tests, reports results]
+- "Dismissing the error banner and clicking Continue." → [immediately takes the action, reports what happened]
+- "Updating the configuration." → [immediately edits, verifies, continues to next step]
+
+**Rules:**
+1. Never end a message with ":" followed by nothing. If you say you'll do something, do it immediately.
+2. If a multi-step task requires tool calls, make them all in sequence within the same response — don't pause between steps.
+3. The only acceptable reason to stop and wait is: you need information or a decision that ONLY the user can provide.
+4. "Let me..." must ALWAYS be followed by actually doing it in the same response.
+5. When you hit an error or unexpected result, diagnose and retry immediately — don't announce the retry and stop.
 
 ## Engineering Execution
 
