@@ -439,6 +439,22 @@ else
   warn "Failed to set OpenClaw thinkingDefault to $OC_THINKING"
 fi
 
+# Set agent run timeout to prevent mid-task stops (default: 2 hours)
+OC_TIMEOUT="${OPENCLAW_AGENT_TIMEOUT:-7200}"
+if openclaw config set agents.defaults.timeoutSeconds "$OC_TIMEOUT" 2>/dev/null; then
+  log "OpenClaw agent timeout: ${OC_TIMEOUT}s"
+else
+  warn "Failed to set OpenClaw agent timeout"
+fi
+
+# Set subagent run timeout (default: 1 hour)
+OC_SUBAGENT_TIMEOUT="${OPENCLAW_SUBAGENT_TIMEOUT:-3600}"
+if openclaw config set agents.defaults.subagents.runTimeoutSeconds "$OC_SUBAGENT_TIMEOUT" 2>/dev/null; then
+  log "OpenClaw subagent timeout: ${OC_SUBAGENT_TIMEOUT}s"
+else
+  warn "Failed to set OpenClaw subagent timeout"
+fi
+
 # ─── Section 4: Create Persona Files ────────────────────────
 if [[ "$SKIP_PERSONA" == "false" ]]; then
   log "Section 4: Creating persona files..."

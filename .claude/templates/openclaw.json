@@ -2,6 +2,10 @@
   "$schema": "https://openclaw.dev/schema/config.json",
   "agents": {
     "defaults": {
+      "timeoutSeconds": 7200,
+      "subagents": {
+        "runTimeoutSeconds": 3600
+      },
       "contextPruning": {
         "mode": "cache-ttl",
         "ttl": "30m"

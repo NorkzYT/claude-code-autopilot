@@ -7,7 +7,8 @@
        cron-list cron-runs \
        memory-search memory-status memory-reindex \
        crewai-workflow crewai-proxy-up crewai-proxy-down crewai-proxy-status \
-       ralph-once ralph-afk
+       ralph-once ralph-afk \
+       set-timeout
 
 SHELL := /bin/bash
 -include .env
@@ -83,6 +84,9 @@ help:
 	@echo "Ralph (multi-session iteration):"
 	@echo "  make ralph-once          - Single Ralph iteration (usage: make ralph-once PRD=./PRD.md)"
 	@echo "  make ralph-afk           - AFK Ralph loop (usage: make ralph-afk PRD=./PRD.md ITERATIONS=15)"
+	@echo ""
+	@echo "Agent Timeout:"
+	@echo "  make set-timeout         - Set agent run timeout (usage: make set-timeout TIMEOUT=7200)"
 	@echo ""
 
 # Update OpenClaw: pull latest image, rebuild, restart
@@ -372,3 +376,11 @@ ralph-afk:
 		exit 1; \
 	fi
 	@bash .claude/scripts/afk-ralph.sh --prd $(PRD) --iterations $(or $(ITERATIONS),10)
+
+# ─── Agent Timeout ───────────────────────────────────────────────────
+
+# Set agent run timeout: make set-timeout TIMEOUT=7200
+set-timeout:
+	@TIMEOUT=$${TIMEOUT:-7200}; \
+	$(EXEC_T) openclaw config set agents.defaults.timeoutSeconds $$TIMEOUT; \
+	echo "Agent timeout set to $${TIMEOUT}s"
