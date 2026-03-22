@@ -1026,11 +1026,17 @@ else
   TOOLLESS_MODE=false
   REPO_SNAPSHOT=""
   SNAPSHOT_SIZE=0
-  # Always use toolless/snapshot mode: claude --print is non-interactive and
-  # cannot approve tool permissions (Read/Glob/Grep/Bash), which causes the
-  # deep scan to fail in Docker containers with "only LSP tool available".
+  # Default: always use toolless/snapshot mode. claude --print is non-interactive
+  # and cannot approve tool permissions interactively, which causes tool-enabled
+  # deep scans to fail in Docker containers with "only LSP tool available".
+  # Set CLAUDE_DEEP_TOOLS=1 to opt into tool-enabled mode for richer analysis.
   SHOULD_PRECOMPUTE_SNAPSHOT=true
   SHOULD_DEFAULT_TOOLLESS=true
+
+  if [[ "${CLAUDE_DEEP_TOOLS:-0}" == "1" ]]; then
+    SHOULD_PRECOMPUTE_SNAPSHOT=false
+    SHOULD_DEFAULT_TOOLLESS=false
+  fi
 
   if [[ "$SHOULD_PRECOMPUTE_SNAPSHOT" == "true" ]]; then
     log "Building pre-computed repo snapshot for deep scan (${DEEP_TIER} repo)..."
@@ -1102,11 +1108,12 @@ else
         rc=$?
       fi
     else
+      # Tool-enabled mode: pre-approve tools so non-interactive --print works in Docker
       if [[ "$DEEP_USE_TIMEOUT" == "true" ]] && [[ -n "$timeout_s" ]]; then
-        timeout -k 20s "${timeout_s}s" claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
+        timeout -k 20s "${timeout_s}s" claude --print --allowedTools "Read,Glob,Grep,Bash" "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
         rc=$?
       else
-        claude --print "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
+        claude --print --allowedTools "Read,Glob,Grep,Bash" "$CLAUDE_PROMPT" >"$out_log" 2>"$err_log"
         rc=$?
       fi
     fi
