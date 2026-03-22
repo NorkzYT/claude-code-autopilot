@@ -1026,19 +1026,11 @@ else
   TOOLLESS_MODE=false
   REPO_SNAPSHOT=""
   SNAPSHOT_SIZE=0
-  SHOULD_PRECOMPUTE_SNAPSHOT=false
-  SHOULD_DEFAULT_TOOLLESS=false
-
-  if [[ "$DEEP_TIER" == "large" || "$DEEP_TIER" == "xlarge" ]]; then
-    SHOULD_PRECOMPUTE_SNAPSHOT=true
-    SHOULD_DEFAULT_TOOLLESS=true
-  elif (( DEEP_FILE_COUNT <= 1200 )) && (( DEEP_SIZE_MB <= 25 )); then
-    # Small/medium repos are often better handled by a bounded snapshot than by
-    # letting Claude recursively inspect the tree, which can get killed (rc=137)
-    # before it emits any PROJECT.md output.
-    SHOULD_PRECOMPUTE_SNAPSHOT=true
-    SHOULD_DEFAULT_TOOLLESS=true
-  fi
+  # Always use toolless/snapshot mode: claude --print is non-interactive and
+  # cannot approve tool permissions (Read/Glob/Grep/Bash), which causes the
+  # deep scan to fail in Docker containers with "only LSP tool available".
+  SHOULD_PRECOMPUTE_SNAPSHOT=true
+  SHOULD_DEFAULT_TOOLLESS=true
 
   if [[ "$SHOULD_PRECOMPUTE_SNAPSHOT" == "true" ]]; then
     log "Building pre-computed repo snapshot for deep scan (${DEEP_TIER} repo)..."
