@@ -59,7 +59,8 @@ WORKDIR /home/node
 
 ENV OPENCLAW_STATE_DIR=/home/node/.openclaw \
     DISPLAY=:99 \
-    OPENCLAW_BROWSER_DOWNLOADS_DIR=/home/node/.openclaw/downloads
+    OPENCLAW_BROWSER_DOWNLOADS_DIR=/home/node/.openclaw/downloads \
+    NEXT_PRIVATE_SWC_FALLBACK=1
 
 ENTRYPOINT ["openclaw-entrypoint"]
 CMD ["gateway"]
