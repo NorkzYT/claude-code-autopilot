@@ -52,6 +52,15 @@ RUN printf '#!/bin/sh\nexit 0\n' > /usr/bin/fbsetbg
 RUN echo 'umask 0022' >> /etc/bash.bashrc \
     && echo 'umask 0022' >> /etc/profile.d/umask.sh
 
+# Install browser isolation scripts (per-agent display + profile management)
+COPY docker/openclaw/browser-manager.sh /usr/local/bin/browser-manager
+COPY docker/openclaw/chromium-wrapper.sh /usr/local/bin/chromium-wrapper
+RUN chmod +x /usr/local/bin/browser-manager /usr/local/bin/chromium-wrapper
+
+# Intercept chromium binary so the wrapper can allocate per-agent resources
+RUN mv /usr/bin/chromium /usr/bin/chromium.real \
+    && ln -s /usr/local/bin/chromium-wrapper /usr/bin/chromium
+
 COPY docker/openclaw/entrypoint.sh /usr/local/bin/openclaw-entrypoint
 RUN chmod +x /usr/local/bin/openclaw-entrypoint
 

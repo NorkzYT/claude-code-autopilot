@@ -56,6 +56,13 @@ find "$OPENCLAW_STATE_DIR/browser" -name 'SingletonLock' -delete 2>/dev/null || 
 find "$OPENCLAW_STATE_DIR/browser" -name 'SingletonSocket' -delete 2>/dev/null || true
 find "$OPENCLAW_STATE_DIR/browser" -name 'SingletonCookie' -delete 2>/dev/null || true
 
+# Initialize browser isolation directories (used by browser-manager.sh)
+mkdir -p "$OPENCLAW_STATE_DIR/display-locks" \
+         "$OPENCLAW_STATE_DIR/browser-profiles"
+
+# Clean up stale display locks from previous container runs
+rm -f "$OPENCLAW_STATE_DIR/display-locks"/* 2>/dev/null || true
+
 mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /opt/repos
 # Only chown container-internal dirs — NOT bind-mounted /opt/repos
 chown -R node:node "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /home/node
@@ -95,6 +102,9 @@ if [[ ! -f "$OPENCLAW_STATE_DIR/openclaw.json" ]]; then
   gosu node openclaw config set gateway.mode local 2>/dev/null || true
   gosu node openclaw config set gateway.bind lan 2>/dev/null || true
 fi
+
+# Clean up per-agent browser displays on container shutdown
+trap 'browser-manager cleanup 2>/dev/null || true' EXIT
 
 case "$mode" in
   gateway)

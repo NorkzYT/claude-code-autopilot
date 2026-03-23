@@ -1,4 +1,4 @@
-.PHONY: help update build rebuild start stop restart logs logs-viewer status shell clean \
+.PHONY: help update build rebuild start start-host stop restart restart-host logs logs-viewer status shell clean \
        add-origins verify-vnc config-get approve-device \
        auth-anthropic auth-openai models dashboard-url config-set doctor \
        add-agent update-agent setup-discord setup-discord-scale \
@@ -14,6 +14,7 @@ SHELL := /bin/bash
 -include .env
 
 COMPOSE_FILE := docker-compose.openclaw.yml
+HOST_COMPOSE := -f $(COMPOSE_FILE) -f docker-compose.host-network.yml
 GATEWAY_CONTAINER := openclaw-gateway
 VIEWER_CONTAINER := openclaw-browser-viewer
 EXEC := docker exec -it $(GATEWAY_CONTAINER) gosu node bash -c 'umask 0022 && exec "$$@"' --
@@ -29,8 +30,10 @@ help:
 	@echo "  make build         - Rebuild the gateway image"
 	@echo "  make rebuild       - Force rebuild (no cache) and recreate container"
 	@echo "  make start         - Start all containers"
+	@echo "  make start-host    - Start with host networking (access host localhost)"
 	@echo "  make stop          - Stop all containers"
 	@echo "  make restart       - Restart all containers"
+	@echo "  make restart-host  - Restart with host networking"
 	@echo "  make logs          - Show gateway logs (follow)"
 	@echo "  make logs-viewer   - Show browser viewer logs (follow)"
 	@echo "  make status        - Show container status"
@@ -123,6 +126,14 @@ start:
 	@sleep 5
 	@make status
 
+# Start containers with host networking (container shares host localhost)
+start-host:
+	@echo "Starting OpenClaw with host networking..."
+	docker compose $(HOST_COMPOSE) up -d
+	@echo "Host network mode active — container shares host localhost."
+	@sleep 5
+	@make status
+
 # Stop containers
 stop:
 	@echo "Stopping OpenClaw containers..."
@@ -133,6 +144,14 @@ stop:
 restart:
 	@echo "Restarting OpenClaw containers..."
 	docker compose -f $(COMPOSE_FILE) up -d --force-recreate
+	@echo "Waiting for startup..."
+	@sleep 10
+	@make status
+
+# Restart containers with host networking
+restart-host:
+	@echo "Restarting OpenClaw with host networking..."
+	docker compose $(HOST_COMPOSE) up -d --force-recreate
 	@echo "Waiting for startup..."
 	@sleep 10
 	@make status

@@ -50,6 +50,55 @@ openclaw config get agents.defaults.timeoutSeconds
 # Should output: 7200
 ```
 
+## Can't Access Host localhost From Container
+
+**Symptom:** An agent inside the Docker container can't reach a dev server running on the host at `127.0.0.1:<port>`. `curl http://127.0.0.1:4000` fails with "Connection refused".
+
+**Cause:** `127.0.0.1` inside the container is the container's own loopback, not the host's. Services bound to `127.0.0.1` on the host don't listen on the Docker bridge interface.
+
+**Fix — Option A: Bind the dev server to `0.0.0.0`**
+
+If possible, start your dev server on `0.0.0.0:<port>` instead of `127.0.0.1:<port>`. Then use `host.docker.internal:<port>` from inside the container.
+
+**Fix — Option B: Use host networking mode**
+
+```bash
+make start-host    # or: make restart-host
+```
+
+This uses `network_mode: host` so the container shares the host's network stack. `127.0.0.1:4000` on the host IS `127.0.0.1:4000` in the container.
+
+To switch back to normal bridge networking:
+
+```bash
+make start         # or: make restart
+```
+
+**Note:** In host networking mode, the gateway port is no longer mapped — it binds directly to the host. The browser viewer still works via `http://<host>:6080`.
+
+## Browser Contention With Multiple Agents
+
+**Symptom:** Multiple agents interfere with each other's browser tabs, navigation, or session state.
+
+**Cause:** By default, all agents share a single Chromium instance (one X display :99, one CDP port, one profile).
+
+**Fix:** Enable per-agent browser isolation:
+
+1. Set `OPENCLAW_BROWSER_ISOLATION=per-agent` in your `.env` file
+2. Rebuild: `make rebuild && make restart`
+
+Each agent gets its own virtual X display (:100–:119), Chromium profile, and CDP port (18801–18820). The shared display :99 continues to serve the VNC viewer for manual use.
+
+**Verify:**
+```bash
+make shell
+ps aux | grep Xvfb                 # Should show :99 + per-agent displays
+ls ~/.openclaw/browser-profiles/   # Per-agent profile directories
+ls ~/.openclaw/display-locks/      # Active lock files
+```
+
+**Rollback:** Set `OPENCLAW_BROWSER_ISOLATION=shared` (or remove it) and `make rebuild`.
+
 ## OpenClaw Troubleshooting
 
 Use the OpenClaw docs for gateway, Discord, and browser issues:
