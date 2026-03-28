@@ -92,12 +92,15 @@ help:
 	@echo "  make set-timeout         - Set agent run timeout (usage: make set-timeout TIMEOUT=7200)"
 	@echo ""
 
-# Update OpenClaw: pull latest image, rebuild, restart
+# Update OpenClaw: pull latest base image, rebuild, restart, run internal update
 update:
 	@echo "Updating OpenClaw..."
-	docker compose -f $(COMPOSE_FILE) pull openclaw-gateway
-	docker compose -f $(COMPOSE_FILE) build openclaw-gateway
+	docker compose -f $(COMPOSE_FILE) build --pull openclaw-gateway
 	docker compose -f $(COMPOSE_FILE) up -d --force-recreate openclaw-gateway
+	@echo "Waiting for gateway to start..."
+	@sleep 10
+	@echo "Running OpenClaw internal update..."
+	@$(EXEC_T) openclaw update 2>/dev/null || echo "  (openclaw update not available — skipped)"
 	@echo "✅ Update complete!"
 	@echo ""
 	@make status
@@ -111,7 +114,7 @@ build:
 # Force rebuild without cache and recreate container
 rebuild:
 	@echo "Force rebuilding gateway (no cache)..."
-	docker compose -f $(COMPOSE_FILE) build --no-cache openclaw-gateway
+	docker compose -f $(COMPOSE_FILE) build --no-cache --pull openclaw-gateway
 	@echo "Recreating container with new image..."
 	docker compose -f $(COMPOSE_FILE) up -d --force-recreate openclaw-gateway
 	@echo "✅ Rebuild and recreate complete!"
