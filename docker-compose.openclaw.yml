@@ -12,6 +12,7 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       OPENCLAW_STATE_DIR: /home/node/.openclaw
+      HOST_REPOS_DIR: ${HOST_REPOS_DIR:-/opt/repos}
       OPENCLAW_GATEWAY_PORT: ${OPENCLAW_GATEWAY_PORT:-18789}
       OPENCLAW_GATEWAY_BIND: ${OPENCLAW_GATEWAY_BIND:-all}
       OPENCLAW_VNC_PORT: ${OPENCLAW_VNC_PORT:-5900}
@@ -36,9 +37,9 @@ services:
       - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
     volumes:
       - ${OPENCLAW_HOST_STATE_DIR:-${HOME}/.openclaw}:/home/node/.openclaw
-      - ${HOST_REPOS_DIR:-/opt/repos}:/opt/repos:rw
+      - ${HOST_REPOS_DIR:-/opt/repos}:${HOST_REPOS_DIR:-/opt/repos}:rw
       - /var/run/docker.sock:/var/run/docker.sock
-    working_dir: /opt/repos
+    working_dir: ${HOST_REPOS_DIR:-/opt/repos}
 
   openclaw-browser-viewer:
     build:

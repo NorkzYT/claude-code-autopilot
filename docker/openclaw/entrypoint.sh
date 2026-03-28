@@ -63,8 +63,9 @@ mkdir -p "$OPENCLAW_STATE_DIR/display-locks" \
 # Clean up stale display locks from previous container runs
 rm -f "$OPENCLAW_STATE_DIR/display-locks"/* 2>/dev/null || true
 
-mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /opt/repos
-# Only chown container-internal dirs — NOT bind-mounted /opt/repos
+HOST_REPOS_DIR="${HOST_REPOS_DIR:-/opt/repos}"
+mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" "$HOST_REPOS_DIR"
+# Only chown container-internal dirs — NOT bind-mounted repos dir
 chown -R node:node "$OPENCLAW_STATE_DIR" "$OPENCLAW_BROWSER_DOWNLOADS_DIR" /home/node
 # Ensure config is readable even if written by a host user with a different UID
 chmod 644 "$OPENCLAW_STATE_DIR/openclaw.json" 2>/dev/null || true
@@ -100,7 +101,7 @@ start_display_stack() {
 # Auto-configure on fresh install (no openclaw.json yet)
 if [[ ! -f "$OPENCLAW_STATE_DIR/openclaw.json" ]]; then
   gosu node openclaw config set gateway.mode local 2>/dev/null || true
-  gosu node openclaw config set gateway.bind lan 2>/dev/null || true
+  gosu node openclaw config set gateway.bind all 2>/dev/null || true
 fi
 
 # Clean up per-agent browser displays on container shutdown

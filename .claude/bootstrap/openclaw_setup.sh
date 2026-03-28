@@ -279,24 +279,29 @@ cat <<EOF_SUMMARY
        make start
     4. Expose the gateway via Tailscale HTTPS (for remote access):
        sudo tailscale serve --bg https+insecure://localhost:18789
-    5. Configure allowed origins (add your Tailscale hostname to .env first):
+       Copy the https:// URL from the output (e.g., https://your-host.tail1234.ts.net)
+    5. Add the Tailscale URL to .env:
+       Edit .env and set: OPENCLAW_EXTRA_ORIGINS=https://your-host.tail1234.ts.net
+    6. Configure allowed origins:
        make add-origins
-    6. Get the dashboard URL with auth token:
+    7. Get the dashboard auth token (NOT the localhost URL):
        make dashboard-url
-    7. Approve the pending device (open dashboard first, then approve):
+       Copy only the token parameter (e.g., ?token=abc123...) from the output.
+       Access dashboard at: https://your-host.tail1234.ts.net?token=abc123...
+    8. Approve the pending device (open Tailscale dashboard first, then approve):
        make approve-device
-    8. Authenticate providers if needed:
+    9. Authenticate providers if needed:
        make auth-anthropic
        make auth-openai
-    9. Verify everything is running:
+   10. Verify everything is running:
        make status
-   10. Register an agent for your project:
+   11. Register an agent for your project:
        make add-agent AGENT=my-project REPO=/opt/repos/my-project
-   11. Set up Discord bot channel:
+   12. Set up Discord bot channel:
        make setup-discord
-   12. Set up Discord scaling/lanes (required after setup-discord):
+   13. Set up Discord scaling/lanes (required after setup-discord):
        make setup-discord-scale
-   13. See all available commands:
+   14. See all available commands:
        make help
 
   Docker-only notes:

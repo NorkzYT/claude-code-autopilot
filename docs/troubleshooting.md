@@ -99,6 +99,16 @@ ls ~/.openclaw/display-locks/      # Active lock files
 
 **Rollback:** Set `OPENCLAW_BROWSER_ISOLATION=shared` (or remove it) and `make rebuild`.
 
+## Permission Denied: mkdir '/opt/github' (or other custom repo dir)
+
+**Symptom:** `EACCES: permission denied, mkdir '/opt/github'` when using Discord or other channels.
+
+**Cause:** `HOST_REPOS_DIR` in `.env` is set to a custom path (e.g., `/opt/github`), but after the fix in this commit, the path is properly mounted. For older setups, the mount was hardcoded to `/opt/repos`.
+
+**Fix (post-fix):** No action needed — custom `HOST_REPOS_DIR` values now work automatically.
+
+**Legacy workaround (pre-fix):** Manually add the custom directory to docker-compose volumes and rebuild.
+
 ## OpenClaw Troubleshooting
 
 Use the OpenClaw docs for gateway, Discord, and browser issues:
