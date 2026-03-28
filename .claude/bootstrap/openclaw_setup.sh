@@ -272,8 +272,8 @@ cat <<EOF_SUMMARY
     http://127.0.0.1:${VIEWER_PORT:-6080}/vnc.html
 
   Next steps (run from $PROJECT_DIR):
-    1. Edit .env if you need custom identity, ports, or API keys:
-       cp $PROJECT_ENV_EXAMPLE $PROJECT_ENV_FILE   # if not already created
+    1. (Optional) Edit .env to customize identity, ports, or API keys.
+       PUID, PGID, and OPENCLAW_HOST_STATE_DIR were auto-configured.
     2. Re-open your shell so ~/.local/bin is on PATH.
     3. Start the stack (first start takes ~30s to initialize):
        make start
@@ -292,9 +292,9 @@ cat <<EOF_SUMMARY
        make status
    10. Register an agent for your project:
        make add-agent AGENT=my-project REPO=/opt/repos/my-project
-   11. (Optional) Set up Discord bot channel:
+   11. Set up Discord bot channel:
        make setup-discord
-   12. (Optional) Set up Discord scaling/lanes:
+   12. Set up Discord scaling/lanes (required after setup-discord):
        make setup-discord-scale
    13. See all available commands:
        make help

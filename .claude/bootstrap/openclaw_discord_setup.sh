@@ -253,19 +253,27 @@ fi
 openclaw plugins enable discord 2>/dev/null || true
 
 # Add Discord channel to OpenClaw
-if openclaw channels add --channel discord --token "$BOT_TOKEN" 2>/dev/null; then
+# Try current CLI syntax first, then fall back to config-based setup
+if openclaw channels add --channel discord --token "$BOT_TOKEN" 2>&1; then
   log "Discord channel configured successfully!"
 
   # Restart gateway to pick up new channel
   restart_openclaw_gateway
   log "Gateway restarted to connect Discord bot."
   sleep 3
+elif openclaw config set channels.discord.token "$BOT_TOKEN" 2>&1; then
+  log "Discord token set via config."
+
+  restart_openclaw_gateway
+  log "Gateway restarted to connect Discord bot."
+  sleep 3
 else
   warn "Failed to configure Discord channel."
-  echo "  Try manually:"
+  echo "  Try manually inside the container (make shell):"
   echo "    1. openclaw plugins enable discord"
   echo "    2. openclaw channels add --channel discord --token <your-token>"
-  echo "    3. openclaw gateway restart"
+  echo "       OR: openclaw config set channels.discord.token <your-token>"
+  echo "    3. Restart: exit && make restart"
   exit 1
 fi
 
