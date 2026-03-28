@@ -278,7 +278,7 @@ cat <<EOF_SUMMARY
     3. Start the stack (first start takes ~30s to initialize):
        make start
     4. Expose the gateway via Tailscale HTTPS (for remote access):
-       sudo tailscale serve --bg https+insecure://localhost:18789
+       sudo tailscale serve --bg http://localhost:18789
        Copy the https:// URL from the output (e.g., https://your-host.tail1234.ts.net)
     5. Add the Tailscale URL to .env:
        Edit .env and set: OPENCLAW_EXTRA_ORIGINS=https://your-host.tail1234.ts.net
