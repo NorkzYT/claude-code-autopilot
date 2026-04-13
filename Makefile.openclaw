@@ -171,7 +171,7 @@ logs-viewer:
 status:
 	@echo "OpenClaw Container Status:"
 	@echo "=========================="
-	@docker ps --filter "name=openclaw" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+	@docker ps --filter "name=openclaw" --filter "name=claude-max-proxy" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 	@echo ""
 	@echo "VNC Processes:"
 	@echo "=============="

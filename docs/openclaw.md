@@ -32,6 +32,7 @@ The Docker/OpenClaw install defaults to `/opt/openclaw-home` when `--dest` is om
 8. Register extra repos under `/opt/repos` if needed: `make add-agent AGENT=<agent-id> REPO=/opt/repos/<repo-name>`
 
 Important:
+
 - Default repo mount is `${HOST_REPOS_DIR:-/opt/repos}` on the host to `/opt/repos` in the container.
 - OpenClaw is not installed on the host in the default flow. The `openclaw` command is a host wrapper into Docker.
 - `OPENCLAW_THINKING_DEFAULT=high` is the recommended default when `OPENCLAW_MODEL_PRIMARY=anthropic/claude-sonnet-4-6`.
@@ -58,6 +59,70 @@ make auth-openai
 ```
 
 If the callback flow cannot complete automatically, use OpenClaw's printed fallback prompt to paste the redirect URL or code back into the container session.
+
+## Claude Max Proxy Setup
+
+The installer clones `claude-max-api-proxy` and runs it as a container in the stack. It provides an OpenAI-compatible API backed by your Claude Max subscription through the Claude CLI.
+
+**Prerequisites:** The Claude CLI must be installed and authenticated on the host before starting the stack.
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude auth login
+```
+
+After `make start`, the proxy is reachable from the OpenClaw gateway at `http://claude-max-proxy:3456/v1`.
+
+**Configure OpenClaw to use the proxy:** Add the `models` block to your `~/.openclaw/openclaw.json`. Place it between the `auth` and `agents` sections:
+
+```json
+{
+  "auth": {
+    "profiles": {
+      "anthropic:manual": {
+        "provider": "anthropic",
+        "mode": "token"
+      }
+    }
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "claude-max-proxy": {
+        "baseUrl": "http://claude-max-proxy:3456/v1",
+        "api": "openai-completions",
+        "auth": "api-key",
+        "apiKey": "ignored",
+        "models": [
+          {
+            "id": "claude-sonnet-4-6",
+            "name": "Claude Sonnet 4.6 (Max Proxy)"
+          },
+          {
+            "id": "claude-opus-4-6",
+            "name": "Claude Opus 4.6 (Max Proxy)"
+          }
+        ]
+      }
+    }
+  },
+  "agents": { ... }
+}
+```
+
+Then restart the gateway to pick up the change:
+
+```bash
+make restart
+```
+
+Verify the proxy is running:
+
+```bash
+make status
+```
+
+The `claude-max-proxy` container should appear in the output alongside `openclaw-gateway` and `openclaw-browser-viewer`.
 
 ## Add a New Repo Agent
 
@@ -93,5 +158,6 @@ docker compose -f docker-compose.openclaw.yml up -d
 ```
 
 See:
+
 - `docs/docker-openclaw-crewai.md` for compose details
 - `.claude/docs/openclaw-integration.md` for the full Docker-only integration guide
