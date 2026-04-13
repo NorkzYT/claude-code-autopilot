@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: docker/openclaw/Dockerfile
     container_name: openclaw-gateway
-    shm_size: '2gb'
+    shm_size: "2gb"
     restart: unless-stopped
     environment:
       PUID: ${PUID:-1000}
@@ -41,6 +41,25 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     working_dir: ${HOST_REPOS_DIR:-/opt/repos}
 
+  claude-max-proxy:
+    build:
+      context: ${CLAUDE_MAX_PROXY_DIR:-./claude-max-api-proxy}
+      dockerfile: Dockerfile
+    container_name: claude-max-proxy
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      HOME: /home/node
+      DB_PATH: /data/conversations.db
+      SESSION_FILE: /data/sessions.json
+    volumes:
+      - ${HOME}/.claude:/home/node/.claude
+      - ${HOME}/.claude.json:/home/node/.claude.json
+      - ${HOST_REPOS_DIR:-/opt/repos}:${HOST_REPOS_DIR:-/opt/repos}
+      - claude-max-proxy-data:/data
+    ports:
+      - "${CLAUDE_MAX_PROXY_PORT:-3456}:3456"
+
   openclaw-browser-viewer:
     build:
       context: .
@@ -55,3 +74,6 @@ services:
       VIEWER_PORT: 6080
     ports:
       - "${OPENCLAW_VIEWER_PORT:-6080}:6080"
+
+volumes:
+  claude-max-proxy-data:
