@@ -529,7 +529,7 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
     git -C "$PROXY_DIR" pull --ff-only 2>/dev/null || true
   else
     echo "  Cloning claude-max-api-proxy..."
-    git clone https://github.com/mattschwen/claude-max-api-proxy.git "$PROXY_DIR"
+    git clone --branch feat/docker-support https://github.com/NorkzYT/claude-max-api-proxy.git "$PROXY_DIR"
   fi
   INSTALLED_ASSETS+=("$PROXY_DIR")
 
