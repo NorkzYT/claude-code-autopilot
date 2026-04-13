@@ -523,7 +523,7 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
   install_repo_asset "docs/docker-openclaw-crewai.md"
 
   # Clone claude-max-api-proxy for the Claude Max proxy service
-  local PROXY_DIR="${DEST_ABS}/claude-max-api-proxy"
+  PROXY_DIR="${DEST_ABS}/claude-max-api-proxy"
   if [[ -d "$PROXY_DIR" ]]; then
     echo "  claude-max-api-proxy already exists at ${PROXY_DIR}, pulling latest..."
     git -C "$PROXY_DIR" pull --ff-only 2>/dev/null || true
