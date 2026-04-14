@@ -108,6 +108,7 @@ After `make start`, the proxy is reachable from the OpenClaw gateway at `http://
   "defaults": {
     "contextPruning": { "mode": "cache-ttl", "ttl": "1h" },
     "compaction": { "mode": "safeguard" },
+    "thinkingDefault": "high",
     "timeoutSeconds": 7200,
     "heartbeat": { "every": "1h" },
     "maxConcurrent": 8,
