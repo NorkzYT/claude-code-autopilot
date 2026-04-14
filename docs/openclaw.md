@@ -73,56 +73,81 @@ claude auth login
 
 After `make start`, the proxy is reachable from the OpenClaw gateway at `http://claude-max-proxy:3456/v1`.
 
-**Configure OpenClaw to use the proxy:** Add the `models` block to your `~/.openclaw/openclaw.json`. Place it between the `auth` and `agents` sections:
+**Configure OpenClaw to use the proxy.** Edit `~/.openclaw/openclaw.json` and update two sections.
+
+**1. Add the provider.** Place the `models` block between the `auth` and `agents` sections:
 
 ```json
-{
-  "auth": {
-    "profiles": {
-      "anthropic:manual": {
-        "provider": "anthropic",
-        "mode": "token"
-      }
+"models": {
+  "mode": "merge",
+  "providers": {
+    "claude-max-proxy": {
+      "baseUrl": "http://claude-max-proxy:3456/v1",
+      "api": "openai-completions",
+      "auth": "api-key",
+      "apiKey": "ignored",
+      "models": [
+        {
+          "id": "claude-sonnet-4-6",
+          "name": "Claude Sonnet 4.6 (Max Proxy)"
+        },
+        {
+          "id": "claude-opus-4-6",
+          "name": "Claude Opus 4.6 (Max Proxy)"
+        }
+      ]
     }
-  },
-  "models": {
-    "mode": "merge",
-    "providers": {
-      "claude-max-proxy": {
-        "baseUrl": "http://claude-max-proxy:3456/v1",
-        "api": "openai-completions",
-        "auth": "api-key",
-        "apiKey": "ignored",
-        "models": [
-          {
-            "id": "claude-sonnet-4-6",
-            "name": "Claude Sonnet 4.6 (Max Proxy)"
-          },
-          {
-            "id": "claude-opus-4-6",
-            "name": "Claude Opus 4.6 (Max Proxy)"
-          }
-        ]
-      }
+  }
+},
+```
+
+**2. Add the model allowlist.** Inside `agents.defaults`, add a `models` object that registers each model with a short alias. OpenClaw only exposes models listed here:
+
+```json
+"agents": {
+  "defaults": {
+    "contextPruning": { "mode": "cache-ttl", "ttl": "1h" },
+    "compaction": { "mode": "safeguard" },
+    "timeoutSeconds": 7200,
+    "heartbeat": { "every": "1h" },
+    "maxConcurrent": 8,
+    "subagents": { "runTimeoutSeconds": 3600 },
+    "models": {
+      "claude-max-proxy/claude-sonnet-4-6": { "alias": "sonnet" },
+      "claude-max-proxy/claude-opus-4-6": { "alias": "opus" }
     }
-  },
-  "agents": { ... }
+  }
 }
 ```
 
-Then restart the gateway to pick up the change:
+**3. Set the primary model and fallbacks.** Edit `/opt/openclaw-home/.env`:
+
+```
+OPENCLAW_MODEL_PRIMARY=claude-max-proxy/claude-opus-4-6
+OPENCLAW_MODEL_FALLBACKS=["claude-max-proxy/claude-sonnet-4-6"]
+```
+
+Restart the gateway:
 
 ```bash
 make restart
 ```
 
-Verify the proxy is running:
+Verify both models are registered:
+
+```bash
+openclaw models list
+```
+
+You should see both `claude-max-proxy/claude-sonnet-4-6` and `claude-max-proxy/claude-opus-4-6`. Switch between them in Discord with `/model`, or from the CLI with the alias (`/model opus`, `/model sonnet`).
+
+Verify the proxy container is running:
 
 ```bash
 make status
 ```
 
-The `claude-max-proxy` container should appear in the output alongside `openclaw-gateway` and `openclaw-browser-viewer`.
+The `claude-max-proxy` container should appear alongside `openclaw-gateway` and `openclaw-browser-viewer`.
 
 ## Add a New Repo Agent
 
