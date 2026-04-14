@@ -91,6 +91,10 @@ help:
 	@echo "Agent Timeout:"
 	@echo "  make set-timeout         - Set agent run timeout (usage: make set-timeout TIMEOUT=7200)"
 	@echo ""
+	@echo "Claude Max Proxy:"
+	@echo "  make think LEVEL=high    - Set thinking budget for claude-max-proxy"
+	@echo "                             (off | low | medium | high | max)"
+	@echo ""
 
 # Update OpenClaw: pull latest base image, rebuild, restart, run internal update
 update:
@@ -406,3 +410,20 @@ set-timeout:
 	@TIMEOUT=$${TIMEOUT:-7200}; \
 	$(EXEC_T) openclaw config set agents.defaults.timeoutSeconds $$TIMEOUT; \
 	echo "Agent timeout set to $${TIMEOUT}s"
+
+# ─── Claude Max Proxy Thinking Budget ────────────────────────────────
+
+# Set the default thinking budget applied to every proxy request.
+# Usage: make think LEVEL=high   (off | low | medium | high | max)
+think:
+	@PROXY_URL="http://localhost:$${CLAUDE_MAX_PROXY_PORT:-3456}/admin/thinking-budget"; \
+	if [ -z "$(LEVEL)" ]; then \
+		echo "Usage: make think LEVEL=<level>"; \
+		echo "Levels: off, low, medium, high, max"; \
+		echo "Current:"; \
+		curl -s "$$PROXY_URL"; echo; \
+	else \
+		curl -s -X POST "$$PROXY_URL" \
+			-H 'Content-Type: application/json' \
+			-d '{"budget": "$(LEVEL)"}'; echo; \
+	fi
