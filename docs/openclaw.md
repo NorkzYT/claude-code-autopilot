@@ -150,6 +150,61 @@ make status
 
 The `claude-max-proxy` container should appear alongside `openclaw-gateway` and `openclaw-browser-viewer`.
 
+### Extended thinking
+
+OpenClaw's `thinkingDefault` is not forwarded to OpenAI-compatible providers, so the proxy needs its own configuration. Levels match Claude CLI's `--effort`: `off | low | medium | high | max`.
+
+Set the default in `/opt/openclaw-home/.env`:
+
+```
+DEFAULT_THINKING_BUDGET=high
+```
+
+Change it at runtime without restarting:
+
+```bash
+make think LEVEL=high
+make think LEVEL=max
+make think                  # show current
+```
+
+Or hit the admin endpoint directly:
+
+```bash
+curl -X POST http://localhost:3456/admin/thinking-budget \
+  -H 'Content-Type: application/json' \
+  -d '{"budget": "max"}'
+```
+
+Clients can also set the level per request:
+
+- OpenAI style — `"reasoning_effort": "high"` in the request body
+- Anthropic style — `"thinking": { "type": "enabled", "budget_tokens": 32000 }`
+- Header — `X-Thinking-Budget: high`
+
+#### Optional: wire up `/think` from Discord
+
+To have Discord's `/think <level>` also update the proxy, install the bridge hook shipped with this repo:
+
+```bash
+mkdir -p ~/.openclaw/hooks/claude-max-proxy-think
+cp hooks/claude-max-proxy-think/* ~/.openclaw/hooks/claude-max-proxy-think/
+```
+
+Enable it in `~/.openclaw/openclaw.json`:
+
+```json
+"hooks": {
+  "internal": {
+    "entries": {
+      "claude-max-proxy-think": { "enabled": true }
+    }
+  }
+}
+```
+
+Restart OpenClaw (`make restart`). Now `/think high` in Discord updates the proxy automatically.
+
 ## Add a New Repo Agent
 
 ```bash

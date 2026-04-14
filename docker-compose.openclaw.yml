@@ -52,6 +52,7 @@ services:
       HOME: /home/node
       DB_PATH: /data/conversations.db
       SESSION_FILE: /data/sessions.json
+      DEFAULT_THINKING_BUDGET: ${DEFAULT_THINKING_BUDGET:-}
     volumes:
       - ${HOME}/.claude:/home/node/.claude
       - ${HOME}/.claude.json:/home/node/.claude.json
