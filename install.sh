@@ -251,6 +251,7 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
     '*/docs/install.md'
     '*/docs/openclaw.md'
     '*/docs/docker-openclaw-crewai.md'
+    '*/hooks/*'
   )
 fi
 
@@ -521,6 +522,7 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
   install_repo_asset "docs/install.md"
   install_repo_asset "docs/openclaw.md"
   install_repo_asset "docs/docker-openclaw-crewai.md"
+  install_repo_asset "hooks"
 
   # Clone claude-max-api-proxy for the Claude Max proxy service
   PROXY_DIR="${DEST_ABS}/claude-max-api-proxy"
