@@ -7,7 +7,14 @@
  * extended thinking stays in sync.
  */
 
-const ALLOWED_LEVELS = new Set(["off", "low", "medium", "high", "max"]);
+const ALLOWED_LEVELS = new Set([
+  "off",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
 
 // The proxy container is reachable by name on the shared Docker network.
 // Override with CLAUDE_MAX_PROXY_URL for non-default setups.

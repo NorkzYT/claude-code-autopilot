@@ -93,7 +93,7 @@ help:
 	@echo ""
 	@echo "Claude Max Proxy:"
 	@echo "  make think LEVEL=high    - Set thinking budget for claude-max-proxy"
-	@echo "                             (off | low | medium | high | max)"
+	@echo "                             (off | low | medium | high | xhigh | max)"
 	@echo ""
 
 # Update OpenClaw: pull latest base image, rebuild, restart, run internal update
@@ -414,12 +414,12 @@ set-timeout:
 # ─── Claude Max Proxy Thinking Budget ────────────────────────────────
 
 # Set the default thinking budget applied to every proxy request.
-# Usage: make think LEVEL=high   (off | low | medium | high | max)
+# Usage: make think LEVEL=high   (off | low | medium | high | xhigh | max)
 think:
 	@PROXY_URL="http://localhost:$${CLAUDE_MAX_PROXY_PORT:-3456}/admin/thinking-budget"; \
 	if [ -z "$(LEVEL)" ]; then \
 		echo "Usage: make think LEVEL=<level>"; \
-		echo "Levels: off, low, medium, high, max"; \
+		echo "Levels: off, low, medium, high, xhigh, max"; \
 		echo "Current:"; \
 		curl -s "$$PROXY_URL"; echo; \
 	else \

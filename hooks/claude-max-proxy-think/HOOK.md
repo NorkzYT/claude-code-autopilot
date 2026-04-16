@@ -13,5 +13,5 @@ OpenClaw does not forward `thinkingDefault` to OpenAI-compatible providers,
 so the proxy defaults to no extended thinking. This hook closes that gap —
 every `/think <level>` in Discord also updates the proxy.
 
-Accepted levels map to Claude CLI effort: `off | low | medium | high | max`.
+Accepted levels map to Claude CLI effort: `off | low | medium | high | xhigh | max`.
 The hook silently ignores unknown levels (OpenClaw handles its own validation).

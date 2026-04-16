@@ -152,7 +152,7 @@ The `claude-max-proxy` container should appear alongside `openclaw-gateway` and 
 
 ### Extended thinking
 
-OpenClaw's `thinkingDefault` is not forwarded to OpenAI-compatible providers, so the proxy needs its own configuration. Levels match Claude CLI's `--effort`: `off | low | medium | high | max`.
+OpenClaw's `thinkingDefault` is not forwarded to OpenAI-compatible providers, so the proxy needs its own configuration. Levels match Claude CLI's `--effort`: `off | low | medium | high | xhigh | max`.
 
 Set the default in `/opt/openclaw-home/.env`:
 
