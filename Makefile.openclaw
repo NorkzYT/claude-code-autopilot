@@ -1,4 +1,4 @@
-.PHONY: help update build rebuild start start-host stop restart restart-host logs logs-viewer status shell clean \
+.PHONY: help update build rebuild rebuild-proxy start start-host stop restart restart-host logs logs-viewer status shell clean \
        add-origins verify-vnc config-get approve-device \
        auth-anthropic auth-openai models dashboard-url config-set doctor \
        add-agent update-agent setup-discord setup-discord-scale \
@@ -26,9 +26,10 @@ help:
 	@echo "OpenClaw Docker Management Commands"
 	@echo "===================================="
 	@echo ""
-	@echo "  make update        - Pull latest image, rebuild, and restart"
+	@echo "  make update        - Pull latest image, rebuild gateway + proxy, and restart"
 	@echo "  make build         - Rebuild the gateway image"
 	@echo "  make rebuild       - Force rebuild (no cache) and recreate container"
+	@echo "  make rebuild-proxy - Force rebuild claude-max-proxy and recreate container"
 	@echo "  make start         - Start all containers"
 	@echo "  make start-host    - Start with host networking (access host localhost)"
 	@echo "  make stop          - Stop all containers"
@@ -99,8 +100,8 @@ help:
 # Update OpenClaw: pull latest base image, rebuild, restart, run internal update
 update:
 	@echo "Updating OpenClaw..."
-	docker compose -f $(COMPOSE_FILE) build --pull openclaw-gateway
-	docker compose -f $(COMPOSE_FILE) up -d --force-recreate openclaw-gateway
+	docker compose -f $(COMPOSE_FILE) build --pull openclaw-gateway claude-max-proxy
+	docker compose -f $(COMPOSE_FILE) up -d --force-recreate openclaw-gateway claude-max-proxy
 	@echo "Waiting for gateway to start..."
 	@sleep 10
 	@echo "Running OpenClaw internal update..."
@@ -124,6 +125,16 @@ rebuild:
 	@echo "✅ Rebuild and recreate complete!"
 	@sleep 10
 	@make status
+
+# Force rebuild claude-max-proxy (no cache) and recreate container
+rebuild-proxy:
+	@echo "Force rebuilding claude-max-proxy (no cache)..."
+	docker compose -f $(COMPOSE_FILE) build --no-cache --pull claude-max-proxy
+	@echo "Recreating container with new image..."
+	docker compose -f $(COMPOSE_FILE) up -d --force-recreate claude-max-proxy
+	@echo "✅ Proxy rebuild and recreate complete!"
+	@sleep 5
+	@docker ps --filter "name=claude-max-proxy" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 # Start containers
 start:
