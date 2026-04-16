@@ -47,7 +47,7 @@ OPENCLAW_BROWSER_DEBUG_PORT="${OPENCLAW_BROWSER_DEBUG_PORT:-18800}"
 OPENCLAW_VNC_PORT="${OPENCLAW_VNC_PORT:-5900}"
 CHROME_BIN="${CHROME_BIN:-/usr/bin/chromium}"
 OPENCLAW_MODEL_FALLBACKS="${OPENCLAW_MODEL_FALLBACKS:-[\"openai/gpt-5.3-codex\",\"openai/gpt-5.4\"]}"
-OPENCLAW_MODEL_PRIMARY="${OPENCLAW_MODEL_PRIMARY:-anthropic/claude-opus-4-6}"
+OPENCLAW_MODEL_PRIMARY="${OPENCLAW_MODEL_PRIMARY:-anthropic/claude-opus-4-7}"
 
 # Clean up stale Chromium profile locks from previous container runs.
 # force-recreate gives the container a new hostname, so Chromium sees the

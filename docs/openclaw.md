@@ -92,8 +92,8 @@ After `make start`, the proxy is reachable from the OpenClaw gateway at `http://
           "name": "Claude Sonnet 4.6 (Max Proxy)"
         },
         {
-          "id": "claude-opus-4-6",
-          "name": "Claude Opus 4.6 (Max Proxy)"
+          "id": "claude-opus-4-7",
+          "name": "Claude Opus 4.7 (Max Proxy)"
         }
       ]
     }
@@ -115,7 +115,7 @@ After `make start`, the proxy is reachable from the OpenClaw gateway at `http://
     "subagents": { "runTimeoutSeconds": 3600 },
     "models": {
       "claude-max-proxy/claude-sonnet-4-6": { "alias": "sonnet" },
-      "claude-max-proxy/claude-opus-4-6": { "alias": "opus" }
+      "claude-max-proxy/claude-opus-4-7": { "alias": "opus" }
     }
   }
 }
@@ -124,7 +124,7 @@ After `make start`, the proxy is reachable from the OpenClaw gateway at `http://
 **3. Set the primary model and fallbacks.** Edit `/opt/openclaw-home/.env`:
 
 ```
-OPENCLAW_MODEL_PRIMARY=claude-max-proxy/claude-opus-4-6
+OPENCLAW_MODEL_PRIMARY=claude-max-proxy/claude-opus-4-7
 OPENCLAW_MODEL_FALLBACKS=["claude-max-proxy/claude-sonnet-4-6"]
 ```
 
@@ -140,7 +140,7 @@ Verify both models are registered:
 openclaw models list
 ```
 
-You should see both `claude-max-proxy/claude-sonnet-4-6` and `claude-max-proxy/claude-opus-4-6`. Switch between them in Discord with `/model`, or from the CLI with the alias (`/model opus`, `/model sonnet`).
+You should see both `claude-max-proxy/claude-sonnet-4-6` and `claude-max-proxy/claude-opus-4-7`. Switch between them in Discord with `/model`, or from the CLI with the alias (`/model opus`, `/model sonnet`).
 
 Verify the proxy container is running:
 
