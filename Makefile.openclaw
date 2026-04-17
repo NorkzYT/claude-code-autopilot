@@ -1,6 +1,6 @@
 .PHONY: help update build rebuild rebuild-proxy start start-host stop restart restart-host logs logs-viewer status shell clean \
        add-origins verify-vnc config-get approve-device \
-       auth-anthropic auth-openai models dashboard-url config-set doctor \
+       auth-anthropic auth-openai auth-gh models dashboard-url config-set doctor \
        add-agent update-agent setup-discord setup-discord-scale \
        viewer-url models-status channels-status \
        hooks-list hooks-enable \
@@ -48,6 +48,7 @@ help:
 	@echo "OpenClaw CLI (via docker exec):"
 	@echo "  make auth-anthropic      - Authenticate Anthropic provider (interactive)"
 	@echo "  make auth-openai         - Authenticate OpenAI Codex provider (interactive)"
+	@echo "  make auth-gh             - Authenticate gh CLI inside claude-max-proxy (interactive)"
 	@echo "  make models              - List available models"
 	@echo "  make dashboard-url       - Print dashboard URL with token"
 	@echo "  make config-set          - Set config key (usage: make config-set KEY=... VALUE=...)"
@@ -253,6 +254,15 @@ auth-anthropic:
 # Authenticate OpenAI Codex provider (interactive)
 auth-openai:
 	$(EXEC) openclaw models auth login --provider openai-codex
+
+# Authenticate gh CLI inside claude-max-proxy (interactive).
+# Writes to the mounted ~/.config/gh so commits + pushes made by the proxy's
+# claude subprocesses run as the gh-authenticated user. After this the
+# container's system-wide git credential helper (`gh auth git-credential`)
+# handles HTTPS pushes automatically.
+auth-gh:
+	@mkdir -p $${HOME}/.config/gh
+	docker exec -it claude-max-proxy gh auth login
 
 # List available models
 models:
