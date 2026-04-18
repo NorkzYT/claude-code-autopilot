@@ -55,6 +55,12 @@ services:
       SESSION_FILE: /data/sessions.json
       DEFAULT_THINKING_BUDGET: ${DEFAULT_THINKING_BUDGET:-}
       CLAUDE_PROXY_ENABLE_ADMIN_API: ${CLAUDE_PROXY_ENABLE_ADMIN_API:-true}
+      # Preventive self-restart ceiling. The container self-exits after this
+      # many hours of uptime so Docker (via `restart: unless-stopped`) brings
+      # it back with a clean slate. Defense-in-depth for the rare case where
+      # a host-side `claude` session races the container on credential
+      # rotation and leaves the in-process state stuck. Empty = disabled.
+      CLAUDE_PROXY_MAX_UPTIME_HOURS: ${CLAUDE_PROXY_MAX_UPTIME_HOURS:-4}
     volumes:
       - ${HOME}/.claude:/home/node/.claude
       - ${HOME}/.claude.json:/home/node/.claude.json
