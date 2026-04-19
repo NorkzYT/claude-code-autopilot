@@ -269,10 +269,10 @@ auth-gh:
 # The container's ~/.claude is a private named volume — it does NOT share
 # credentials with the host's ~/.claude/.credentials.json. Run this once
 # after a fresh install (or after `docker volume rm
-# openclaw-stack_claude-proxy-home`). The device-flow browser code that
-# `claude` prints must be completed on the host.
+# openclaw-stack_claude-proxy-home`). Follow the device-flow URL + code
+# the CLI prints; complete the browser half on the host.
 auth-claude-proxy:
-	docker exec -it claude-max-proxy claude /login
+	docker exec -it claude-max-proxy claude auth login
 
 # List available models
 models:
