@@ -57,6 +57,13 @@ services:
       HOST: ${CLAUDE_MAX_PROXY_HOST:-0.0.0.0}
       DB_PATH: /data/conversations.db
       SESSION_FILE: /data/sessions.json
+      # Long-lived (1-year) OAuth token from `claude setup-token`. When
+      # set, the Claude CLI uses this directly and never touches
+      # .credentials.json — no rotation, no refresh race. Generate via
+      # `docker exec -it claude-max-proxy claude setup-token` once, then
+      # put the resulting sk-... string in /opt/openclaw-home/.env as
+      # CLAUDE_CODE_OAUTH_TOKEN=sk-...
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       DEFAULT_THINKING_BUDGET: ${DEFAULT_THINKING_BUDGET:-}
       CLAUDE_PROXY_ENABLE_ADMIN_API: ${CLAUDE_PROXY_ENABLE_ADMIN_API:-true}
       # Preventive self-restart ceiling. The container self-exits after this
