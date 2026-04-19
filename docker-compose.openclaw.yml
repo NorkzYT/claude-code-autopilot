@@ -62,8 +62,11 @@ services:
       # rotation and leaves the in-process state stuck. Empty = disabled.
       CLAUDE_PROXY_MAX_UPTIME_HOURS: ${CLAUDE_PROXY_MAX_UPTIME_HOURS:-4}
     volumes:
-      - ${HOME}/.claude:/home/node/.claude
-      - ${HOME}/.claude.json:/home/node/.claude.json
+      # Container-private Claude CLI state. Holds its own
+      # .credentials.json so the container's OAuth refreshes can't race
+      # host-side `claude` sessions sharing the same file. One-time login
+      # via `make auth-claude-proxy` after a fresh install.
+      - claude-proxy-home:/home/node/.claude
       - ${HOST_REPOS_DIR:-/opt/repos}:${HOST_REPOS_DIR:-/opt/repos}
       - claude-max-proxy-data:/data
       # gh CLI auth + git identity. gh needs write access so token refresh
@@ -104,3 +107,4 @@ services:
 
 volumes:
   claude-max-proxy-data:
+  claude-proxy-home:

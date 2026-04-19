@@ -1,6 +1,6 @@
 .PHONY: help update build rebuild rebuild-proxy start start-host stop restart restart-host logs logs-viewer status shell clean \
        add-origins verify-vnc config-get approve-device \
-       auth-anthropic auth-openai auth-gh models dashboard-url config-set doctor \
+       auth-anthropic auth-openai auth-gh auth-claude-proxy models dashboard-url config-set doctor \
        add-agent update-agent setup-discord setup-discord-scale \
        viewer-url models-status channels-status \
        hooks-list hooks-enable \
@@ -49,6 +49,7 @@ help:
 	@echo "  make auth-anthropic      - Authenticate Anthropic provider (interactive)"
 	@echo "  make auth-openai         - Authenticate OpenAI Codex provider (interactive)"
 	@echo "  make auth-gh             - Authenticate gh CLI inside claude-max-proxy (interactive)"
+	@echo "  make auth-claude-proxy   - Log the container's Claude CLI into its private volume (one-time)"
 	@echo "  make models              - List available models"
 	@echo "  make dashboard-url       - Print dashboard URL with token"
 	@echo "  make config-set          - Set config key (usage: make config-set KEY=... VALUE=...)"
@@ -263,6 +264,15 @@ auth-openai:
 auth-gh:
 	@mkdir -p $${HOME}/.config/gh
 	docker exec -it claude-max-proxy gh auth login
+
+# Authenticate Claude CLI inside the container (interactive, one-time).
+# The container's ~/.claude is a private named volume — it does NOT share
+# credentials with the host's ~/.claude/.credentials.json. Run this once
+# after a fresh install (or after `docker volume rm
+# openclaw-stack_claude-proxy-home`). The device-flow browser code that
+# `claude` prints must be completed on the host.
+auth-claude-proxy:
+	docker exec -it claude-max-proxy claude /login
 
 # List available models
 models:
