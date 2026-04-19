@@ -64,14 +64,43 @@ If the callback flow cannot complete automatically, use OpenClaw's printed fallb
 
 The installer clones `claude-max-api-proxy` and runs it as a container in the stack. It provides an OpenAI-compatible API backed by your Claude Max subscription through the Claude CLI.
 
-**Prerequisites:** The Claude CLI must be installed and authenticated on the host before starting the stack.
+**No host-side Claude install required.** The proxy container ships its own Claude CLI and keeps its credentials in a private Docker volume (`claude-proxy-home`) that is isolated from any `claude` sessions you run on the host. This prevents the OAuth refresh-token rotation race that used to lock the container into 401s after 8–9 hours of uptime.
+
+### One-time auth setup
+
+After the stack is up (`make start` or `openclaw up`), generate a long-lived OAuth token inside the container and wire it in via env — this bypasses the refresh-token flow entirely, giving you ~1 year of uninterrupted service:
 
 ```bash
-npm install -g @anthropic-ai/claude-code
-claude auth login
+cd /opt/openclaw-home
+
+# Launch the Claude CLI's headless token flow inside the container.
+# Follow the printed URL, sign in with your Claude Max account, and
+# paste the resulting `sk-ant-oat01-…` token.
+docker exec -it claude-max-proxy claude setup-token
+
+# Put the token into the host env file. `.env` must be chmod 600.
+echo "CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-<paste-your-token>" >> /opt/openclaw-home/.env
+chmod 600 /opt/openclaw-home/.env
+
+# Restart the proxy so it picks up the token.
+docker compose -f docker-compose.openclaw.yml up -d --force-recreate claude-max-proxy
 ```
 
-After `make start`, the proxy is reachable from the OpenClaw gateway at `http://claude-max-proxy:3456/v1`.
+Verify:
+
+```bash
+docker exec claude-max-proxy claude auth status
+# → {"loggedIn": true, "authMethod": "oauth_token", "apiProvider": "firstParty"}
+
+curl -s http://localhost:3456/health | jq '.auth, .models.available'
+# → "loggedIn": true, and the full model list populated
+```
+
+The token is valid for ~1 year. When it approaches expiry (or if you revoke it), rerun `claude setup-token` inside the container and replace the value in `.env`.
+
+If you ever lose the private credentials volume and need to rebuild from scratch, `docker volume rm openclaw-stack_claude-proxy-home` + rebuild + rerun `setup-token` restores a clean state.
+
+After the proxy is authenticated, it is reachable from the OpenClaw gateway at `http://claude-max-proxy:3456/v1`.
 
 **Configure OpenClaw to use the proxy.** Edit `~/.openclaw/openclaw.json` and update two sections.
 

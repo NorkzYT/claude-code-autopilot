@@ -58,13 +58,15 @@ cp /opt/openclaw-home/.env.example /opt/openclaw-home/.env
    - `GIT_COMMITTER_EMAIL`
 
 Recommended defaults:
-   - `OPENCLAW_MODEL_PRIMARY=anthropic/claude-sonnet-4-6`
-   - `OPENCLAW_THINKING_DEFAULT=high`
+
+- `OPENCLAW_MODEL_PRIMARY=anthropic/claude-sonnet-4-6`
+- `OPENCLAW_THINKING_DEFAULT=high`
 
 Optional auth envs:
-   - `ANTHROPIC_API_KEY`
-   - `OPENAI_API_KEY`
-   - `OPENCLAW_ANTHROPIC_SETUP_TOKEN`
+
+- `ANTHROPIC_API_KEY`
+- `OPENAI_API_KEY`
+- `OPENCLAW_ANTHROPIC_SETUP_TOKEN`
 
 4. Put the repos you want OpenClaw to access under `/opt/repos`
 5. Start the Docker stack after `.env` is ready:
@@ -76,14 +78,39 @@ openclaw up
 
 6. Authenticate providers inside the container wrapper:
 
-Anthropic subscription:
+**Claude Max subscription (via claude-max-proxy)** — generate a long-lived
+token once, wire it into the container via env, forget for ~1 year:
 
 ```bash
-claude setup-token
+# 1. Generate an OAuth token inside the proxy container. Follow the URL,
+#    sign in with your Claude Max account, paste the `sk-ant-oat01-…`
+#    token back into the terminal.
+docker exec -it claude-max-proxy claude setup-token
+
+# 2. Put the token into /opt/openclaw-home/.env and recreate the proxy.
+echo "CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-<paste-your-token>" \
+  >> /opt/openclaw-home/.env
+chmod 600 /opt/openclaw-home/.env
+cd /opt/openclaw-home
+docker compose -f docker-compose.openclaw.yml up -d --force-recreate claude-max-proxy
+
+# 3. Verify.
+docker exec claude-max-proxy claude auth status
+# → {"loggedIn": true, "authMethod": "oauth_token"}
+```
+
+The proxy has its own isolated `~/.claude` volume inside the container;
+it does NOT share credentials with any host-side `claude` CLI. See
+`docs/openclaw.md` for the full proxy + OpenClaw model config.
+
+**Anthropic direct API (optional)** — only if you want OpenClaw to call
+Anthropic without the proxy:
+
+```bash
 openclaw models auth paste-token --provider anthropic
 ```
 
-OpenAI subscription:
+**OpenAI subscription:**
 
 ```bash
 openclaw models auth login --provider openai-codex
@@ -109,6 +136,7 @@ openclaw agents add my-app --workspace /opt/repos/my-app --non-interactive
 ```
 
 What this means:
+
 - OpenClaw runs in Docker, not on the host
 - the host `openclaw` command is a wrapper into the container
 - the default control directory is `/opt/openclaw-home` unless you override it with `--dest`
@@ -217,6 +245,7 @@ Add a logout button to the navbar that clears the session and redirects to /logi
 ```
 
 The autopilot agent automatically:
+
 - Explores the codebase to understand the structure
 - Plans the implementation
 - Makes the changes
@@ -259,13 +288,13 @@ Explain the database schema
 
 ## Available Agents
 
-| Agent | Use Case | How to Invoke |
-|-------|----------|---------------|
-| **autopilot** | Full task execution (explore → implement → verify → review) | Automatic for substantive prompts |
-| **autopilot-fixer** | Fix incomplete/broken autopilot output | `Use the autopilot-fixer subagent` |
-| **closer** | Final verification + PR notes (no new code) | `Use the closer subagent` |
-| **triage** | Debug failures (repro → diagnose → fix) | `Use the triage subagent` |
-| **parallel-orchestrator** | Multi-part tasks needing parallel work | `Use the parallel-orchestrator subagent` |
+| Agent                     | Use Case                                                    | How to Invoke                            |
+| ------------------------- | ----------------------------------------------------------- | ---------------------------------------- |
+| **autopilot**             | Full task execution (explore → implement → verify → review) | Automatic for substantive prompts        |
+| **autopilot-fixer**       | Fix incomplete/broken autopilot output                      | `Use the autopilot-fixer subagent`       |
+| **closer**                | Final verification + PR notes (no new code)                 | `Use the closer subagent`                |
+| **triage**                | Debug failures (repro → diagnose → fix)                     | `Use the triage subagent`                |
+| **parallel-orchestrator** | Multi-part tasks needing parallel work                      | `Use the parallel-orchestrator subagent` |
 
 ### When Autopilot Doesn't Finish
 
