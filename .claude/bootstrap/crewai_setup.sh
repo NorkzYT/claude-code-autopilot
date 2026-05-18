@@ -99,6 +99,12 @@ TEMPLATE_MAP=(
   "src/package/__init__.py.tmpl:src/${PY_PACKAGE}/__init__.py"
   "src/package/crew.py.tmpl:src/${PY_PACKAGE}/crew.py"
   "src/package/main.py.tmpl:src/${PY_PACKAGE}/main.py"
+  "src/package/router.py.tmpl:src/${PY_PACKAGE}/router.py"
+  "src/package/tools/__init__.py.tmpl:src/${PY_PACKAGE}/tools/__init__.py"
+  "src/package/tools/code_executor.py.tmpl:src/${PY_PACKAGE}/tools/code_executor.py"
+  "src/package/crews/__init__.py.tmpl:src/${PY_PACKAGE}/crews/__init__.py"
+  "src/package/crews/research.py.tmpl:src/${PY_PACKAGE}/crews/research.py"
+  "src/package/crews/creative.py.tmpl:src/${PY_PACKAGE}/crews/creative.py"
   "src/package/config/agents.yaml.tmpl:src/${PY_PACKAGE}/config/agents.yaml"
   "src/package/config/tasks.yaml.tmpl:src/${PY_PACKAGE}/config/tasks.yaml"
 )
@@ -126,6 +132,50 @@ done
 mkdir -p "$CREWAI_DIR/cliproxyapi/auths" "$CREWAI_DIR/cliproxyapi/logs"
 touch "$CREWAI_DIR/cliproxyapi/auths/.gitkeep" "$CREWAI_DIR/cliproxyapi/logs/.gitkeep"
 echo "$PY_PACKAGE" > "$CREWAI_DIR/.package-name"
+
+# Create private crews directory (gitignored — put your own crews here)
+mkdir -p "$CREWAI_DIR/crews/private"
+if [[ ! -f "$CREWAI_DIR/crews/private/.gitkeep" ]]; then
+  touch "$CREWAI_DIR/crews/private/.gitkeep"
+fi
+if [[ ! -f "$CREWAI_DIR/crews/private/README.md" ]]; then
+  cat > "$CREWAI_DIR/crews/private/README.md" << 'CREW_README'
+# Private Crews
+
+Drop your custom crew modules here. This directory is gitignored — nothing
+you put here is ever committed to the public repo.
+
+## How to add a crew
+
+Create a `.py` file with at least two things:
+
+```python
+CREW_NAME = "my-crew"   # routing key used in **Type:** field
+
+def run(task_description: str, **kwargs) -> str:
+    # Build your crew here using CrewAI, call external APIs, etc.
+    return "crew output"
+```
+
+The loader (`crews/__init__.py`) scans this directory at startup. Any module
+with a `run()` function is registered under its `CREW_NAME`.
+
+## Routing
+
+In your task files (e.g. `bin/tasks.md`), set the type:
+
+```markdown
+## Task: my-task
+**Status:** pending
+**Type:** my-crew
+
+Description of what to do.
+```
+
+The engineering loop will dispatch this task to your private crew instead of
+running it through claude-max-proxy.
+CREW_README
+fi
 
 if has uv; then
   log "Preparing CrewAI virtual environment with uv..."
@@ -155,6 +205,10 @@ echo "    4. uv sync"
 echo "    5. Plan a task:"
 echo "       uv run python -m ${PY_PACKAGE}.main --task \"Add JWT auth to the API\""
 echo ""
-echo "  Engineering loop driver (executes plans through claude -p):"
-echo "    bash .claude/scripts/engineering-loop.sh --use-planner bin/tasks.md"
+echo "  Engineering loop driver (routes coding → claude-max-proxy, other types → domain crews):"
+echo "    bash .claude/scripts/engineering-loop.sh bin/tasks.md"
+echo ""
+echo "  Add private crews (gitignored — never committed):"
+echo "    .crewai/crews/private/  <- drop your own .py crew modules here"
+echo "    See .crewai/crews/private/README.md for the interface."
 echo ""
