@@ -94,26 +94,63 @@ And a sequential task flow:
 
 If you want CrewAI to route through local OpenAI-compatible proxy instead of direct provider API keys:
 
-1. Start local proxy container:
+### Step 1 — Start the proxy container
 
 ```bash
 make crewai-proxy-up
+# or: bash .claude/scripts/crewai-cliproxyapi.sh up
 ```
 
-2. In `.crewai/.env`, keep:
+### Step 2 — Log in to your Codex subscription (one-time)
+
+CLIProxyAPI v7+ ships two Codex auth flows. Pick one:
+
+**OAuth (recommended — requires a browser on the same machine):**
+
+```bash
+docker exec -it cliproxyapi ./CLIProxyAPI -codex-login
+```
+
+Opens a browser tab to accounts.openai.com. Sign in with the ChatGPT account that
+holds your Plus, Pro, Business, or Enterprise plan. The callback lands on
+`localhost:1455` or `localhost:54545` (both are mapped in the compose file).
+
+**Device code (headless / no local browser):**
+
+```bash
+docker exec -it cliproxyapi ./CLIProxyAPI -codex-device-login
+```
+
+Prints a short code and a URL you open on any device. No callback redirect needed.
+
+Both flows write OAuth state to the `auths/` volume (`./tmp/cliproxyapi/auths` on host
+by default). The running server picks it up immediately and auth survives container restarts.
+
+Verify the login worked:
+
+```bash
+# grab the proxy key from your config
+PROXY_KEY=$(grep -A1 'api-keys' .crewai/cliproxyapi/config.yaml | tail -1 | tr -d ' -"')
+curl -s -H "Authorization: Bearer $PROXY_KEY" http://127.0.0.1:8317/v1/models | python3 -m json.tool | head -20
+```
+
+You should see Codex / GPT model entries in the response.
+
+### Step 3 — Configure `.crewai/.env`
 
 ```bash
 CREWAI_LLM_MODE=proxy
 OPENAI_BASE_URL=http://127.0.0.1:8317/v1
 CLI_PROXY_BASE_URL=http://127.0.0.1:8317/v1
-CLI_PROXY_API_KEY=<local-proxy-key-from-.crewai/cliproxyapi/config.yaml>
-OPENAI_API_KEY=<same-local-proxy-key-or-empty>
+CLI_PROXY_API_KEY=<key from .crewai/cliproxyapi/config.yaml api-keys list>
+OPENAI_API_KEY=<same key>
+MARKETING_MODEL=gpt-5.3-codex
 ```
 
-Set `MARKETING_MODEL` to a model name or alias that exists in your CLIProxyAPI config.
-Default scaffold value is `gpt-5.3-codex`.
+`MARKETING_MODEL` must match a model name returned by `/v1/models`.
+After login the proxy exposes whatever Codex reports — check the `curl` output above.
 
-3. Run CrewAI:
+### Step 4 — Run CrewAI
 
 ```bash
 bash .claude/scripts/crewai-local-workflow.sh --with-proxy
@@ -128,8 +165,9 @@ make crewai-proxy-down
 ```
 
 Notes:
-- Configure your subscription/provider routing inside CLIProxyAPI itself.
-- Ensure your usage complies with the terms of each provider/subscription.
+- Ensure your usage complies with OpenAI's terms of service for your subscription tier.
+- CLIProxyAPI supports multi-account round-robin; add additional `auths/` entries to
+  spread load across accounts if one plan's rate limits are hit.
 
 ## Running CrewAI in Its Own Container
 

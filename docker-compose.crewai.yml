@@ -19,7 +19,7 @@ services:
     container_name: cliproxyapi
     restart: unless-stopped
     profiles: ["proxy"]
-    command: ["serve", "-c", "/app/config.yaml"]
+    command: ["./CLIProxyAPI", "-config", "/app/config.yaml"]
     ports:
       - "8317:8317"
       - "8085:8085"
