@@ -108,7 +108,7 @@ CLIProxyAPI v7+ ships two Codex auth flows. Pick one:
 **OAuth (recommended — requires a browser on the same machine):**
 
 ```bash
-docker exec -it cliproxyapi ./CLIProxyAPI -codex-login
+docker exec -it cliproxyapi ./CLIProxyAPI -config /app/config.yaml -codex-login
 ```
 
 Opens a browser tab to accounts.openai.com. Sign in with the ChatGPT account that
@@ -118,7 +118,7 @@ holds your Plus, Pro, Business, or Enterprise plan. The callback lands on
 **Device code (headless / no local browser):**
 
 ```bash
-docker exec -it cliproxyapi ./CLIProxyAPI -codex-device-login
+docker exec -it cliproxyapi ./CLIProxyAPI -config /app/config.yaml -codex-device-login
 ```
 
 Prints a short code and a URL you open on any device. No callback redirect needed.
