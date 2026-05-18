@@ -144,7 +144,7 @@ What this means:
 - `~/.openclaw` on the host is bind-mounted into the container and reused for state
 - if you ever need a different host state path, set `OPENCLAW_HOST_STATE_DIR` explicitly
 
-### Install With CrewAI (marketing/research/ops crews)
+### Install With CrewAI (engineering planner crew)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/install.sh \
@@ -173,7 +173,7 @@ What this kit covers:
 - Claude Code hooks and guardrails (`.claude/hooks/*`)
 - staged agent workflow (autopilot, triage, fixer, closer)
 - OpenClaw gateway, Discord, browser, and agent bootstrap scripts
-- CrewAI bootstrap with a marketing crew scaffold under `.crewai/`
+- CrewAI bootstrap with an engineering planner crew scaffold under `.crewai/`
 - Codex compatibility layer (`AGENTS.md`, `.agents/skills`, `.codex/rules`)
 
 Then read:
@@ -339,7 +339,7 @@ The README is the fast path. Detailed guides live in `docs/*.md` and `.claude/do
 - `docs/editor.md` — external editor (`Ctrl+G`) and VS Code remote setup
 - `docs/troubleshooting.md` — common issues and validation commands
 - `docs/openclaw.md` — OpenClaw quick guide and hook model overview
-- `docs/crewai.md` — CrewAI setup and marketing crew workflow
+- `docs/crewai.md` — CrewAI setup, engineering planner crew, and engineering-loop driver
 - `docs/docker-openclaw-crewai.md` — separate compose files for OpenClaw-only or CrewAI-only container stacks
 - `docs/openclaw-plugin-hooks.md` — plugin hooks and wrapper design for local workflow automation
 - `docs/roadmap.md` — roadmap for full engineer workflow enforcement

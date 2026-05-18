@@ -24,7 +24,7 @@ sanitize_py_package() {
   local pkg
   pkg="$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_+//; s/_+$//; s/_+/_/g')"
   if [[ -z "$pkg" ]]; then
-    pkg="business_growth_team"
+    pkg="engineering_crew"
   fi
   if [[ "$pkg" =~ ^[0-9] ]]; then
     pkg="crew_${pkg}"
@@ -84,7 +84,7 @@ fi
 
 PROJECT_BASENAME="$(basename "$PROJECT_DIR")"
 PROJECT_SLUG="$(sanitize_slug "$PROJECT_BASENAME")"
-PY_PACKAGE="$(sanitize_py_package "${PROJECT_SLUG}_growth_team")"
+PY_PACKAGE="$(sanitize_py_package "${PROJECT_SLUG}_crew")"
 
 log "Setting up CrewAI workspace..."
 mkdir -p "$CREWAI_DIR"
@@ -123,9 +123,7 @@ for mapping in "${TEMPLATE_MAP[@]}"; do
   log "Created ${dst_rel}"
 done
 
-mkdir -p "$CREWAI_DIR/reports" "$CREWAI_DIR/outputs"
 mkdir -p "$CREWAI_DIR/cliproxyapi/auths" "$CREWAI_DIR/cliproxyapi/logs"
-touch "$CREWAI_DIR/reports/.gitkeep" "$CREWAI_DIR/outputs/.gitkeep"
 touch "$CREWAI_DIR/cliproxyapi/auths/.gitkeep" "$CREWAI_DIR/cliproxyapi/logs/.gitkeep"
 echo "$PY_PACKAGE" > "$CREWAI_DIR/.package-name"
 
@@ -140,7 +138,6 @@ if has uv; then
 else
   warn "uv is not installed. Install uv and then run:"
   warn "  cd .crewai && uv sync"
-  warn "  uv run crewai run"
 fi
 
 log "CrewAI setup complete."
@@ -155,9 +152,9 @@ echo "    3. Choose one mode:"
 echo "       - Direct provider keys in .env, OR"
 echo "       - CLIProxyAPI: bash .claude/scripts/crewai-cliproxyapi.sh up"
 echo "    4. uv sync"
-echo "    5. uv run crewai run"
+echo "    5. Plan a task:"
+echo "       uv run python -m ${PY_PACKAGE}.main --task \"Add JWT auth to the API\""
 echo ""
-echo "  Optional wrapper:"
-echo "    bash .claude/scripts/crewai-local-workflow.sh --goal \"Subscriber growth plan\""
-echo "    bash .claude/scripts/crewai-local-workflow.sh --with-proxy --goal \"Subscriber growth plan\""
+echo "  Engineering loop driver (executes plans through claude -p):"
+echo "    bash .claude/scripts/engineering-loop.sh --use-planner bin/tasks.md"
 echo ""

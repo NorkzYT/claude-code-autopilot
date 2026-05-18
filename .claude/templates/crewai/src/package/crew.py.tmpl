@@ -5,15 +5,15 @@ from crewai.project import CrewBase, agent, crew, task
 
 
 @CrewBase
-class GrowthMarketingCrew:
-    """CrewAI team focused on traction and customer growth for a product."""
+class EngineeringPlannerCrew:
+    """CrewAI team that turns an engineering task into a reviewed implementation plan."""
 
     agents_config = "config/agents.yaml"
     tasks_config = "config/tasks.yaml"
 
     def _llm(self) -> LLM:
         mode = os.getenv("CREWAI_LLM_MODE", "direct").strip().lower()
-        model = os.getenv("MARKETING_MODEL", "gpt-5.3-codex")
+        model = os.getenv("ENGINEERING_MODEL", "gpt-5.3-codex")
 
         # Proxy mode routes through local OpenAI-compatible CLIProxyAPI.
         if mode == "proxy":
@@ -37,44 +37,20 @@ class GrowthMarketingCrew:
         return LLM(model=model)
 
     @agent
-    def market_researcher(self) -> Agent:
-        return Agent(config=self.agents_config["market_researcher"], verbose=True, llm=self._llm())
+    def task_planner(self) -> Agent:
+        return Agent(config=self.agents_config["task_planner"], verbose=True, llm=self._llm())
 
     @agent
-    def positioning_copywriter(self) -> Agent:
-        return Agent(config=self.agents_config["positioning_copywriter"], verbose=True, llm=self._llm())
-
-    @agent
-    def channel_strategist(self) -> Agent:
-        return Agent(config=self.agents_config["channel_strategist"], verbose=True, llm=self._llm())
-
-    @agent
-    def funnel_analyst(self) -> Agent:
-        return Agent(config=self.agents_config["funnel_analyst"], verbose=True, llm=self._llm())
-
-    @agent
-    def weekly_operator(self) -> Agent:
-        return Agent(config=self.agents_config["weekly_operator"], verbose=True, llm=self._llm())
+    def plan_reviewer(self) -> Agent:
+        return Agent(config=self.agents_config["plan_reviewer"], verbose=True, llm=self._llm())
 
     @task
-    def define_icp(self) -> Task:
-        return Task(config=self.tasks_config["define_icp"])
+    def plan_task(self) -> Task:
+        return Task(config=self.tasks_config["plan_task"])
 
     @task
-    def craft_positioning(self) -> Task:
-        return Task(config=self.tasks_config["craft_positioning"])
-
-    @task
-    def plan_channels(self) -> Task:
-        return Task(config=self.tasks_config["plan_channels"])
-
-    @task
-    def design_funnel(self) -> Task:
-        return Task(config=self.tasks_config["design_funnel"])
-
-    @task
-    def weekly_execution_plan(self) -> Task:
-        return Task(config=self.tasks_config["weekly_execution_plan"])
+    def review_task(self) -> Task:
+        return Task(config=self.tasks_config["review_task"])
 
     @crew
     def crew(self) -> Crew:

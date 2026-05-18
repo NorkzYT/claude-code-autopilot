@@ -3,29 +3,32 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Run local CrewAI workflows for the generated .crewai project.
+Run the engineering planner crew for the generated .crewai project.
 
 Usage:
   bash .claude/scripts/crewai-local-workflow.sh [options]
 
 Options:
-  --repo <path>   Workspace root that contains .crewai (default: current directory)
-  --goal <text>   Override the default campaign goal passed to the crew
-  --with-proxy    Ensure local CLIProxyAPI container is started before run
-  --dry-run       Generate plan artifacts without calling an LLM provider
-  -h, --help      Show this help
+  --repo <path>          Workspace root that contains .crewai (default: current directory)
+  --task <text>          Engineering task description to plan (required unless --dry-run)
+  --context-files <csv>  Comma-separated file paths to include as crew context
+  --with-proxy           Ensure local CLIProxyAPI container is started before run
+  --dry-run              Skip the LLM call and print the assembled inputs
+  -h, --help             Show this help
 EOF
 }
 
 REPO_DIR="$(pwd)"
-GOAL=""
+TASK=""
+CONTEXT_FILES=""
 DRY_RUN="0"
 WITH_PROXY="0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo) REPO_DIR="${2:-}"; shift 2;;
-    --goal) GOAL="${2:-}"; shift 2;;
+    --task) TASK="${2:-}"; shift 2;;
+    --context-files) CONTEXT_FILES="${2:-}"; shift 2;;
     --with-proxy) WITH_PROXY="1"; shift 1;;
     --dry-run) DRY_RUN="1"; shift 1;;
     -h|--help) usage; exit 0;;
@@ -44,6 +47,12 @@ if [[ ! -d "$CREWAI_DIR" ]]; then
   echo "ERROR: .crewai not found under $REPO_DIR" >&2
   echo "Run installer with --with-crewai first." >&2
   exit 1
+fi
+
+if [[ -z "$TASK" && "$DRY_RUN" != "1" ]]; then
+  echo "ERROR: --task is required (or pass --dry-run)." >&2
+  usage
+  exit 2
 fi
 
 if ! command -v uv >/dev/null 2>&1; then
@@ -65,28 +74,25 @@ if [[ "$WITH_PROXY" == "1" ]]; then
   bash "$PROXY_SCRIPT" up --repo "$REPO_DIR"
 fi
 
-PY_PACKAGE="growth_marketing_team"
+PY_PACKAGE="engineering_crew"
 if [[ -f "$CREWAI_DIR/.package-name" ]]; then
   PY_PACKAGE="$(head -n 1 "$CREWAI_DIR/.package-name" | tr -d '[:space:]')"
 fi
 
 cd "$CREWAI_DIR"
 
-if [[ "$DRY_RUN" == "1" || -n "$GOAL" ]]; then
-  cmd=(uv run python -m "${PY_PACKAGE}.main")
-  if [[ "$DRY_RUN" == "1" ]]; then
-    cmd+=(--dry-run)
-  fi
-  if [[ -n "$GOAL" ]]; then
-    cmd+=(--goal "$GOAL")
-  fi
-  echo "Running: ${cmd[*]}"
-  "${cmd[@]}"
-  exit 0
+cmd=(uv run python -m "${PY_PACKAGE}.main")
+if [[ "$DRY_RUN" == "1" ]]; then
+  cmd+=(--dry-run)
+fi
+if [[ -n "$TASK" ]]; then
+  cmd+=(--task "$TASK")
+elif [[ "$DRY_RUN" == "1" ]]; then
+  cmd+=(--task "dry-run probe")
+fi
+if [[ -n "$CONTEXT_FILES" ]]; then
+  cmd+=(--context-files "$CONTEXT_FILES")
 fi
 
-echo "Running: uv run crewai run"
-if ! uv run crewai run; then
-  echo "crewai run failed; falling back to python module runner..."
-  uv run python -m "${PY_PACKAGE}.main"
-fi
+echo "Running: ${cmd[*]}"
+exec "${cmd[@]}"

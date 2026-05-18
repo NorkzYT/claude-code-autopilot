@@ -7,6 +7,7 @@
        cron-list cron-runs \
        memory-search memory-status memory-reindex \
        crewai-workflow crewai-proxy-up crewai-proxy-down crewai-proxy-status \
+       engineering-loop engineering-loop-dry \
        ralph-once ralph-afk \
        set-timeout
 
@@ -82,10 +83,14 @@ help:
 	@echo "  make memory-reindex      - Reindex memory/RAG"
 	@echo ""
 	@echo "CrewAI (host-side):"
-	@echo "  make crewai-workflow     - Run CrewAI workflow (usage: make crewai-workflow GOAL=\"...\")"
+	@echo "  make crewai-workflow     - Run CrewAI engineering planner (usage: make crewai-workflow GOAL=\"...\")"
 	@echo "  make crewai-proxy-up     - Start CrewAI CLI proxy"
 	@echo "  make crewai-proxy-down   - Stop CrewAI CLI proxy"
 	@echo "  make crewai-proxy-status - Show CrewAI CLI proxy status"
+	@echo ""
+	@echo "Engineering Loop (autonomous task driver):"
+	@echo "  make engineering-loop ARGS=\"--use-planner bin/tasks.md\""
+	@echo "  make engineering-loop-dry TASKS_FILE=bin/tasks.example.md"
 	@echo ""
 	@echo "Ralph (multi-session iteration):"
 	@echo "  make ralph-once          - Single Ralph iteration (usage: make ralph-once PRD=./PRD.md)"
@@ -396,13 +401,13 @@ memory-reindex:
 
 # ─── CrewAI (host-side) ─────────────────────────────────────────────
 
-# Run CrewAI workflow: make crewai-workflow GOAL="Your goal here"
+# Run CrewAI engineering planner: make crewai-workflow GOAL="Add JWT auth"
 crewai-workflow:
 	@if [ -z "$(GOAL)" ]; then \
-		echo "Usage: make crewai-workflow GOAL=\"Your goal here\""; \
+		echo "Usage: make crewai-workflow GOAL=\"Task description\""; \
 		exit 1; \
 	fi
-	@bash .claude/scripts/crewai-local-workflow.sh --goal "$(GOAL)"
+	@bash .claude/scripts/crewai-local-workflow.sh --task "$(GOAL)"
 
 # Start CrewAI CLI proxy
 crewai-proxy-up:
@@ -415,6 +420,21 @@ crewai-proxy-down:
 # Show CrewAI CLI proxy status
 crewai-proxy-status:
 	@bash .claude/scripts/crewai-cliproxyapi.sh status
+
+# ─── Engineering Loop (autonomous task driver) ──────────────────────
+
+# Run the engineering loop. Pass options + tasks file through ARGS, e.g.:
+#   make engineering-loop ARGS="--use-planner bin/tasks.md"
+engineering-loop:
+	@bash .claude/scripts/engineering-loop.sh $(ARGS)
+
+# Dry-run convenience: make engineering-loop-dry TASKS_FILE=bin/tasks.example.md
+engineering-loop-dry:
+	@if [ -z "$(TASKS_FILE)" ]; then \
+		echo "Usage: make engineering-loop-dry TASKS_FILE=bin/tasks.example.md"; \
+		exit 1; \
+	fi
+	@bash .claude/scripts/engineering-loop.sh --dry-run $(TASKS_FILE)
 
 # ─── Ralph (multi-session iteration) ────────────────────────────────
 

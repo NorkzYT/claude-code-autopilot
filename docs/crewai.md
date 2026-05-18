@@ -1,16 +1,18 @@
 # CrewAI Setup and Workflow
 
 This guide explains how to use the CrewAI integration added by `--with-crewai`.
+The scaffold ships a generic two-agent engineering planner crew that turns a
+single task description into a reviewed, executable implementation plan.
 
 ## What `--with-crewai` Adds
 
 - Runs `.claude/bootstrap/crewai_setup.sh`
 - Scaffolds `.crewai/` with:
-  - Crew agents and tasks config
-  - Python entrypoints for execution
-  - Report artifact generation
-- Adds local runner:
-  - `.claude/scripts/crewai-local-workflow.sh`
+  - Engineering planner agents and tasks config
+  - Python entrypoint (`--task` / `--context-files`)
+- Adds host-side runners:
+  - `.claude/scripts/crewai-local-workflow.sh` (planner wrapper)
+  - `.claude/scripts/engineering-loop.sh` (autonomous task driver)
 
 ## Install
 
@@ -37,62 +39,129 @@ uv sync
 
 ## Run Commands
 
-Default CrewAI run:
+Plan a single task and print the result to stdout:
 
 ```bash
 cd .crewai
-uv run crewai run
+uv run python -m <package>.main --task "Add JWT auth to the API"
 ```
 
-Run through wrapper with goal override:
+The exact `<package>` name is written to `.crewai/.package-name` (slug-derived,
+e.g. `myrepo_crew`). Or use the host wrapper:
 
 ```bash
-make crewai-workflow GOAL="Subscriber growth plan"
-# Or directly: bash .claude/scripts/crewai-local-workflow.sh --goal "Subscriber growth plan"
+make crewai-workflow GOAL="Add JWT auth to the API"
+# Or directly:
+bash .claude/scripts/crewai-local-workflow.sh --task "Add JWT auth to the API"
 ```
 
-Run through wrapper and auto-start local CLIProxyAPI:
+Auto-start the local CLIProxyAPI for subscription-backed routing:
 
 ```bash
-bash .claude/scripts/crewai-local-workflow.sh --with-proxy --goal "Subscriber growth plan"
+bash .claude/scripts/crewai-local-workflow.sh --with-proxy --task "Add JWT auth"
 ```
 
-Dry-run without calling an LLM:
+Dry-run without calling an LLM (echoes the assembled inputs):
 
 ```bash
 bash .claude/scripts/crewai-local-workflow.sh --dry-run
 ```
 
-## Generated Artifacts
+## Default Engineering Crew
 
-Each run writes:
+The scaffold defines two sequential agents:
 
-- `.crewai/reports/go-to-market-plan.md`
-- `.crewai/reports/experiment-backlog.csv`
-- `.crewai/reports/weekly-ops.md`
-- `.crewai/outputs/run-<timestamp>.json`
+- `task_planner` — drafts an atomic, testable implementation plan.
+- `plan_reviewer` — reviews the plan, tightens ambiguity, then emits the final
+  markdown ready to hand to Claude Code.
 
-## Default Marketing Crew
+The pipeline runs two sequential tasks (`plan_task` -> `review_task`) and
+returns the reviewer's output as the crew result.
 
-The scaffold includes five default agents:
+## Engineering Planner Mode
 
-- `market_researcher`
-- `positioning_copywriter`
-- `channel_strategist`
-- `funnel_analyst`
-- `weekly_operator`
+When you pair the crew with the autonomous driver, the planner produces a PRD
+that the driver feeds into `claude -p`:
 
-And a sequential task flow:
+```bash
+bash .claude/scripts/engineering-loop.sh --use-planner bin/tasks.md
+```
 
-1. Define ICP
-2. Craft positioning
-3. Plan channels
-4. Design funnel metrics
-5. Build weekly execution plan
+The driver runs the planner once per pending task and writes the result to
+`.claude/context/engineering-loop/<task-slug>/PRD.md`. If `.crewai/` or `uv`
+is missing the driver logs a warning and proceeds without a PRD (the task
+description alone is still passed to Claude).
+
+## Task File Format
+
+The driver reads a markdown file shaped like `bin/tasks.example.md`:
+
+```markdown
+# Tasks
+
+## Task: add-jwt-auth
+**Status:** pending
+**Branch:** feat/add-jwt-auth
+
+<free-form task description here, including acceptance criteria>
+
+---
+```
+
+- Headers must start with `## Task: <slug>`.
+- `**Status:**` values: `pending` | `in-progress` | `done` | `failed`.
+- `**Branch:**` is optional. Default is `feat/<slug>`.
+- Everything after the metadata block (and before the `---` separator) is the
+  task description.
+- The driver only processes `pending` tasks. It updates statuses in place to
+  `in-progress`, then `done` or `failed`.
+
+## Running the Engineering Loop
+
+```bash
+# Show the loop's --help
+bash .claude/scripts/engineering-loop.sh --help
+
+# Dry-run (parse and print only — no execution)
+bash .claude/scripts/engineering-loop.sh --dry-run bin/tasks.example.md
+
+# Live run, no planner, retry tests up to 3 times on failure
+bash .claude/scripts/engineering-loop.sh bin/tasks.md
+
+# Live run with planner-generated PRDs and a 5-retry budget
+bash .claude/scripts/engineering-loop.sh \
+  --use-planner --max-retries 5 bin/tasks.md
+
+# Override the workspace
+bash .claude/scripts/engineering-loop.sh \
+  --workspace /opt/repos/myrepo bin/tasks.md
+```
+
+Per task, the driver:
+
+1. Marks the task `in-progress` in the tasks file.
+2. Checks out `**Branch:**` (creating it if missing).
+3. If `--use-planner`, runs the CrewAI planner crew to generate a PRD.
+4. Launches `claude --permission-mode acceptEdits -p "<prompt>"` with the task
+   description, optional PRD, branch, and detected test command.
+5. Detects a test command (`make test`, `npm test`, `pytest`, `cargo test`,
+   `go test ./...`) and runs it after the session.
+6. On test failure, retries `--max-retries` times with the previous test output
+   attached as context.
+7. Marks the task `done` (tests pass / agent completed) or `failed` (retries
+   exhausted or agent emitted `<promise>FAILED: ...</promise>`).
+
+Make-target shortcuts:
+
+```bash
+make engineering-loop ARGS="--use-planner bin/tasks.md"
+make engineering-loop-dry TASKS_FILE=bin/tasks.example.md
+```
 
 ## CLIProxyAPI Mode (Subscription-Backed)
 
-If you want CrewAI to route through local OpenAI-compatible proxy instead of direct provider API keys:
+If you want CrewAI to route through a local OpenAI-compatible proxy instead of
+direct provider API keys:
 
 ### Step 1 — Start the proxy container
 
@@ -129,7 +198,6 @@ by default). The running server picks it up immediately and auth survives contai
 Verify the login worked:
 
 ```bash
-# grab the proxy key from your config
 PROXY_KEY=$(grep -A1 'api-keys' .crewai/cliproxyapi/config.yaml | tail -1 | tr -d ' -"')
 curl -s -H "Authorization: Bearer $PROXY_KEY" http://127.0.0.1:8317/v1/models | python3 -m json.tool | head -20
 ```
@@ -144,16 +212,16 @@ OPENAI_BASE_URL=http://127.0.0.1:8317/v1
 CLI_PROXY_BASE_URL=http://127.0.0.1:8317/v1
 CLI_PROXY_API_KEY=<key from .crewai/cliproxyapi/config.yaml api-keys list>
 OPENAI_API_KEY=<same key>
-MARKETING_MODEL=gpt-5.3-codex
+ENGINEERING_MODEL=gpt-5.3-codex
 ```
 
-`MARKETING_MODEL` must match a model name returned by `/v1/models`.
+`ENGINEERING_MODEL` must match a model name returned by `/v1/models`.
 After login the proxy exposes whatever Codex reports — check the `curl` output above.
 
 ### Step 4 — Run CrewAI
 
 ```bash
-bash .claude/scripts/crewai-local-workflow.sh --with-proxy
+bash .claude/scripts/crewai-local-workflow.sh --with-proxy --task "Add JWT auth"
 ```
 
 Helper commands:
@@ -180,7 +248,8 @@ docker compose -f docker-compose.crewai.yml up -d crewai-runner
 Run a repo workflow in the CrewAI container:
 
 ```bash
-docker exec -it crewai-runner crewai-entrypoint run /opt/repos/<repo-name> --goal "Increase traction and paying customers"
+docker exec -it crewai-runner crewai-entrypoint run /opt/repos/<repo-name> \
+  --task "Add JWT auth to the API"
 ```
 
 The compose stack mounts host `/opt/repos` into the container at `/opt/repos`.
@@ -197,6 +266,5 @@ docker compose -f docker-compose.crewai.yml --profile proxy up -d cliproxyapi
   - Install `uv`, then rerun `cd .crewai && uv sync`.
 - `No LLM provider key found`
   - Add a provider key in `.crewai/.env` or run with `--dry-run`.
-- `crewai run` fails
-  - Use wrapper fallback:
-    - `make crewai-workflow GOAL="Your goal"`
+- Engineering loop reports `planner: .crewai not found`
+  - Either drop `--use-planner` or run `bash .claude/bootstrap/crewai_setup.sh` first.

@@ -1,45 +1,31 @@
-define_icp:
+plan_task:
   description: >
-    Define the ideal customer profile and priority market segments for:
-    - Tool: {tool_name}
-    - Tagline: {tool_tagline}
-    - Target persona: {target_persona}
-    - Offer: {primary_offer}
-    Use practical segmentation criteria that can guide channel and offer decisions.
-  expected_output: >
-    A concise ICP definition with 2-3 high-priority segments, main pain points,
-    and buying triggers.
-  agent: market_researcher
+    Task to plan: {task_description}
 
-craft_positioning:
-  description: >
-    Create positioning and core messaging for the prioritized segments.
-    Emphasize differentiation around faster execution and better decision making.
-  expected_output: >
-    Messaging matrix with value proposition, proof points, objection handling,
-    and CTA guidance for the primary conversion path.
-  agent: positioning_copywriter
+    Context files (if any): {context_files}
 
-plan_channels:
-  description: >
-    Build a 4-week channel plan to grow qualified awareness and subscription intent.
-    Include channel rationale, content themes, publishing cadence, and success criteria.
+    Produce a structured implementation plan with:
+    1. Summary of what needs to be built/changed
+    2. Ordered implementation steps (atomic, each independently testable)
+    3. Files to create or modify
+    4. Test commands to verify each step (shell commands that return 0 on pass)
+    5. Acceptance criteria (done when: ...)
+    6. Risks and edge cases to handle
   expected_output: >
-    Ranked channel strategy and 4-week content/campaign outline.
-  agent: channel_strategist
+    A structured markdown implementation plan ready to hand to Claude Code for execution.
+  agent: task_planner
 
-design_funnel:
+review_task:
   description: >
-    Design a measurement framework for awareness -> activation -> paid conversion.
-    Include KPI definitions and decision thresholds for experiment keep/kill choices.
-  expected_output: >
-    Funnel map with KPI definitions, target ranges, and experiment scoring model.
-  agent: funnel_analyst
+    Review the implementation plan above. Check:
+    - Are all steps atomic and independently verifiable?
+    - Are test commands concrete (actual shell commands)?
+    - Are edge cases covered?
+    - Is anything ambiguous?
 
-weekly_execution_plan:
-  description: >
-    Convert all previous outputs into a weekly operations plan optimized for a solo founder.
-    Provide concrete priorities, dependencies, and iteration cadence.
+    Output the final reviewed plan with any improvements applied.
+    If the plan is already solid, output it unchanged with a "LGTM" note.
   expected_output: >
-    Weekly action plan with top 3 experiments, required inputs, and reporting checklist.
-  agent: weekly_operator
+    Final reviewed implementation plan as markdown, ready for execution.
+  agent: plan_reviewer
+  context: [plan_task]

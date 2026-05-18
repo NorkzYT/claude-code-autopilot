@@ -29,7 +29,7 @@ if [[ "${1:-}" == "run" ]]; then
   if [[ -f .package-name ]]; then
     pkg="$(head -n 1 .package-name | tr -d '[:space:]')"
   else
-    pkg="growth_marketing_team"
+    pkg="engineering_crew"
   fi
 
   exec uv run python -m "${pkg}.main" "$@"

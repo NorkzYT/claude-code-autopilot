@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import argparse
-import csv
-import json
 import os
-from datetime import datetime, timezone
+import re
+import sys
 from pathlib import Path
-from typing import Any
 
 from dotenv import load_dotenv
 
-from .crew import GrowthMarketingCrew
+from .crew import EngineeringPlannerCrew
 
 
 def _has_provider_key() -> bool:
@@ -35,159 +33,62 @@ def _has_provider_key() -> bool:
     )
 
 
-def _default_inputs(goal: str) -> dict[str, str]:
-    return {
-        "tool_name": os.getenv("TOOL_NAME", "{{PROJECT_NAME}}"),
-        "tool_tagline": os.getenv(
-            "TOOL_TAGLINE",
-            "Help users solve a real workflow problem faster with clear measurable outcomes.",
-        ),
-        "target_persona": os.getenv(
-            "TARGET_PERSONA",
-            "Teams and individual operators who need better results with less manual effort.",
-        ),
-        "primary_offer": os.getenv(
-            "PRIMARY_OFFER",
-            "Primary paid conversion path (for example: subscription, annual plan, or one-time purchase).",
-        ),
-        "primary_goal": goal,
-    }
+def _slugify(text: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    slug = re.sub(r"-+", "-", slug)
+    return slug or "task"
 
 
-def _ensure_dirs(base_dir: Path) -> tuple[Path, Path]:
-    reports_dir = base_dir / "reports"
-    outputs_dir = base_dir / "outputs"
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    outputs_dir.mkdir(parents=True, exist_ok=True)
-    return reports_dir, outputs_dir
+def _read_context_files(paths: list[str]) -> str:
+    chunks: list[str] = []
+    for raw in paths:
+        path_str = raw.strip()
+        if not path_str:
+            continue
+        path = Path(path_str).expanduser()
+        if not path.exists():
+            chunks.append(f"# {path_str}\n[file not found]\n")
+            continue
+        try:
+            body = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            chunks.append(f"# {path_str}\n[unreadable: {exc}]\n")
+            continue
+        chunks.append(f"# {path_str}\n{body}\n")
+    return "\n".join(chunks) if chunks else "(none)"
 
 
-def _write_go_to_market_plan(reports_dir: Path, inputs: dict[str, str], result_text: str) -> None:
-    plan_path = reports_dir / "go-to-market-plan.md"
-    plan_body = f"""# Go-To-Market Plan
+def _resolve_output_path(task_description: str) -> Path | None:
+    out_env = os.getenv("ENGINEERING_PLAN_OUTPUT", "").strip()
+    if out_env:
+        return Path(out_env).expanduser()
 
-## Product
-- Tool: {inputs["tool_name"]}
-- Core value: {inputs["tool_tagline"]}
-- Offer: {inputs["primary_offer"]}
+    base_env = os.getenv("ENGINEERING_PLAN_BASE_DIR", "").strip()
+    if not base_env:
+        return None
 
-## Audience
-- Primary persona: {inputs["target_persona"]}
-
-## Goal
-- {inputs["primary_goal"]}
-
-## Messaging Angle
-- Emphasize measurable outcomes, reduced manual work, and faster time-to-value.
-- Focus on user pain reduction, confidence, and clear ROI from adoption.
-
-## Channel Priorities
-1. Problem-driven educational content mapped to user pain points.
-2. Niche communities, newsletters, and creator/influencer partnerships where your ICP already gathers.
-3. Targeted landing pages by user segment and sophistication level.
-
-## Funnel Design
-1. Awareness -> pain-to-outcome educational content.
-2. Activation -> quick value demonstration and fast first success.
-3. Conversion -> clear paid path with objection handling and trust signals.
-
-## Crew Output Snapshot
-{result_text}
-"""
-    plan_path.write_text(plan_body, encoding="utf-8")
-
-
-def _write_experiment_backlog(reports_dir: Path) -> None:
-    backlog_path = reports_dir / "experiment-backlog.csv"
-    rows = [
-        {
-            "experiment": "Case-study landing page for high-value user segment",
-            "channel": "SEO + community distribution",
-            "effort": "M",
-            "expected_lift": "15% more qualified trials",
-            "kpi": "Trial starts, activation rate",
-            "decision_threshold": "Keep if trial-to-paid >= baseline + 10%",
-        },
-        {
-            "experiment": "Short-form before/after workflow transformation videos",
-            "channel": "TikTok, YouTube Shorts, Instagram Reels",
-            "effort": "S",
-            "expected_lift": "20% awareness growth",
-            "kpi": "Qualified traffic, email signups",
-            "decision_threshold": "Keep if CPA proxy improves by 15%",
-        },
-        {
-            "experiment": "Annual-plan savings + ROI calculator",
-            "channel": "Pricing page + onboarding emails",
-            "effort": "M",
-            "expected_lift": "10% annual plan share increase",
-            "kpi": "Annual conversion share",
-            "decision_threshold": "Keep if annual share rises >= 8%",
-        },
-    ]
-
-    with backlog_path.open("w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(
-            fh,
-            fieldnames=[
-                "experiment",
-                "channel",
-                "effort",
-                "expected_lift",
-                "kpi",
-                "decision_threshold",
-            ],
-        )
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def _write_weekly_ops(reports_dir: Path) -> None:
-    weekly_path = reports_dir / "weekly-ops.md"
-    weekly_body = """# Weekly Operations Plan
-
-## Weekly Cadence
-1. Review KPI board (trial starts, activation, paid conversion, annual share).
-2. Launch or continue top 3 ranked experiments (impact/confidence/effort).
-3. Capture learnings and promote one winning narrative into core messaging.
-4. Prepare next week backlog with clear keep/kill thresholds.
-
-## Inputs Needed
-- Last 7 days traffic + conversion data.
-- Product usage/activation indicators.
-- Current channel spend and content output.
-
-## Decision Rules
-- Scale experiments that meet decision thresholds.
-- Pause experiments after 2 cycles with no positive movement.
-- Prioritize initiatives improving activation and paid conversion, not just top-of-funnel traffic.
-"""
-    weekly_path.write_text(weekly_body, encoding="utf-8")
-
-
-def _write_run_metadata(outputs_dir: Path, inputs: dict[str, str], result_text: str, dry_run: bool) -> None:
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    metadata: dict[str, Any] = {
-        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-        "dry_run": dry_run,
-        "inputs": inputs,
-        "result_preview": result_text[:4000],
-    }
-    out_path = outputs_dir / f"run-{timestamp}.json"
-    out_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    slug = _slugify(task_description)[:60] or "task"
+    return Path(base_env).expanduser() / slug / "PRD.md"
 
 
 def run() -> None:
-    parser = argparse.ArgumentParser(description="Run growth marketing CrewAI workflow.")
+    parser = argparse.ArgumentParser(
+        description="Run the CrewAI engineering planner crew on a single task."
+    )
     parser.add_argument(
-        "--goal",
-        default=os.getenv("PRIMARY_GOAL", "Increase monthly and yearly subscriber growth."),
-        help="Primary campaign goal.",
+        "--task",
+        required=True,
+        help="Task description string to plan.",
+    )
+    parser.add_argument(
+        "--context-files",
+        default="",
+        help="Optional comma-separated file paths to include as context.",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Generate output artifacts without calling an LLM provider.",
+        help="Skip the LLM call and print the inputs that would be sent.",
     )
     args = parser.parse_args()
 
@@ -203,30 +104,37 @@ def run() -> None:
         if proxy_base and not os.getenv("OPENAI_API_BASE"):
             os.environ["OPENAI_API_BASE"] = proxy_base
 
-    base_dir = Path(__file__).resolve().parents[2]
-    reports_dir, outputs_dir = _ensure_dirs(base_dir)
-    inputs = _default_inputs(args.goal)
+    context_paths = [p for p in args.context_files.split(",") if p.strip()]
+    inputs = {
+        "task_description": args.task,
+        "context_files": _read_context_files(context_paths),
+    }
 
-    result_text = "Dry run completed. Add provider keys in .env for live CrewAI execution."
-    dry_run = args.dry_run
+    if args.dry_run:
+        print("# Dry run — inputs that would be sent to EngineeringPlannerCrew")
+        print(f"task_description: {inputs['task_description']}")
+        print("context_files:")
+        print(inputs["context_files"])
+        return
 
-    if not args.dry_run and _has_provider_key():
-        result = GrowthMarketingCrew().crew().kickoff(inputs=inputs)
-        result_text = str(result)
-        dry_run = False
-    elif not args.dry_run:
-        print("No LLM provider key found in .env. Generating dry-run artifacts instead.")
-        dry_run = True
+    if not _has_provider_key():
+        print(
+            "ERROR: no LLM provider key found. Set OPENAI_API_KEY / "
+            "CLI_PROXY_API_KEY in .env, or pass --dry-run.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
-    _write_go_to_market_plan(reports_dir, inputs, result_text)
-    _write_experiment_backlog(reports_dir)
-    _write_weekly_ops(reports_dir)
-    _write_run_metadata(outputs_dir, inputs, result_text, dry_run)
+    result = EngineeringPlannerCrew().crew().kickoff(inputs=inputs)
+    plan_text = str(result)
 
-    print("Artifacts written:")
-    print(f"  - {reports_dir / 'go-to-market-plan.md'}")
-    print(f"  - {reports_dir / 'experiment-backlog.csv'}")
-    print(f"  - {reports_dir / 'weekly-ops.md'}")
+    out_path = _resolve_output_path(args.task)
+    if out_path is not None:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(plan_text, encoding="utf-8")
+        print(f"# Plan written to {out_path}", file=sys.stderr)
+
+    print(plan_text)
 
 
 if __name__ == "__main__":
