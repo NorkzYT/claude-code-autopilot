@@ -4,6 +4,7 @@ Use these docs when you need details that do not belong in the quick-start READM
 
 ## Guides
 
+- `docs/setup-guide.md` — **Start here.** Full setup: OpenClaw + multi-crew AI workforce + engineering loop
 - `docs/install.md` — install modes, updates, installer flags, gitignore
 - `docs/workflow.md` — session persistence, notifications, guardrails, customization, plan-mode workflow
 - `docs/editor.md` — external editor (`Ctrl+G`) setup and VS Code remote notes
