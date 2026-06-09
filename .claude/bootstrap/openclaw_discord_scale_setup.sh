@@ -162,7 +162,9 @@ for lane in lanes:
     ch_cfg = guild_channels.get(ch)
     if not isinstance(ch_cfg, dict):
         ch_cfg = {}
-    ch_cfg["allow"] = True
+    # Presence under guilds[].channels is the allowlist; "allow" is not a valid
+    # channel key. Strip any stale value written by older wizard versions.
+    ch_cfg.pop("allow", None)
     ch_cfg["requireMention"] = require_mention_bool
     guild_channels[ch] = ch_cfg
 

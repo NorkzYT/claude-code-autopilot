@@ -104,7 +104,9 @@ guild_cfg["channels"] = guild_channels
 chan_cfg = guild_channels.get(channel_id)
 if not isinstance(chan_cfg, dict):
     chan_cfg = {}
-chan_cfg["allow"] = True
+# Presence under guilds[].channels is the allowlist; "allow" is not a valid
+# channel key. Strip any stale value written by older wizard versions.
+chan_cfg.pop("allow", None)
 if require_mention.lower() in ("true", "false"):
     chan_cfg["requireMention"] = (require_mention.lower() == "true")
 guild_channels[channel_id] = chan_cfg
