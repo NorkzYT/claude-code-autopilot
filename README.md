@@ -39,6 +39,19 @@ curl -fsSL https://raw.githubusercontent.com/NorkzYT/claude-code-autopilot/main/
 
 This Docker/OpenClaw install defaults to `/opt/openclaw-home` when `--dest` is omitted, regardless of the directory where you ran the command.
 
+### Updating an Existing Install
+
+Every install records its repo, ref, dest, and flags in `.claude/install.manifest`. To refresh the kit later, replay that exact install with one command:
+
+```bash
+bash .claude/scripts/self-update.sh          # from the install root
+make self-update                             # OpenClaw installs (same thing)
+```
+
+Re-running the bare Quick Install line from a different directory does **not** update an existing `/opt/openclaw-home` — without `--dest`/`--with-openclaw` it installs into the current directory (the installer now warns about this).
+
+Running a fork? Set `CCA_CANONICAL_REPO=<owner>/<repo>` in the install root's `.env` (see `.env.example`) so the installer command suggested by `self-update` on manifest-less installs points at your fork. The environment variable of the same name takes precedence over `.env`.
+
 ### OpenClaw Docker Quickstart
 
 For a new user who wants Docker-only OpenClaw with access to repos under `/opt/repos`:
@@ -59,7 +72,7 @@ cp /opt/openclaw-home/.env.example /opt/openclaw-home/.env
 
 Recommended defaults:
 
-- `OPENCLAW_MODEL_PRIMARY=anthropic/claude-sonnet-4-6`
+- `OPENCLAW_MODEL_PRIMARY=claude-max-proxy/claude-opus` (Opus first; downshift per-session when a task is simple)
 - `OPENCLAW_THINKING_DEFAULT=high`
 
 Optional auth envs:
