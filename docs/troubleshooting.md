@@ -105,6 +105,59 @@ openclaw config get channels.discord.inboundWorker.runTimeoutMs
 # Should output: 7200000
 ```
 
+## Run Aborted Mid-Think at ~9.5 Minutes (no-progress watchdog)
+
+**Symptom:** A long run on a heavy reasoning model (opus / fable at high
+thinking) is killed partway through even though `agents.defaults.timeoutSeconds`
+and `channels.discord.inboundWorker.runTimeoutMs` are both already raised to 1h+.
+The gateway log shows a stalled-session warning around `lastProgressAge≈389s`
+followed by an abort-drain near `age≈574s`:
+```
+[diagnostics] stuck session warn ... lastProgressAge=389s
+[diagnostics] stuck session abort-drain ... age=574s
+```
+
+**Cause:** This is **not** a request timeout — it is OpenClaw's *no-progress
+watchdog* (`diagnostics.stuckSessionWarnMs` / `diagnostics.stuckSessionAbortMs`).
+It measures wall-clock since the run last streamed anything OpenClaw counts as
+progress, and abort-drains the session for recovery once it crosses the abort
+threshold. The built-in defaults (~6.5m warn / ~9.5m abort) were sized for fast
+models; opus/fable with a large thinking budget can go minutes between visible
+tokens, so a slow-but-healthy run trips the watchdog and dies mid-think. Fast
+models (sonnet) rarely hit it.
+
+**Fix:** raise both thresholds (milliseconds) so a genuinely-healthy slow run has
+room to finish. 10m warn / 20m abort is the production profile:
+```bash
+make shell
+make set-watchdog WARN_MS=600000 ABORT_MS=1200000
+# or directly (note --strict-json so they store as numbers):
+openclaw config set diagnostics.stuckSessionWarnMs 600000 --strict-json
+openclaw config set diagnostics.stuckSessionAbortMs 1200000 --strict-json
+make restart   # these keys are cached at boot — a gateway restart is required
+```
+
+In `openclaw.json`:
+```jsonc
+"diagnostics": {
+  "stuckSessionWarnMs": 600000,
+  "stuckSessionAbortMs": 1200000
+}
+```
+
+On Docker hosts these are provisioned automatically on every boot by
+`openclaw-ensure-timeouts` (override via `OPENCLAW_STUCK_SESSION_WARN_MS` /
+`OPENCLAW_STUCK_SESSION_ABORT_MS`). Keep `abort` finite (e.g. 1200000) rather
+than disabling it, so a genuinely hung session can still be reclaimed — `warn`
+must stay below `abort` or it never fires.
+
+**Verify:**
+```bash
+make shell
+openclaw config get diagnostics.stuckSessionAbortMs
+# Should output: 1200000
+```
+
 ## Discord Plugin Not Installed ("plugin not installed: discord")
 
 **Symptom:** On startup or in `make logs` you see:
