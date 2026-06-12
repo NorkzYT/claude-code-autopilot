@@ -558,15 +558,11 @@ if [[ "$INSTALL_OPENCLAW" == "1" ]]; then
   install_repo_asset "docs/docker-openclaw-crewai.md"
   install_repo_asset "hooks"
 
-  # Clone claude-max-api-proxy for the Claude Max proxy service
+  # Clone or sync claude-max-api-proxy for the Claude Max proxy service.
+  # sync-proxy-checkout.sh owns the branch policy (default: main; override
+  # via CLAUDE_MAX_PROXY_REF) and migrates checkouts off legacy pinned refs.
   PROXY_DIR="${DEST_ABS}/claude-max-api-proxy"
-  if [[ -d "$PROXY_DIR" ]]; then
-    echo "  claude-max-api-proxy already exists at ${PROXY_DIR}, pulling latest..."
-    git -C "$PROXY_DIR" pull --ff-only 2>/dev/null || true
-  else
-    echo "  Cloning claude-max-api-proxy..."
-    git clone --branch fix/oauth-refresh-race https://github.com/NorkzYT/claude-max-api-proxy.git "$PROXY_DIR"
-  fi
+  bash "${SRC_ROOT}/docker/openclaw/sync-proxy-checkout.sh" "$PROXY_DIR"
   INSTALLED_ASSETS+=("$PROXY_DIR")
 
   # Install Makefile for OpenClaw management

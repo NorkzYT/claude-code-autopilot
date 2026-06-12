@@ -9,7 +9,9 @@
 # watchdog) used in production, without hand-editing JSON. All values are
 # env-overridable.
 #
-# Companion: the proxy-side "thinking" timeout (the one that is NOT in
+# Companions: openclaw-ensure-models seeds the claude-max-proxy provider and
+# model catalog (run it first so the provider exists for the provider timeout
+# below). The proxy-side "thinking" timeout (the one that is NOT in
 # openclaw.json) lives in claude-max-api-proxy/src/timeouts.ts and is configured
 # via CLAUDE_PROXY_* env vars on the proxy container.
 #
@@ -18,6 +20,23 @@
 #
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+for _lib in "${OPENCLAW_CONFIG_MERGE_LIB:-}" \
+            "$SCRIPT_DIR/lib/config-merge.sh" \
+            /usr/local/lib/openclaw/config-merge.sh; do
+  if [[ -n "$_lib" && -f "$_lib" ]]; then
+    # shellcheck source=lib/config-merge.sh
+    source "$_lib"
+    _lib_found=1
+    break
+  fi
+done
+if [[ "${_lib_found:-0}" != "1" ]]; then
+  echo "[ensure-timeouts] config-merge lib not found; skipping" >&2
+  exit 0
+fi
+
+TAG="ensure-timeouts"
 CONFIG="${1:-${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/openclaw.json}"
 
 # Defaults match the production profile; override per machine via env.
@@ -45,18 +64,9 @@ if [[ "$STUCK_SESSION_WARN_MS" =~ ^[0-9]+$ && "$STUCK_SESSION_ABORT_MS" =~ ^[0-9
   STUCK_SESSION_WARN_MS="$STUCK_SESSION_ABORT_MS"
 fi
 
-if ! command -v jq >/dev/null 2>&1; then
-  echo "[ensure-timeouts] jq not found; skipping (install jq to enable)" >&2
-  exit 0
-fi
+config_merge_require_jq "$TAG"
 
-# Read existing config, falling back to {} when missing/empty/invalid so we
-# never clobber a good file but can still seed a brand-new one.
-if [[ -s "$CONFIG" ]] && jq -e . "$CONFIG" >/dev/null 2>&1; then
-  base="$(cat "$CONFIG")"
-else
-  base='{}'
-fi
+base="$(config_merge_read_base "$CONFIG")"
 
 # jq auto-creates intermediate objects on assignment. The provider timeout is
 # only set when that provider already exists, so we never write a half-formed
@@ -79,15 +89,4 @@ updated="$(printf '%s' "$base" | jq \
          else . end)
   ')"
 
-if [[ "$updated" == "$base" ]]; then
-  echo "[ensure-timeouts] timeout settings already current in $CONFIG"
-  exit 0
-fi
-
-# Atomic write; keep the file world-readable for cross-UID bind-mount access.
-mkdir -p "$(dirname "$CONFIG")"
-tmp="$(mktemp "${CONFIG}.XXXXXX")"
-printf '%s\n' "$updated" >"$tmp"
-chmod 644 "$tmp" 2>/dev/null || true
-mv -f "$tmp" "$CONFIG"
-echo "[ensure-timeouts] applied timeout settings to $CONFIG"
+config_merge_write_if_changed "$TAG" "$CONFIG" "$base" "$updated"

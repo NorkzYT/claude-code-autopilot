@@ -10,7 +10,7 @@
        crewai-serve crewai-serve-bg \
        engineering-loop engineering-loop-dry \
        ralph-once ralph-afk \
-       set-timeout set-inbound-timeout set-watchdog
+       set-timeout set-inbound-timeout set-watchdog ensure-config
 
 SHELL := /bin/bash
 -include .env
@@ -28,7 +28,7 @@ help:
 	@echo "OpenClaw Docker Management Commands"
 	@echo "===================================="
 	@echo ""
-	@echo "  make update        - Pull latest image, rebuild gateway + proxy, and restart"
+	@echo "  make update        - Sync proxy sources, pull latest image, rebuild + restart"
 	@echo "  make self-update   - Refresh the autopilot kit itself (.claude/ + assets)"
 	@echo "                       using the flags recorded at install time"
 	@echo "  make build         - Rebuild the gateway image"
@@ -102,6 +102,9 @@ help:
 	@echo "  make ralph-once          - Single Ralph iteration (usage: make ralph-once PRD=./PRD.md)"
 	@echo "  make ralph-afk           - AFK Ralph loop (usage: make ralph-afk PRD=./PRD.md ITERATIONS=15)"
 	@echo ""
+	@echo "Config Provisioning:"
+	@echo "  make ensure-config       - Re-run openclaw.json provisioners (model catalog + timeouts)"
+	@echo ""
 	@echo "Agent Timeout:"
 	@echo "  make set-timeout         - Set agent run timeout (usage: make set-timeout TIMEOUT=7200)"
 	@echo "  make set-inbound-timeout - Set Discord inbound-worker timeout ms (usage: make set-inbound-timeout TIMEOUT_MS=7200000)"
@@ -118,15 +121,19 @@ help:
 self-update:
 	@bash .claude/scripts/self-update.sh
 
-# Update OpenClaw: pull latest base image, rebuild, restart, run internal update
+# Update OpenClaw: sync proxy sources, pull latest base image, rebuild,
+# restart, run internal update. Container boot re-runs the openclaw.json
+# provisioners (models + timeouts), so new models like claude-fable land
+# without manual config edits.
 update:
 	@echo "Updating OpenClaw..."
+	@bash docker/openclaw/sync-proxy-checkout.sh
 	docker compose -f $(COMPOSE_FILE) build --pull openclaw-gateway claude-max-proxy
 	docker compose -f $(COMPOSE_FILE) up -d --force-recreate openclaw-gateway claude-max-proxy
 	@echo "Waiting for gateway to start..."
 	@sleep 10
 	@echo "Running OpenClaw internal update..."
-	@$(EXEC_T) openclaw update 2>/dev/null || echo "  (openclaw update not available — skipped)"
+	@$(EXEC_T) openclaw update 2>/dev/null || echo "  (in-container openclaw package update skipped — the gateway image pull above already updates it)"
 	@echo "✅ Update complete!"
 	@echo ""
 	@make status
@@ -147,9 +154,12 @@ rebuild:
 	@sleep 10
 	@make status
 
-# Force rebuild claude-max-proxy (no cache) and recreate container
+# Force rebuild claude-max-proxy (no cache) and recreate container.
+# Builds the sources as they sit on disk — run 'make update' (or
+# docker/openclaw/sync-proxy-checkout.sh) first to pull newer code.
 rebuild-proxy:
 	@echo "Force rebuilding claude-max-proxy (no cache)..."
+	@echo "Proxy sources: $$(git -C "$${CLAUDE_MAX_PROXY_DIR:-./claude-max-api-proxy}" log -1 --format='%h %s (branch %D)' 2>/dev/null || echo 'not a git checkout')"
 	docker compose -f $(COMPOSE_FILE) build --no-cache --pull claude-max-proxy
 	@echo "Recreating container with new image..."
 	docker compose -f $(COMPOSE_FILE) up -d --force-recreate claude-max-proxy
@@ -502,6 +512,20 @@ ralph-afk:
 		exit 1; \
 	fi
 	@bash .claude/scripts/afk-ralph.sh --prd $(PRD) --iterations $(or $(ITERATIONS),10)
+
+# ─── Config Provisioning ─────────────────────────────────────────────
+
+# Re-run the openclaw.json provisioners (model catalog + timeout profile) in
+# the running gateway without recreating it. Merge-only and idempotent —
+# the same scripts run automatically on every container boot. Useful after
+# editing OPENCLAW_* overrides in .env, or to converge an older machine.
+# Usage: make ensure-config
+ensure-config:
+	@$(EXEC_T) openclaw-ensure-models /home/node/.openclaw/openclaw.json \
+		|| echo "  (openclaw-ensure-models missing in this image — run 'make update' first)"
+	@$(EXEC_T) openclaw-ensure-timeouts /home/node/.openclaw/openclaw.json \
+		|| echo "  (openclaw-ensure-timeouts missing in this image — run 'make update' first)"
+	@echo "Restart to apply: make restart"
 
 # ─── Agent Timeout ───────────────────────────────────────────────────
 
