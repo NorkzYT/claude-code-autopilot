@@ -22,6 +22,10 @@
       }
     }
   },
+  "diagnostics": {
+    "stuckSessionWarnMs": 600000,
+    "stuckSessionAbortMs": 1200000
+  },
   "gateway": {
     "mode": "local",
     "port": 18789

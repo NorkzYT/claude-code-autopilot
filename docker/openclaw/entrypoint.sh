@@ -127,9 +127,10 @@ if [[ ! -f "$OPENCLAW_STATE_DIR/openclaw.json" ]]; then
 fi
 
 # Ensure the long-running timeout profile (Discord inbound worker, agent run,
-# sub-agent run, and proxy provider) is present in openclaw.json. Merge-only and
-# idempotent, so it reproduces the profile on fresh machines without disturbing
-# existing config. Override individual values via OPENCLAW_*_TIMEOUT_* env vars.
+# sub-agent run, proxy provider, and the no-progress watchdog) is present in
+# openclaw.json. Merge-only and idempotent, so it reproduces the profile on
+# fresh machines without disturbing existing config. Override individual values
+# via OPENCLAW_* env vars (see openclaw-ensure-timeouts).
 gosu node openclaw-ensure-timeouts "$OPENCLAW_STATE_DIR/openclaw.json" || \
   echo "[entrypoint] WARN: timeout provisioning skipped (see openclaw-ensure-timeouts output)" >&2
 

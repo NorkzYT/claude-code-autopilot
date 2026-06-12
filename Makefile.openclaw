@@ -10,7 +10,7 @@
        crewai-serve crewai-serve-bg \
        engineering-loop engineering-loop-dry \
        ralph-once ralph-afk \
-       set-timeout set-inbound-timeout
+       set-timeout set-inbound-timeout set-watchdog
 
 SHELL := /bin/bash
 -include .env
@@ -105,6 +105,7 @@ help:
 	@echo "Agent Timeout:"
 	@echo "  make set-timeout         - Set agent run timeout (usage: make set-timeout TIMEOUT=7200)"
 	@echo "  make set-inbound-timeout - Set Discord inbound-worker timeout ms (usage: make set-inbound-timeout TIMEOUT_MS=7200000)"
+	@echo "  make set-watchdog        - Set no-progress watchdog warn/abort ms (usage: make set-watchdog WARN_MS=600000 ABORT_MS=1200000)"
 	@echo ""
 	@echo "Claude Max Proxy:"
 	@echo "  make think LEVEL=high    - Set thinking budget for claude-max-proxy"
@@ -518,6 +519,21 @@ set-inbound-timeout:
 	@TIMEOUT_MS=$${TIMEOUT_MS:-7200000}; \
 	$(EXEC_T) openclaw config set channels.discord.inboundWorker.runTimeoutMs $$TIMEOUT_MS; \
 	echo "Discord inbound worker timeout set to $${TIMEOUT_MS}ms"; \
+	echo "Restart to apply: make restart"
+
+# Set the no-progress watchdog thresholds (ms). These govern how long an active
+# run may go WITHOUT streaming progress before OpenClaw warns and then
+# abort-drains it for recovery — a stall detector, not a request timeout. The
+# built-in defaults (~9.5m abort) are too tight for heavy reasoning models
+# (opus/fable at high thinking) that go minutes between visible tokens, so a
+# slow-but-healthy run gets killed mid-think; 20m gives it room. --strict-json
+# stores the values as numbers. Requires a gateway restart to take effect.
+# Usage: make set-watchdog WARN_MS=600000 ABORT_MS=1200000
+set-watchdog:
+	@WARN_MS=$${WARN_MS:-600000}; ABORT_MS=$${ABORT_MS:-1200000}; \
+	$(EXEC_T) openclaw config set diagnostics.stuckSessionWarnMs $$WARN_MS --strict-json; \
+	$(EXEC_T) openclaw config set diagnostics.stuckSessionAbortMs $$ABORT_MS --strict-json; \
+	echo "Watchdog set: warn $${WARN_MS}ms / abort $${ABORT_MS}ms"; \
 	echo "Restart to apply: make restart"
 
 # ─── Claude Max Proxy Thinking Budget ────────────────────────────────
