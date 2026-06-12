@@ -126,6 +126,13 @@ if [[ ! -f "$OPENCLAW_STATE_DIR/openclaw.json" ]]; then
   gosu node openclaw config set gateway.bind all 2>/dev/null || true
 fi
 
+# Ensure the long-running timeout profile (Discord inbound worker, agent run,
+# sub-agent run, and proxy provider) is present in openclaw.json. Merge-only and
+# idempotent, so it reproduces the profile on fresh machines without disturbing
+# existing config. Override individual values via OPENCLAW_*_TIMEOUT_* env vars.
+gosu node openclaw-ensure-timeouts "$OPENCLAW_STATE_DIR/openclaw.json" || \
+  echo "[entrypoint] WARN: timeout provisioning skipped (see openclaw-ensure-timeouts output)" >&2
+
 # Clean up per-agent browser displays on container shutdown
 trap 'browser-manager cleanup 2>/dev/null || true' EXIT
 

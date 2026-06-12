@@ -61,6 +61,11 @@ RUN chmod +x /usr/local/bin/browser-manager /usr/local/bin/chromium-wrapper
 RUN mv /usr/bin/chromium /usr/bin/chromium.real \
     && ln -s /usr/local/bin/chromium-wrapper /usr/bin/chromium
 
+# Idempotent openclaw.json timeout provisioner (merge-only). Reproduces the
+# long-running timeout profile on fresh machines; safe to run every boot.
+COPY docker/openclaw/ensure-timeouts.sh /usr/local/bin/openclaw-ensure-timeouts
+RUN chmod +x /usr/local/bin/openclaw-ensure-timeouts
+
 COPY docker/openclaw/entrypoint.sh /usr/local/bin/openclaw-entrypoint
 RUN chmod +x /usr/local/bin/openclaw-entrypoint
 
