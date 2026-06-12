@@ -158,6 +158,47 @@ openclaw config get diagnostics.stuckSessionAbortMs
 # Should output: 1200000
 ```
 
+## New Model Missing After `make update` (e.g. no `fable`)
+
+**Symptom:** You run `make update` (or `make rebuild-proxy`), restart, and a
+newly released proxy model never shows up. `docker logs claude-max-proxy`
+still prints the old model list, and `/model` in chat does not offer it.
+
+**Two independent causes, both now handled automatically:**
+
+1. **Stale proxy sources.** `docker compose build` builds whatever sits in
+   the `claude-max-api-proxy` checkout. If that checkout never moved (the
+   old installer pinned it to a fixed branch), the build is a byte-identical
+   cache hit — the `CACHED [claude-max-proxy 8/11] COPY src/ src/` line in
+   the build output is the tell. `make update` now runs
+   `docker/openclaw/sync-proxy-checkout.sh` first, which fast-forwards the
+   checkout (default branch: `main`, override with `CLAUDE_MAX_PROXY_REF`)
+   and migrates checkouts still sitting on legacy pinned branches. It never
+   touches a dirty worktree.
+
+2. **Missing openclaw.json entries.** OpenClaw only offers models listed
+   under `models.providers.claude-max-proxy.models` with aliases under
+   `agents.defaults.models`. The boot provisioner `openclaw-ensure-models`
+   now merges the current catalog (claude-sonnet/claude-opus/claude-fable)
+   into `openclaw.json` on every container start — merge-only, so your
+   existing entries, names, and aliases always win.
+
+**Verify after `make update`:**
+```bash
+# Proxy advertises the model
+curl -s http://localhost:3456/v1/models | jq -r '.data[].id'
+# openclaw.json carries it
+docker exec openclaw-gateway jq '.models.providers["claude-max-proxy"].models' \
+  /home/node/.openclaw/openclaw.json
+# Which sources were built
+git -C ./claude-max-api-proxy log -1 --oneline
+```
+
+If the proxy list still lacks the model, the checkout predates it:
+`git -C ./claude-max-api-proxy log -1` and compare with the branch that
+ships the model, then `make update` again. To converge config without a
+rebuild: `make ensure-config` then `make restart`.
+
 ## Discord Plugin Not Installed ("plugin not installed: discord")
 
 **Symptom:** On startup or in `make logs` you see:

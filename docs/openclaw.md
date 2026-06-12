@@ -102,9 +102,18 @@ If you ever lose the private credentials volume and need to rebuild from scratch
 
 After the proxy is authenticated, it is reachable from the OpenClaw gateway at `http://claude-max-proxy:3456/v1`.
 
-**Configure OpenClaw to use the proxy.** Edit `~/.openclaw/openclaw.json` and update two sections.
+**Configure OpenClaw to use the proxy.** This is automatic: on every gateway
+boot, the `openclaw-ensure-models` provisioner merges the provider, the model
+catalog, and the aliases into `~/.openclaw/openclaw.json` (then
+`openclaw-ensure-timeouts` adds the timeout profile). It is merge-only —
+your existing entries, names, and aliases always win — and `make update`
+recreates the container, thus new models ship without manual edits. Run
+`make ensure-config` to converge a running gateway on demand.
 
-**1. Add the provider.** Place the `models` block between the `auth` and `agents` sections:
+What gets provisioned, for reference:
+
+**1. The provider** (override via `OPENCLAW_PROXY_BASE_URL`,
+`OPENCLAW_PROXY_MODELS_JSON`):
 
 ```json
 "models": {
@@ -123,6 +132,10 @@ After the proxy is authenticated, it is reachable from the OpenClaw gateway at `
         {
           "id": "claude-opus",
           "name": "Claude Opus (latest, Max Proxy)"
+        },
+        {
+          "id": "claude-fable",
+          "name": "Claude Fable (latest, Max Proxy)"
         }
       ]
     }
@@ -131,53 +144,44 @@ After the proxy is authenticated, it is reachable from the OpenClaw gateway at `
 ```
 
 These are **version-less, always-latest aliases**. The proxy resolves any
-`claude-opus*` / `claude-sonnet*` / `claude-haiku*` id to that family and runs
-the Claude CLI with `--model opus|sonnet|haiku`, which the CLI always points at
-the newest release. So `claude-opus` follows every new Opus automatically — no
-config change per release. If you'd rather pin a fixed model (e.g. to hold
-Sonnet at a known version), use a dated id such as `claude-sonnet-4-6`
-instead; it resolves the same way but stays on that version.
+`claude-opus*` / `claude-sonnet*` / `claude-haiku*` / `claude-fable*` id to
+that family and runs the Claude CLI with `--model opus|sonnet|haiku|fable`,
+which the CLI always points at the newest release. So `claude-opus` follows
+every new Opus automatically — no config change per release. If you'd rather
+pin a fixed model (e.g. to hold Sonnet at a known version), use a dated id
+such as `claude-sonnet-4-6` instead; it resolves the same way but stays on
+that version.
 
-**2. Add the model allowlist.** Inside `agents.defaults`, add a `models` object that registers each model with a short alias. OpenClaw only exposes models listed here:
+**2. The model allowlist.** Inside `agents.defaults`, a `models` object
+registers each model with a short alias. OpenClaw only exposes models listed
+here:
 
 ```json
 "agents": {
   "defaults": {
-    "contextPruning": { "mode": "cache-ttl", "ttl": "1h" },
-    "compaction": { "mode": "safeguard" },
-    "thinkingDefault": "high",
-    "timeoutSeconds": 7200,
-    "heartbeat": { "every": "1h" },
-    "maxConcurrent": 8,
-    "subagents": { "runTimeoutSeconds": 3600 },
     "models": {
       "claude-max-proxy/claude-sonnet": { "alias": "sonnet" },
-      "claude-max-proxy/claude-opus": { "alias": "opus" }
+      "claude-max-proxy/claude-opus": { "alias": "opus" },
+      "claude-max-proxy/claude-fable": { "alias": "fable" }
     }
   }
 }
 ```
 
-**3. Set the primary model and fallbacks.** Edit `/opt/openclaw-home/.env`:
+**3. The default model.** `agents.defaults.model.primary` is seeded from
+`OPENCLAW_MODEL_PRIMARY` in `/opt/openclaw-home/.env` (stack default:
+`claude-max-proxy/claude-opus`) — only when the machine has not already
+chosen one, thus your `/model` choices and config edits stick. Optional:
+set `OPENCLAW_MODEL_FALLBACKS` (JSON array) to seed a fallback chain the
+same way.
 
-```
-OPENCLAW_MODEL_PRIMARY=claude-max-proxy/claude-opus
-OPENCLAW_MODEL_FALLBACKS=["claude-max-proxy/claude-sonnet"]
-```
-
-Restart the gateway:
-
-```bash
-make restart
-```
-
-Verify both models are registered:
+Verify the models are registered:
 
 ```bash
 openclaw models list
 ```
 
-You should see both `claude-max-proxy/claude-sonnet` and `claude-max-proxy/claude-opus`. Switch between them in Discord with `/model`, or from the CLI with the alias (`/model opus`, `/model sonnet`).
+You should see `claude-max-proxy/claude-sonnet`, `claude-max-proxy/claude-opus`, and `claude-max-proxy/claude-fable`. Switch between them in Discord with `/model`, or from the CLI with the alias (`/model opus`, `/model fable`).
 
 Verify the proxy container is running:
 

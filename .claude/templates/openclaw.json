@@ -1,5 +1,31 @@
 {
   "$schema": "https://openclaw.dev/schema/config.json",
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "claude-max-proxy": {
+        "baseUrl": "http://claude-max-proxy:3456/v1",
+        "api": "openai-completions",
+        "auth": "api-key",
+        "apiKey": "ignored",
+        "timeoutSeconds": 1800,
+        "models": [
+          {
+            "id": "claude-sonnet",
+            "name": "Claude Sonnet (latest, Max Proxy)"
+          },
+          {
+            "id": "claude-opus",
+            "name": "Claude Opus (latest, Max Proxy)"
+          },
+          {
+            "id": "claude-fable",
+            "name": "Claude Fable (latest, Max Proxy)"
+          }
+        ]
+      }
+    }
+  },
   "agents": {
     "defaults": {
       "timeoutSeconds": 7200,
@@ -10,12 +36,19 @@
         "mode": "cache-ttl",
         "ttl": "30m"
       },
+      "models": {
+        "claude-max-proxy/claude-sonnet": {
+          "alias": "sonnet"
+        },
+        "claude-max-proxy/claude-opus": {
+          "alias": "opus"
+        },
+        "claude-max-proxy/claude-fable": {
+          "alias": "fable"
+        }
+      },
       "model": {
-        "primary": "anthropic/claude-opus-4-8",
-        "fallbacks": [
-          "anthropic/claude-sonnet-4-6",
-          "openai-codex/gpt-5.3-codex"
-        ]
+        "primary": "claude-max-proxy/claude-opus"
       },
       "compaction": {
         "mode": "safeguard"

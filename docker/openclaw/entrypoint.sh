@@ -46,8 +46,6 @@ OPENCLAW_BROWSER_HEADLESS="${OPENCLAW_BROWSER_HEADLESS:-false}"
 OPENCLAW_BROWSER_DEBUG_PORT="${OPENCLAW_BROWSER_DEBUG_PORT:-18800}"
 OPENCLAW_VNC_PORT="${OPENCLAW_VNC_PORT:-5900}"
 CHROME_BIN="${CHROME_BIN:-/usr/bin/chromium}"
-OPENCLAW_MODEL_FALLBACKS="${OPENCLAW_MODEL_FALLBACKS:-[\"claude-max-proxy/claude-sonnet\"]}"
-OPENCLAW_MODEL_PRIMARY="${OPENCLAW_MODEL_PRIMARY:-claude-max-proxy/claude-opus}"
 
 # Clean up stale Chromium profile locks from previous container runs.
 # force-recreate gives the container a new hostname, so Chromium sees the
@@ -126,11 +124,17 @@ if [[ ! -f "$OPENCLAW_STATE_DIR/openclaw.json" ]]; then
   gosu node openclaw config set gateway.bind all 2>/dev/null || true
 fi
 
-# Ensure the long-running timeout profile (Discord inbound worker, agent run,
-# sub-agent run, proxy provider, and the no-progress watchdog) is present in
-# openclaw.json. Merge-only and idempotent, so it reproduces the profile on
-# fresh machines without disturbing existing config. Override individual values
-# via OPENCLAW_* env vars (see openclaw-ensure-timeouts).
+# Ensure the model catalog (claude-max-proxy provider, its models incl.
+# claude-fable, and the agent aliases), then the long-running timeout profile
+# (Discord inbound worker, agent run, sub-agent run, proxy provider, and the
+# no-progress watchdog) in openclaw.json. Order matters: models first, so the
+# provider block exists when the timeout pass sets its timeoutSeconds on a
+# fresh machine. Both are merge-only and idempotent, so they reproduce the
+# production profile on fresh machines and converge updated machines without
+# disturbing existing config. Override values via OPENCLAW_* env vars (see
+# openclaw-ensure-models / openclaw-ensure-timeouts).
+gosu node openclaw-ensure-models "$OPENCLAW_STATE_DIR/openclaw.json" || \
+  echo "[entrypoint] WARN: model provisioning skipped (see openclaw-ensure-models output)" >&2
 gosu node openclaw-ensure-timeouts "$OPENCLAW_STATE_DIR/openclaw.json" || \
   echo "[entrypoint] WARN: timeout provisioning skipped (see openclaw-ensure-timeouts output)" >&2
 
