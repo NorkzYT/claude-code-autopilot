@@ -8,6 +8,14 @@ services:
     container_name: openclaw-gateway
     shm_size: "2gb"
     restart: unless-stopped
+    # Resource and process limits. The gateway runs the browser and agent
+    # processes, thus it gets a smaller CPU slice and a higher pids ceiling
+    # for Chromium threads and helpers.
+    init: true
+    cpus: 1.0
+    mem_limit: 6g
+    mem_reservation: 1g
+    pids_limit: 2048
     environment:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
@@ -47,6 +55,21 @@ services:
       dockerfile: Dockerfile
     container_name: claude-max-proxy
     restart: unless-stopped
+    # Resource and process limits. They stop this container from crashing
+    # or freezing the host.
+    #   init            -> tini runs as PID 1 and reaps orphaned CLI
+    #                      children (subagents, bash, rg, MCP). No zombies.
+    #   cpus            -> caps CPU. A burst leaves room for the host.
+    #   mem_limit       -> Docker OOM-restarts the container at this cap
+    #                      instead of freezing the box. Pair it with swap.
+    #   mem_reservation -> soft floor Docker keeps under memory pressure.
+    #   pids_limit      -> hard ceiling on process count. A fork loop
+    #                      cannot exhaust host PIDs.
+    init: true
+    cpus: 2.0
+    mem_limit: 12g
+    mem_reservation: 2g
+    pids_limit: 1024
     environment:
       # The proxy's docker-entrypoint.sh starts as root, chowns the
       # named-volume mount points to these ids, and gosu-exec's the main
@@ -69,6 +92,17 @@ services:
       # How concurrent requests on the same conversation are handled.
       # `queue` serializes them instead of erroring/racing.
       CLAUDE_PROXY_SAME_CONVERSATION_POLICY: ${CLAUDE_PROXY_SAME_CONVERSATION_POLICY:-queue}
+      # Cap on concurrent claude spawns. The proxy auto-tunes this to ~3 on
+      # a 4-vCPU host. Pin it to 2 and leave CPU and RAM for the host. This
+      # caps top-level claude processes only. The cpus and pids limits above
+      # bound subagent fan-out inside a single run.
+      CLAUDE_PROXY_MAX_CONCURRENT_REQUESTS: ${CLAUDE_PROXY_MAX_CONCURRENT_REQUESTS:-2}
+      # Optional global "house" system prompt applied to EVERY request. The proxy
+      # injects this file's contents into its safe <instructions> wrapper (NOT
+      # --system-prompt, which trips Anthropic's third-party classifier). Read
+      # from the read-only ~/.openclaw mount; edits apply on the next request
+      # (mtime hot-reload — no rebuild/restart). Unset/empty disables it.
+      CLAUDE_PROXY_SYSTEM_PROMPT_FILE: ${CLAUDE_PROXY_SYSTEM_PROMPT_FILE:-/home/node/.openclaw/CLAUDE-FABLE-5.md}
       # Preventive self-restart ceiling. The container self-exits after this
       # many hours of uptime so Docker (via `restart: unless-stopped`) brings
       # it back with a clean slate. Defense-in-depth for the rare case where
